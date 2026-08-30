@@ -117,6 +117,15 @@ const createDatabase = async () => {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS users (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL COLLATE NOCASE UNIQUE,
+      role TEXT NOT NULL DEFAULT 'member',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS repository_assets (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -195,6 +204,7 @@ const createDatabase = async () => {
     CREATE INDEX IF NOT EXISTS idx_requirements_project ON requirements(project_id);
     CREATE INDEX IF NOT EXISTS idx_repositories_project ON repository_assets(project_id);
     CREATE INDEX IF NOT EXISTS idx_people_project ON people(project_id);
+    CREATE INDEX IF NOT EXISTS idx_users_updated ON users(updated_at);
     CREATE INDEX IF NOT EXISTS idx_requirement_statuses_project ON requirement_statuses(project_id, sort_order);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_requirement_statuses_initial
       ON requirement_statuses(project_id) WHERE is_initial = 1;

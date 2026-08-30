@@ -46,6 +46,7 @@ The target is not merely faster code generation. ASDP should make the complete e
 
 ```text
 Organization
+├─ User
 └─ Project
    ├─ Repository connection (GitLab or GitHub)
    ├─ Requirement

@@ -6,6 +6,7 @@ import type {
   CreateRepositoryInput,
   CreateRequirementInput,
   CreateRequirementStatusInput,
+  CreateUserInput,
   PersonAsset,
   Project,
   ProjectSummary,
@@ -18,6 +19,7 @@ import type {
   UpdateRepositoryInput,
   UpdateRequirementInput,
   UpdateRequirementStatusInput,
+  UserAccount,
 } from '../../shared/types/asdp'
 import { seedDefaultRequirementStatuses, useDatabase } from './database'
 
@@ -26,6 +28,7 @@ type RepositoryRow = { id: string, project_id: string, provider: RepositoryAsset
 type PersonRow = { id: string, project_id: string, name: string, email: string, role: string, reference_count: number, created_at: string, updated_at: string }
 type RequirementStatusRow = { id: string, project_id: string, key: string, name: string, color: string, sort_order: number, is_initial: number, is_terminal: number, requirement_count: number, created_at: string, updated_at: string }
 type RequirementRow = { id: string, project_id: string, title: string, description: string, acceptance_criteria: string, status: string, status_id: string, priority: Requirement['priority'], created_at: string, updated_at: string }
+type UserRow = { id: string, name: string, email: string, role: UserAccount['role'], created_at: string, updated_at: string }
 
 const now = () => new Date().toISOString()
 
@@ -33,6 +36,15 @@ const projectFromRow = (row: ProjectRow): Project => ({
   id: row.id,
   name: row.name,
   description: row.description,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+})
+
+const userFromRow = (row: UserRow): UserAccount => ({
+  id: row.id,
+  name: row.name,
+  email: row.email,
+  role: row.role,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 })
@@ -201,6 +213,24 @@ export const listProjects = (): ProjectSummary[] => (useDatabase().prepare(`
   repositoryCount: Number(row.repository_count),
   personCount: Number(row.person_count),
 }))
+
+export const listUsers = (): UserAccount[] => (useDatabase().prepare(`
+  SELECT * FROM users ORDER BY updated_at DESC
+`).all() as UserRow[]).map(userFromRow)
+
+export const createUser = (input: CreateUserInput) => {
+  const id = randomUUID()
+  const timestamp = now()
+  try {
+    useDatabase().prepare('INSERT INTO users (id, name, email, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(id, input.name, input.email, input.role, timestamp, timestamp)
+  } catch (error) {
+    throw createError({ statusCode: 409, statusMessage: 'This email is already registered', cause: error })
+  }
+
+  const row = useDatabase().prepare('SELECT * FROM users WHERE id = ?').get(id) as UserRow
+  return userFromRow(row)
+}
 
 export const getProjectWorkspace = (id: string): ProjectWorkspace => {
   const project = projectFromRow(getProjectRow(id))

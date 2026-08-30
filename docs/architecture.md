@@ -54,7 +54,9 @@ Repository connections identify their source-control provider. GitLab remains th
 ## Core Domain Model
 
 ```text
+Organization 1─* User
 Organization 1─* Project
+Project      *─* User through ProjectMember
 Project      1─* RepositoryConnection
 Project      1─* Requirement
 Requirement  1─* WorkflowRun
@@ -89,6 +91,13 @@ Requirement 1─* WorkflowRun
 Each `RepositoryAsset` stores a provider discriminator (`gitlab` or `github`) alongside its URL and default branch. Existing records migrate to `gitlab`. Provider-specific synchronization and delivery behavior stays behind source-control and delivery adapters.
 
 People may appear in the product's Asset module, but the domain must not model a person as project-owned data. A person belongs to the organization; `ProjectMember` grants project context, and `RequirementParticipant` grants requirement context.
+
+Global platform users are stored independently from projects and exposed through the
+top-level User Management module. A `User` has no `project_id`; future project access
+must be expressed through `ProjectMember` instead of assigning ownership to the user.
+The preview keeps the existing project people records separate until the membership
+model is implemented, so creating a platform user does not implicitly add that user to
+any project.
 
 The first implementation persists these records in SQLite through the Nuxt server API. Database access remains behind a repository layer so a future PostgreSQL migration can preserve the same identities, constraints, and API contracts.
 

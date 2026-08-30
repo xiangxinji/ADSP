@@ -5,13 +5,14 @@ import type {
   CreateRepositoryInput,
   CreateRequirementInput,
   CreateRequirementStatusInput,
+  CreateUserInput,
   UpdatePersonInput,
   UpdateProjectInput,
   UpdateRepositoryInput,
   UpdateRequirementInput,
   UpdateRequirementStatusInput,
 } from '../../shared/types/asdp'
-import { repositoryProviders, requirementPriorities } from '../../shared/types/asdp'
+import { repositoryProviders, requirementPriorities, userRoles } from '../../shared/types/asdp'
 import { bodyObject, enumValue, optionalStringArray, optionalText, requiredText } from './http-input'
 
 export const projectPayload = (value: unknown, partial = false): CreateProjectInput | UpdateProjectInput => {
@@ -19,6 +20,20 @@ export const projectPayload = (value: unknown, partial = false): CreateProjectIn
   return {
     name: partial && body.name === undefined ? undefined : requiredText(body.name, 'name'),
     description: partial && body.description === undefined ? undefined : optionalText(body.description),
+  }
+}
+
+export const userPayload = (value: unknown): CreateUserInput => {
+  const body = bodyObject(value)
+  const email = requiredText(body.email, 'email').toLowerCase()
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw createError({ statusCode: 400, statusMessage: 'email must be a valid email address' })
+  }
+
+  return {
+    name: requiredText(body.name, 'name'),
+    email,
+    role: enumValue(body.role, userRoles, 'member'),
   }
 }
 

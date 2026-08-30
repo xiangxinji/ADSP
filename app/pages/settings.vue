@@ -101,7 +101,7 @@ onMounted(() => {
   <div class="app-frame">
     <header class="site-header">
       <NuxtLink to="/" class="brand"><span>ASDP</span><small>Autonomous Software Delivery Platform</small></NuxtLink>
-      <nav class="header-nav" aria-label="全局导航"><NuxtLink to="/">项目</NuxtLink><NuxtLink to="/settings" class="active">全局设置</NuxtLink></nav>
+      <nav class="header-nav" aria-label="全局导航"><NuxtLink to="/">项目</NuxtLink><NuxtLink to="/users">用户管理</NuxtLink><NuxtLink to="/settings" class="active">全局设置</NuxtLink></nav>
     </header>
 
     <main class="page settings-page">
