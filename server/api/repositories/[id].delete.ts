@@ -1,7 +1,8 @@
-import { deleteRepository } from '../../utils/asdp-store'
+import { deleteRepository } from '../../services/repository-assets'
+import { routeParameter } from '../../utils/http-input'
 
 export default defineEventHandler((event) => {
-  deleteRepository(getRouterParam(event, 'id') || '')
+  deleteRepository(routeParameter(event))
   setResponseStatus(event, 204)
   return null
 })

@@ -1,3 +1,3 @@
-import { listUsers } from '../../utils/asdp-store'
+import { listUsers } from '../../services/users'
 
 export default defineEventHandler(() => listUsers())

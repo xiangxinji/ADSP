@@ -2,6 +2,7 @@ import initSqlJs, { type Database as SqlJsDatabase, type SqlValue } from 'sql.js
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
+import { defaultRequirementStatuses } from '../domain/requirement-statuses'
 
 type PreparedQuery = {
   get: (...parameters: SqlValue[]) => Record<string, unknown> | undefined
@@ -87,15 +88,6 @@ type DatabaseHolder = typeof globalThis & {
 }
 
 const globalDatabase = globalThis as DatabaseHolder
-
-const defaultRequirementStatuses = [
-  { key: 'draft', name: '草稿', color: '#667085', sortOrder: 10, isInitial: 1, isTerminal: 0 },
-  { key: 'clarifying', name: '澄清中', color: '#b54708', sortOrder: 20, isInitial: 0, isTerminal: 0 },
-  { key: 'ready', name: '已就绪', color: '#2563eb', sortOrder: 30, isInitial: 0, isTerminal: 0 },
-  { key: 'in_progress', name: '执行中', color: '#7c3aed', sortOrder: 40, isInitial: 0, isTerminal: 0 },
-  { key: 'validating', name: '验证中', color: '#0891b2', sortOrder: 50, isInitial: 0, isTerminal: 0 },
-  { key: 'delivered', name: '已交付', color: '#079455', sortOrder: 60, isInitial: 0, isTerminal: 1 },
-] as const
 
 const createDatabase = async () => {
   const databasePath = process.env.ASDP_DB_PATH || resolve(process.cwd(), '.data', 'asdp.sqlite')
@@ -320,7 +312,7 @@ const createDatabase = async () => {
     const timestamp = new Date().toISOString()
     defaultRequirementStatuses.forEach(status => insertStatus.run(
       randomUUID(), projectId, status.key, status.name, status.color, status.sortOrder,
-      status.isInitial, status.isTerminal, timestamp, timestamp,
+      Number(status.isInitial), Number(status.isTerminal), timestamp, timestamp,
     ))
   })
 
@@ -333,8 +325,8 @@ const createDatabase = async () => {
     insertStatus.run(
       randomUUID(), legacy.project_id, legacy.status,
       defaultStatus?.name || legacy.status, defaultStatus?.color || '#667085',
-      defaultStatus?.sortOrder || 100 + index, defaultStatus?.isInitial || 0,
-      defaultStatus?.isTerminal || 0, timestamp, timestamp,
+      defaultStatus?.sortOrder || 100 + index, Number(defaultStatus?.isInitial || false),
+      Number(defaultStatus?.isTerminal || false), timestamp, timestamp,
     )
     persistentDatabase.prepare(`
       UPDATE requirements
@@ -356,16 +348,3 @@ if (!globalDatabase.__asdpDatabasePromise) {
 const database = await globalDatabase.__asdpDatabasePromise
 
 export const useDatabase = () => database
-
-export const seedDefaultRequirementStatuses = (projectId: string) => {
-  const timestamp = new Date().toISOString()
-  const insertStatus = database.prepare(`
-    INSERT OR IGNORE INTO requirement_statuses
-      (id, project_id, key, name, color, sort_order, is_initial, is_terminal, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `)
-  defaultRequirementStatuses.forEach(status => insertStatus.run(
-    randomUUID(), projectId, status.key, status.name, status.color, status.sortOrder,
-    status.isInitial, status.isTerminal, timestamp, timestamp,
-  ))
-}

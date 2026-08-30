@@ -1,8 +1,9 @@
 import type { UpdateRequirementInput } from '../../../shared/types/asdp'
-import { updateRequirement } from '../../utils/asdp-store'
-import { requirementPayload } from '../../utils/payloads'
+import { updateRequirement } from '../../services/requirements'
+import { routeParameter } from '../../utils/http-input'
+import { requirementPayload } from '../../validation/requirements'
 
 export default defineEventHandler(async (event) => updateRequirement(
-  getRouterParam(event, 'id') || '',
+  routeParameter(event),
   requirementPayload(await readBody(event), true) as UpdateRequirementInput,
 ))

@@ -1,8 +1,9 @@
 import type { UpdateRepositoryInput } from '../../../shared/types/asdp'
-import { updateRepository } from '../../utils/asdp-store'
-import { repositoryPayload } from '../../utils/payloads'
+import { updateRepository } from '../../services/repository-assets'
+import { routeParameter } from '../../utils/http-input'
+import { repositoryPayload } from '../../validation/repository-assets'
 
 export default defineEventHandler(async (event) => updateRepository(
-  getRouterParam(event, 'id') || '',
+  routeParameter(event),
   repositoryPayload(await readBody(event), true) as UpdateRepositoryInput,
 ))

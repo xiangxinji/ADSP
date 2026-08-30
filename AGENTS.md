@@ -10,7 +10,21 @@ Read `docs/product-vision.md` and `docs/architecture.md` before changing product
 
 ## Project Structure
 
-This is a Nuxt 4 application. Code lives in `app/`, routes in `app/pages/`, shared types in `shared/`, server endpoints in `server/api/`, SQLite access in `server/utils/`, and product documentation in `docs/`. Put reusable UI in `app/components/` and shared client logic in `app/composables/`. Never commit `.nuxt/`, `.output/`, `.data/`, or `node_modules/`.
+This is a Nuxt 4 application. Code lives in `app/`, routes in `app/pages/`, shared types in `shared/`, server endpoints in `server/api/`, domain use cases in `server/services/`, persistence in `server/repositories/`, external-system adapters in `server/integrations/`, and product documentation in `docs/`. Put reusable UI in `app/components/` and shared client logic in `app/composables/`. Never commit `.nuxt/`, `.output/`, `.data/`, or `node_modules/`.
+
+## Backend API Architecture — Hard Requirement
+
+High cohesion and low coupling are mandatory for every backend API change. A change that violates the rules below is incomplete and must not be committed or merged.
+
+- Enforce the dependency direction `server/api` → `server/services` → `server/repositories` / `server/integrations` → `server/utils`. Never introduce reverse imports.
+- Keep endpoint files transport-only: parse and validate HTTP input, invoke a focused use case, and set the HTTP response. Do not place SQL, provider calls, or domain workflows in `server/api`.
+- Organize services, repositories, integrations, and validators by business domain. Each module must have one clear reason to change; do not recreate catch-all modules such as a global store, manager, or payload file.
+- Put cross-domain workflows in an explicitly named orchestration service. Domain services must expose focused operations instead of reaching into another domain's tables.
+- Keep all SQLite statements and row-to-domain mapping inside `server/repositories/` or database bootstrap/migration code. Services own business rules and transaction boundaries; repositories own persistence details.
+- Keep GitLab and future provider-specific requests and payloads behind `server/integrations/`. Provider response shapes must not leak into core domain models or endpoint contracts.
+- Preserve API paths and shared response contracts unless the requirement explicitly changes them. Put browser/server contracts in `shared/` and server-only types inside the owning backend domain.
+- Reuse small transport primitives from `server/utils/http-input.ts`, but keep domain payload validation in focused files under `server/validation/`.
+- Update `docs/architecture.md` whenever these boundaries or their dependency direction change, and verify every backend change with `npm run build`.
 
 ## Build, Test, and Development Commands
 

@@ -1,10 +1,11 @@
 import type { CreateRequirementStatusInput } from '../../../../../shared/types/asdp'
-import { createRequirementStatus } from '../../../../utils/asdp-store'
-import { requirementStatusPayload } from '../../../../utils/payloads'
+import { createRequirementStatus } from '../../../../services/requirement-statuses'
+import { routeParameter } from '../../../../utils/http-input'
+import { requirementStatusPayload } from '../../../../validation/requirement-statuses'
 
 export default defineEventHandler(async (event) => {
   const status = createRequirementStatus(
-    getRouterParam(event, 'id') || '',
+    routeParameter(event),
     requirementStatusPayload(await readBody(event)) as CreateRequirementStatusInput,
   )
   setResponseStatus(event, 201)

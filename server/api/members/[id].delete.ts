@@ -1,7 +1,8 @@
-import { deleteProjectMember } from '../../utils/asdp-store'
+import { deleteProjectMember } from '../../services/project-members'
+import { routeParameter } from '../../utils/http-input'
 
 export default defineEventHandler((event) => {
-  deleteProjectMember(getRouterParam(event, 'id') || '')
+  deleteProjectMember(routeParameter(event))
   setResponseStatus(event, 204)
   return null
 })

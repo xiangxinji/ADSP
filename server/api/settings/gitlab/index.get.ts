@@ -1,3 +1,3 @@
-import { getGitLabSettings } from '../../../utils/integration-settings'
+import { getGitLabSettings } from '../../../services/gitlab'
 
 export default defineEventHandler(() => getGitLabSettings())

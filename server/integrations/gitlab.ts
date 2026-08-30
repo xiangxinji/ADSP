@@ -1,6 +1,10 @@
 import { createError } from 'h3'
 import type { GitLabIdentity, GitLabRepository, GitLabRepositoryPage } from '../../shared/types/asdp'
-import type { GitLabCredentials } from './integration-settings'
+
+export type GitLabCredentials = {
+  baseUrl: string
+  token: string
+}
 
 type GitLabUserResponse = {
   id: number

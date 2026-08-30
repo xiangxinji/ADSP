@@ -1,3 +1,4 @@
-import { getProjectWorkspace } from '../../utils/asdp-store'
+import { getProjectWorkspace } from '../../services/project-workspace'
+import { routeParameter } from '../../utils/http-input'
 
-export default defineEventHandler(event => getProjectWorkspace(getRouterParam(event, 'id') || ''))
+export default defineEventHandler(event => getProjectWorkspace(routeParameter(event)))

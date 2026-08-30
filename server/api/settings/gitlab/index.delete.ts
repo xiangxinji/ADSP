@@ -1,4 +1,4 @@
-import { deleteGitLabSettings } from '../../../utils/integration-settings'
+import { deleteGitLabSettings } from '../../../services/gitlab'
 
 export default defineEventHandler((event) => {
   deleteGitLabSettings()

@@ -1,3 +1,3 @@
-import { listProjects } from '../../utils/asdp-store'
+import { listProjects } from '../../services/projects'
 
 export default defineEventHandler(() => listProjects())

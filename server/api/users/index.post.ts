@@ -1,5 +1,5 @@
-import { createUser } from '../../utils/asdp-store'
-import { userPayload } from '../../utils/payloads'
+import { createUser } from '../../services/users'
+import { userPayload } from '../../validation/users'
 
 export default defineEventHandler(async (event) => {
   const user = createUser(userPayload(await readBody(event)))

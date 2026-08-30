@@ -1,4 +1,10 @@
-import { createError } from 'h3'
+import { createError, getRouterParam, type H3Event } from 'h3'
+
+export const routeParameter = (event: H3Event, name = 'id') => {
+  const value = getRouterParam(event, name)?.trim()
+  if (!value) throw createError({ statusCode: 400, statusMessage: `${name} route parameter is required` })
+  return value
+}
 
 export const bodyObject = (value: unknown) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {

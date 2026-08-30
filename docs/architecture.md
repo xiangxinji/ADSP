@@ -51,6 +51,20 @@ GitLab CI pipeline triggered
 
 Repository connections identify their source-control provider. GitLab remains the first delivery adapter, while GitHub repositories can be registered now without leaking provider-specific data into the core workflow domain. GitHub Actions, Jenkins, and Argo CD delivery adapters can be added later without changing that domain.
 
+## Backend Module Boundaries
+
+The current Nuxt implementation is a modular monolith with an enforced inward dependency direction:
+
+```text
+server/api (HTTP transport) → server/validation (request contracts)
+                            → server/services (domain use cases and orchestration)
+                              → server/repositories | server/integrations
+                                (persistence | external providers)
+                                → server/utils (database and technical primitives)
+```
+
+Endpoint handlers parse input, invoke one focused use case, and shape the HTTP response. Services own business rules and transaction boundaries. Repositories own SQLite statements and row mapping, while integrations isolate GitLab or other provider protocols. Cross-domain read models such as the project workspace are assembled by explicitly named orchestration services rather than a global data store. Modules are grouped by business domain so adding a provider, persistence implementation, or use case does not require unrelated endpoint changes.
+
 ## Core Domain Model
 
 ```text

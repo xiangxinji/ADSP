@@ -1,7 +1,8 @@
-import { deleteRequirement } from '../../utils/asdp-store'
+import { deleteRequirement } from '../../services/requirements'
+import { routeParameter } from '../../utils/http-input'
 
 export default defineEventHandler((event) => {
-  deleteRequirement(getRouterParam(event, 'id') || '')
+  deleteRequirement(routeParameter(event))
   setResponseStatus(event, 204)
   return null
 })
