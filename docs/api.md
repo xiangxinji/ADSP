@@ -39,7 +39,7 @@ Requirement body:
   "statusId": "status-uuid",
   "priority": "high",
   "repositoryIds": ["repository-uuid"],
-  "personIds": ["person-uuid"]
+  "memberIds": ["member-uuid"]
 }
 ```
 
@@ -97,15 +97,26 @@ Existing repository records default to `gitlab` during migration.
 
 `PUT` and `POST /test` accept `{ "baseUrl": string, "token"?: string }`. When a connection already exists, an omitted or empty token keeps and tests the saved token. Saved tokens are never returned by any API. Repository queries accept `search`, `page`, and `perPage` (maximum 100).
 
-## People
+## Users
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/api/projects/:id/people` | Add a project member record |
-| `PATCH` | `/api/people/:id` | Update member metadata |
-| `DELETE` | `/api/people/:id` | Remove it and cascade requirement references |
+| `GET` | `/api/users` | List global platform users |
+| `POST` | `/api/users` | Create a global platform user |
 
-Body: `{ "name": string, "email": string, "role": string }`.
+Create body: `{ "name": string, "email": string, "role": "administrator" | "member" }`.
+Users are global and are not owned by a project.
+
+## Project Members
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/projects/:id/members` | Select a global user as a project member |
+| `PATCH` | `/api/members/:id` | Update the project-specific role |
+| `DELETE` | `/api/members/:id` | Remove the membership and cascade requirement references |
+
+Create body: `{ "userId": string, "role": string }`. Patch body: `{ "role": string }`.
+The selected user must exist globally and can appear only once in a project.
 
 ## Workspace Response
 
@@ -117,9 +128,10 @@ Body: `{ "name": string, "email": string, "role": string }`.
   "requirements": [],
   "requirementStatuses": [],
   "repositories": [],
-  "people": []
+  "members": []
 }
 ```
 
-Each requirement contains `statusId`, expanded `status`, `repositoryIds`, `personIds`,
-and expanded `repositories` and `people` arrays for direct display.
+Each requirement contains `statusId`, expanded `status`, `repositoryIds`, `memberIds`,
+and expanded `repositories` and `members` arrays for direct display. Every member
+contains its project role and an expanded global `user`.

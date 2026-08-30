@@ -60,7 +60,7 @@ Organization
 
 ## Initial Product Entry
 
-The first usable workflow starts from a project. A project is the context boundary for requirements, repositories, people, permissions, and workflow runs.
+The first usable workflow starts from a project. A project is the context boundary for requirements, repositories, member roles, permissions, and workflow runs. User identities remain global.
 
 ```text
 Project workspace
@@ -68,12 +68,12 @@ Project workspace
 │  └─ referenced repositories and participants
 ├─ Assets
 │  ├─ code repositories
-│  └─ people
+│  └─ project members selected from global users
 ├─ Workflow runs
 └─ Delivery records
 ```
 
-A project may contain multiple repositories. A requirement may reference multiple repositories and multiple people. Assets are registered once at project level and reused across requirements. A requirement represents business intent; each execution attempt is a separate workflow run so failures and retries remain auditable.
+A project may contain multiple repositories and may select multiple global users as project members with project-specific roles. A requirement may reference multiple repositories and multiple project members. Assets and memberships are registered once at project level and reused across requirements. A requirement represents business intent; each execution attempt is a separate workflow run so failures and retries remain auditable.
 
 Requirement creation will eventually begin with a natural-language AI entry. ASDP will create a draft, derive acceptance criteria, recommend assets and participants, clarify missing information, and start execution according to project policy.
 

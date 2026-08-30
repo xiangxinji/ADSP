@@ -39,7 +39,7 @@ const createProject = async () => {
         <div>
           <p class="overline">WORKSPACES</p>
           <h1>项目</h1>
-          <p>从项目进入需求、代码仓库和人员上下文。</p>
+          <p>从项目进入需求、代码仓库和成员上下文。</p>
         </div>
         <button class="button primary" type="button" @click="showCreateForm = !showCreateForm">{{ showCreateForm ? '取消' : '新建项目' }}</button>
       </section>
@@ -57,7 +57,7 @@ const createProject = async () => {
         <NuxtLink v-for="project in projects" :key="project.id" :to="`/projects/${project.id}`" class="panel project-card">
           <div class="project-monogram">{{ project.name.slice(0, 2).toUpperCase() }}</div>
           <div class="project-copy"><h2>{{ project.name }}</h2><p>{{ project.description || '暂无项目说明' }}</p></div>
-          <div class="project-counts"><span><strong>{{ project.requirementCount }}</strong> 需求</span><span><strong>{{ project.repositoryCount }}</strong> 仓库</span><span><strong>{{ project.personCount }}</strong> 人员</span></div>
+          <div class="project-counts"><span><strong>{{ project.requirementCount }}</strong> 需求</span><span><strong>{{ project.repositoryCount }}</strong> 仓库</span><span><strong>{{ project.memberCount }}</strong> 成员</span></div>
           <span class="open-link">进入项目 →</span>
         </NuxtLink>
         <div v-if="!projects?.length" class="panel empty-state"><strong>还没有项目</strong><span>创建第一个项目开始管理需求和资产。</span></div>

@@ -94,10 +94,11 @@ People may appear in the product's Asset module, but the domain must not model a
 
 Global platform users are stored independently from projects and exposed through the
 top-level User Management module. A `User` has no `project_id`; future project access
-must be expressed through `ProjectMember` instead of assigning ownership to the user.
-The preview keeps the existing project people records separate until the membership
-model is implemented, so creating a platform user does not implicitly add that user to
-any project.
+is expressed through `ProjectMember` instead of assigning ownership to the user. A
+project member selects one global user and stores only project-scoped metadata such as
+the member's role. Requirements reference project members, not global users directly,
+so participant roles remain meaningful within the project. Existing project people
+records migrate to global users and project memberships by email.
 
 The first implementation persists these records in SQLite through the Nuxt server API. Database access remains behind a repository layer so a future PostgreSQL migration can preserve the same identities, constraints, and API contracts.
 

@@ -1,12 +1,12 @@
 import { createError } from 'h3'
 import type {
-  CreatePersonInput,
+  CreateProjectMemberInput,
   CreateProjectInput,
   CreateRepositoryInput,
   CreateRequirementInput,
   CreateRequirementStatusInput,
   CreateUserInput,
-  UpdatePersonInput,
+  UpdateProjectMemberInput,
   UpdateProjectInput,
   UpdateRepositoryInput,
   UpdateRequirementInput,
@@ -48,13 +48,11 @@ export const repositoryPayload = (value: unknown, partial = false): CreateReposi
   }
 }
 
-export const personPayload = (value: unknown, partial = false): CreatePersonInput | UpdatePersonInput => {
+export const projectMemberPayload = (value: unknown, partial = false): CreateProjectMemberInput | UpdateProjectMemberInput => {
   const body = bodyObject(value)
-  return {
-    name: partial && body.name === undefined ? undefined : requiredText(body.name, 'name'),
-    email: partial && body.email === undefined ? undefined : requiredText(body.email, 'email'),
-    role: partial && body.role === undefined ? undefined : optionalText(body.role, 'Member') || 'Member',
-  }
+  const role = requiredText(body.role, 'role')
+  if (partial) return { role }
+  return { userId: requiredText(body.userId, 'userId'), role }
 }
 
 export const requirementPayload = (value: unknown, partial = false): CreateRequirementInput | UpdateRequirementInput => {
@@ -66,7 +64,7 @@ export const requirementPayload = (value: unknown, partial = false): CreateRequi
     statusId: body.statusId === undefined ? undefined : requiredText(body.statusId, 'statusId'),
     priority: partial && body.priority === undefined ? undefined : enumValue(body.priority, requirementPriorities, 'medium'),
     repositoryIds: partial && body.repositoryIds === undefined ? undefined : optionalStringArray(body.repositoryIds),
-    personIds: partial && body.personIds === undefined ? undefined : optionalStringArray(body.personIds),
+    memberIds: partial && body.memberIds === undefined ? undefined : optionalStringArray(body.memberIds),
   }
 }
 

@@ -2,22 +2,24 @@
 import type {
   GitLabRepository,
   GitLabRepositoryPage,
-  PersonAsset,
   ProjectWorkspace,
+  ProjectMember,
   RepositoryAsset,
   RepositoryProvider,
   Requirement,
   RequirementPriority,
   RequirementStatus,
+  UserAccount,
 } from '#shared/types/asdp'
 
 const route = useRoute()
 const projectId = computed(() => String(route.params.id))
 const workspaceUrl = computed(() => `/api/projects/${projectId.value}`)
 const { data: workspace, status, error, refresh } = await useFetch<ProjectWorkspace>(workspaceUrl)
+const { data: users, status: usersStatus, error: usersError } = await useFetch<UserAccount[]>('/api/users')
 
 const activeTab = ref<'requirements' | 'assets'>('requirements')
-const dialog = ref<'requirement' | 'statuses' | 'repository' | 'person' | null>(null)
+const dialog = ref<'requirement' | 'statuses' | 'repository' | 'member' | null>(null)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
 const actionError = ref('')
@@ -29,14 +31,14 @@ const requirementForm = reactive({
   statusId: '',
   priority: 'medium' as RequirementPriority,
   repositoryIds: [] as string[],
-  personIds: [] as string[],
+  memberIds: [] as string[],
 })
 const repositoryForm = reactive({ provider: 'gitlab' as RepositoryProvider, externalId: null as string | null, name: '', url: '', defaultBranch: 'main' })
 const gitlabRepositories = ref<GitLabRepository[]>([])
 const gitlabRepositorySearch = ref('')
 const gitlabRepositoriesLoading = ref(false)
 const gitlabRepositoryError = ref('')
-const personForm = reactive({ name: '', email: '', role: '' })
+const memberForm = reactive({ userId: '', role: '项目成员' })
 const requirementStatusForm = reactive({
   key: '',
   name: '',
@@ -64,6 +66,11 @@ const repositoryUrlPlaceholder = computed(() => repositoryForm.provider === 'git
   ? 'https://github.com/team/repo.git'
   : 'https://gitlab.example.com/team/repo.git')
 const formatDate = (value: string) => new Intl.DateTimeFormat('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
+const selectableUsers = computed(() => {
+  const assignedUserIds = new Set(workspace.value?.members.map(member => member.userId) || [])
+  const editingUserId = editingId.value ? memberForm.userId : ''
+  return (users.value || []).filter(user => user.id === editingUserId || !assignedUserIds.has(user.id))
+})
 
 const openRequirement = (requirement?: Requirement) => {
   editingId.value = requirement?.id || null
@@ -74,7 +81,7 @@ const openRequirement = (requirement?: Requirement) => {
     statusId: requirement.statusId,
     priority: requirement.priority,
     repositoryIds: [...requirement.repositoryIds],
-    personIds: [...requirement.personIds],
+    memberIds: [...requirement.memberIds],
   } : {
     title: '',
     description: '',
@@ -82,7 +89,7 @@ const openRequirement = (requirement?: Requirement) => {
     statusId: workspace.value?.requirementStatuses.find(status => status.isInitial)?.id || workspace.value?.requirementStatuses[0]?.id || '',
     priority: 'medium',
     repositoryIds: [],
-    personIds: [],
+    memberIds: [],
   })
   actionError.value = ''
   dialog.value = 'requirement'
@@ -132,11 +139,13 @@ const openRepository = (repository?: RepositoryAsset) => {
   if (!repository) void loadGitLabRepositories()
 }
 
-const openPerson = (person?: PersonAsset) => {
-  editingId.value = person?.id || null
-  Object.assign(personForm, person ? { name: person.name, email: person.email, role: person.role } : { name: '', email: '', role: '' })
+const openMember = (member?: ProjectMember) => {
+  editingId.value = member?.id || null
+  Object.assign(memberForm, member
+    ? { userId: member.userId, role: member.role }
+    : { userId: selectableUsers.value[0]?.id || '', role: '项目成员' })
   actionError.value = ''
-  dialog.value = 'person'
+  dialog.value = 'member'
 }
 
 const closeDialog = () => {
@@ -235,13 +244,13 @@ const saveRepository = async () => {
   }
 }
 
-const savePerson = async () => {
+const saveMember = async () => {
   saving.value = true
   actionError.value = ''
   try {
-    await $fetch(editingId.value ? `/api/people/${editingId.value}` : `/api/projects/${projectId.value}/people`, {
+    await $fetch(editingId.value ? `/api/members/${editingId.value}` : `/api/projects/${projectId.value}/members`, {
       method: editingId.value ? 'PATCH' : 'POST',
-      body: personForm,
+      body: memberForm,
     })
     await refresh()
     closeDialog()
@@ -252,12 +261,12 @@ const savePerson = async () => {
   }
 }
 
-const removeRecord = async (kind: 'requirement' | 'repository' | 'person', id: string, label: string, referenceCount = 0) => {
+const removeRecord = async (kind: 'requirement' | 'repository' | 'member', id: string, label: string, referenceCount = 0) => {
   const referenceNote = referenceCount ? `，并从 ${referenceCount} 条需求中移除引用` : ''
   if (!window.confirm(`确定删除“${label}”${referenceNote}吗？`)) return
   actionError.value = ''
   try {
-    const apiPath = kind === 'requirement' ? 'requirements' : kind === 'repository' ? 'repositories' : 'people'
+    const apiPath = kind === 'requirement' ? 'requirements' : kind === 'repository' ? 'repositories' : 'members'
     await $fetch(`/api/${apiPath}/${id}`, { method: 'DELETE' })
     await refresh()
   } catch (requestError) {
@@ -276,7 +285,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'person', id: s
     <main v-if="workspace" class="page workspace-page">
       <section class="workspace-heading">
         <div><p class="overline">PROJECT WORKSPACE</p><h1>{{ workspace.project.name }}</h1><p>{{ workspace.project.description || '暂无项目说明' }}</p></div>
-        <div class="workspace-stats"><span><strong>{{ workspace.requirements.length }}</strong>需求</span><span><strong>{{ workspace.repositories.length }}</strong>仓库</span><span><strong>{{ workspace.people.length }}</strong>人员</span></div>
+        <div class="workspace-stats"><span><strong>{{ workspace.requirements.length }}</strong>需求</span><span><strong>{{ workspace.repositories.length }}</strong>仓库</span><span><strong>{{ workspace.members.length }}</strong>成员</span></div>
       </section>
 
       <nav class="tabs" aria-label="项目模块">
@@ -298,18 +307,18 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'person', id: s
               <p>{{ requirement.description || '暂无需求说明' }}</p>
               <div class="asset-references">
                 <span v-for="repository in requirement.repositories" :key="repository.id" class="chip repo-chip">⌘ {{ repository.name }}</span>
-                <span v-for="person in requirement.people" :key="person.id" class="chip person-chip">{{ person.name }}</span>
-                <span v-if="!requirement.repositories.length && !requirement.people.length" class="unbound">尚未引用资产</span>
+                <span v-for="member in requirement.members" :key="member.id" class="chip member-chip">{{ member.user.name }}</span>
+                <span v-if="!requirement.repositories.length && !requirement.members.length" class="unbound">尚未引用资产</span>
               </div>
             </div>
             <div class="requirement-meta"><span>更新于 {{ formatDate(requirement.updatedAt) }}</span><div><button class="text-button" type="button" @click="openRequirement(requirement)">编辑</button><button class="text-button danger" type="button" @click="removeRecord('requirement', requirement.id, requirement.title)">删除</button></div></div>
           </article>
         </div>
-        <div v-else class="panel empty-state"><strong>还没有需求</strong><span>创建第一条需求，并绑定代码仓库和参与人员。</span><button class="button primary" type="button" @click="openRequirement()">新建需求</button></div>
+        <div v-else class="panel empty-state"><strong>还没有需求</strong><span>创建第一条需求，并绑定代码仓库和项目成员。</span><button class="button primary" type="button" @click="openRequirement()">新建需求</button></div>
       </section>
 
       <section v-else class="module-section assets-module">
-        <div class="section-heading"><div><h2>资产管理</h2><p>先在项目中登记代码仓库和人员，再由需求进行引用。</p></div></div>
+        <div class="section-heading"><div><h2>资产管理</h2><p>先在项目中登记代码仓库和成员，再由需求进行引用。</p></div></div>
         <div class="asset-columns">
           <section class="asset-group">
             <div class="asset-group-heading"><div><h3>代码仓库</h3><span>{{ workspace.repositories.length }} 条记录</span></div><button class="button secondary" type="button" @click="openRepository()">添加仓库</button></div>
@@ -322,13 +331,13 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'person', id: s
           </section>
 
           <section class="asset-group">
-            <div class="asset-group-heading"><div><h3>项目人员</h3><span>{{ workspace.people.length }} 条记录</span></div><button class="button secondary" type="button" @click="openPerson()">添加人员</button></div>
-            <article v-for="person in workspace.people" :key="person.id" class="panel asset-card">
-              <div class="asset-icon person-icon">{{ person.name.slice(0, 1) }}</div>
-              <div class="asset-copy"><strong>{{ person.name }}</strong><span>{{ person.email }}</span><small>{{ person.role || '未设置角色' }} · 被 {{ person.referenceCount }} 条需求引用</small></div>
-              <div class="asset-actions"><button class="text-button" type="button" @click="openPerson(person)">编辑</button><button class="text-button danger" type="button" @click="removeRecord('person', person.id, person.name, person.referenceCount)">删除</button></div>
+            <div class="asset-group-heading"><div><h3>项目成员</h3><span>{{ workspace.members.length }} 条记录</span></div><button class="button secondary" type="button" @click="openMember()">添加成员</button></div>
+            <article v-for="member in workspace.members" :key="member.id" class="panel asset-card">
+              <div class="asset-icon member-icon">{{ member.user.name.slice(0, 1) }}</div>
+              <div class="asset-copy"><strong>{{ member.user.name }}</strong><span>{{ member.user.email }}</span><small>{{ member.role }} · 被 {{ member.referenceCount }} 条需求引用</small></div>
+              <div class="asset-actions"><button class="text-button" type="button" @click="openMember(member)">编辑角色</button><button class="text-button danger" type="button" @click="removeRecord('member', member.id, member.user.name, member.referenceCount)">移除</button></div>
             </article>
-            <div v-if="!workspace.people.length" class="panel empty-state compact"><span>尚未添加项目人员</span><button class="text-button" type="button" @click="openPerson()">添加第一位人员</button></div>
+            <div v-if="!workspace.members.length" class="panel empty-state compact"><span>尚未添加项目成员</span><button class="text-button" type="button" @click="openMember()">添加第一位成员</button></div>
           </section>
         </div>
       </section>
@@ -342,7 +351,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'person', id: s
           <div class="dialog-heading"><div><p class="overline">REQUIREMENT</p><h2>{{ editingId ? '编辑需求' : '新建需求' }}</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
           <div class="form-grid two"><div class="field span-two"><label>标题</label><input v-model="requirementForm.title" required placeholder="描述要交付的功能" /></div><div class="field"><label>状态</label><select v-model="requirementForm.statusId" required><option v-for="requirementStatus in workspace?.requirementStatuses" :key="requirementStatus.id" :value="requirementStatus.id">{{ requirementStatus.name }}</option></select></div><div class="field"><label>优先级</label><select v-model="requirementForm.priority"><option v-for="option in priorityOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div><div class="field span-two"><label>需求说明</label><textarea v-model="requirementForm.description" rows="3" placeholder="说明背景、目标和范围" /></div><div class="field span-two"><label>验收标准</label><textarea v-model="requirementForm.acceptanceCriteria" rows="3" placeholder="说明怎样才算完成" /></div></div>
           <div class="reference-picker"><div><h3>引用代码仓库</h3><p>可以选择多个仓库</p></div><div v-if="workspace?.repositories.length" class="check-list"><label v-for="repository in workspace.repositories" :key="repository.id"><input v-model="requirementForm.repositoryIds" type="checkbox" :value="repository.id" /><span><strong>{{ repository.name }}</strong><small>{{ repositoryProviderLabel(repository.provider) }} · {{ repository.defaultBranch }}</small></span></label></div><p v-else class="picker-empty">请先在资产模块添加代码仓库。</p></div>
-          <div class="reference-picker"><div><h3>引用项目人员</h3><p>可以选择多位参与者</p></div><div v-if="workspace?.people.length" class="check-list"><label v-for="person in workspace.people" :key="person.id"><input v-model="requirementForm.personIds" type="checkbox" :value="person.id" /><span><strong>{{ person.name }}</strong><small>{{ person.role || person.email }}</small></span></label></div><p v-else class="picker-empty">请先在资产模块添加人员。</p></div>
+          <div class="reference-picker"><div><h3>引用项目成员</h3><p>可以选择多位参与者</p></div><div v-if="workspace?.members.length" class="check-list"><label v-for="member in workspace.members" :key="member.id"><input v-model="requirementForm.memberIds" type="checkbox" :value="member.id" /><span><strong>{{ member.user.name }}</strong><small>{{ member.role || member.user.email }}</small></span></label></div><p v-else class="picker-empty">请先在资产模块添加成员。</p></div>
           <p v-if="actionError" class="form-error">{{ actionError }}</p>
           <div class="dialog-actions"><button class="button secondary" type="button" @click="closeDialog">取消</button><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存需求' }}</button></div>
         </form>
@@ -376,10 +385,12 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'person', id: s
           <p v-if="actionError" class="form-error">{{ actionError }}</p><div class="dialog-actions"><button class="button secondary" type="button" @click="closeDialog">取消</button><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存仓库' }}</button></div>
         </form>
 
-        <form v-else-if="dialog === 'person'" class="dialog" @submit.prevent="savePerson">
-          <div class="dialog-heading"><div><p class="overline">PROJECT MEMBER</p><h2>{{ editingId ? '编辑人员' : '添加人员' }}</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
-          <div class="field"><label>姓名</label><input v-model="personForm.name" required placeholder="例如：陈嘉" /></div><div class="field"><label>邮箱</label><input v-model="personForm.email" required type="email" placeholder="name@example.com" /></div><div class="field"><label>项目角色</label><input v-model="personForm.role" placeholder="例如：技术负责人" /></div>
-          <p v-if="actionError" class="form-error">{{ actionError }}</p><div class="dialog-actions"><button class="button secondary" type="button" @click="closeDialog">取消</button><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存人员' }}</button></div>
+        <form v-else-if="dialog === 'member'" class="dialog" @submit.prevent="saveMember">
+          <div class="dialog-heading"><div><p class="overline">PROJECT MEMBER</p><h2>{{ editingId ? '编辑成员角色' : '添加项目成员' }}</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
+          <p class="dialog-intro">从全局用户中选择项目成员，并定义其在当前项目中的角色。</p>
+          <div class="field"><label>用户</label><select v-model="memberForm.userId" required :disabled="Boolean(editingId) || usersStatus === 'pending'"><option v-for="user in selectableUsers" :key="user.id" :value="user.id">{{ user.name }} · {{ user.email }}</option></select><small v-if="editingId">成员身份不可更换，只能修改项目角色。</small><small v-else-if="usersStatus === 'pending'">正在读取全局用户…</small><small v-else-if="usersError">全局用户读取失败，请稍后重试。</small><small v-else-if="!selectableUsers.length">没有可添加的用户，请先前往 <NuxtLink to="/users">用户管理</NuxtLink> 新增用户。</small></div>
+          <div class="field"><label>项目角色</label><input v-model="memberForm.role" required placeholder="例如：技术负责人" /><small>角色只在当前项目内生效。</small></div>
+          <p v-if="actionError" class="form-error">{{ actionError }}</p><div class="dialog-actions"><button class="button secondary" type="button" @click="closeDialog">取消</button><button class="button primary" type="submit" :disabled="saving || !memberForm.userId">{{ saving ? '保存中…' : editingId ? '保存角色' : '添加成员' }}</button></div>
         </form>
       </div>
     </Teleport>

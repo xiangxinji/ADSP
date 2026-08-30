@@ -1,20 +1,20 @@
 import { randomUUID } from 'node:crypto'
 import { createError } from 'h3'
 import type {
-  CreatePersonInput,
+  CreateProjectMemberInput,
   CreateProjectInput,
   CreateRepositoryInput,
   CreateRequirementInput,
   CreateRequirementStatusInput,
   CreateUserInput,
-  PersonAsset,
   Project,
+  ProjectMember,
   ProjectSummary,
   ProjectWorkspace,
   RepositoryAsset,
   Requirement,
   RequirementStatus,
-  UpdatePersonInput,
+  UpdateProjectMemberInput,
   UpdateProjectInput,
   UpdateRepositoryInput,
   UpdateRequirementInput,
@@ -25,7 +25,7 @@ import { seedDefaultRequirementStatuses, useDatabase } from './database'
 
 type ProjectRow = { id: string, name: string, description: string, created_at: string, updated_at: string }
 type RepositoryRow = { id: string, project_id: string, provider: RepositoryAsset['provider'], external_id: string | null, name: string, url: string, default_branch: string, reference_count: number, created_at: string, updated_at: string }
-type PersonRow = { id: string, project_id: string, name: string, email: string, role: string, reference_count: number, created_at: string, updated_at: string }
+type ProjectMemberRow = { id: string, project_id: string, user_id: string, role: string, reference_count: number, created_at: string, updated_at: string, user_name: string, user_email: string, user_role: UserAccount['role'], user_created_at: string, user_updated_at: string }
 type RequirementStatusRow = { id: string, project_id: string, key: string, name: string, color: string, sort_order: number, is_initial: number, is_terminal: number, requirement_count: number, created_at: string, updated_at: string }
 type RequirementRow = { id: string, project_id: string, title: string, description: string, acceptance_criteria: string, status: string, status_id: string, priority: Requirement['priority'], created_at: string, updated_at: string }
 type UserRow = { id: string, name: string, email: string, role: UserAccount['role'], created_at: string, updated_at: string }
@@ -62,11 +62,18 @@ const repositoryFromRow = (row: RepositoryRow): RepositoryAsset => ({
   updatedAt: row.updated_at,
 })
 
-const personFromRow = (row: PersonRow): PersonAsset => ({
+const projectMemberFromRow = (row: ProjectMemberRow): ProjectMember => ({
   id: row.id,
   projectId: row.project_id,
-  name: row.name,
-  email: row.email,
+  userId: row.user_id,
+  user: {
+    id: row.user_id,
+    name: row.user_name,
+    email: row.user_email,
+    role: row.user_role,
+    createdAt: row.user_created_at,
+    updatedAt: row.user_updated_at,
+  },
   role: row.role,
   referenceCount: Number(row.reference_count || 0),
   createdAt: row.created_at,
@@ -93,6 +100,12 @@ const getProjectRow = (id: string) => {
   return row
 }
 
+const getUserRow = (id: string) => {
+  const row = useDatabase().prepare('SELECT * FROM users WHERE id = ?').get(id) as UserRow | undefined
+  if (!row) throw createError({ statusCode: 404, statusMessage: 'User not found' })
+  return row
+}
+
 const getRepositoryRow = (id: string) => {
   const row = useDatabase().prepare(`
     SELECT r.*, COUNT(rr.requirement_id) AS reference_count
@@ -104,14 +117,17 @@ const getRepositoryRow = (id: string) => {
   return row
 }
 
-const getPersonRow = (id: string) => {
+const getProjectMemberRow = (id: string) => {
   const row = useDatabase().prepare(`
-    SELECT p.*, COUNT(rp.requirement_id) AS reference_count
-    FROM people p
-    LEFT JOIN requirement_people rp ON rp.person_id = p.id
-    WHERE p.id = ? GROUP BY p.id
-  `).get(id) as PersonRow | undefined
-  if (!row) throw createError({ statusCode: 404, statusMessage: 'Person not found' })
+    SELECT m.*, u.name AS user_name, u.email AS user_email, u.role AS user_role,
+      u.created_at AS user_created_at, u.updated_at AS user_updated_at,
+      COUNT(rm.requirement_id) AS reference_count
+    FROM project_members m
+    JOIN users u ON u.id = m.user_id
+    LEFT JOIN requirement_members rm ON rm.member_id = m.id
+    WHERE m.id = ? GROUP BY m.id
+  `).get(id) as ProjectMemberRow | undefined
+  if (!row) throw createError({ statusCode: 404, statusMessage: 'Project member not found' })
   return row
 }
 
@@ -148,13 +164,16 @@ const listRepositories = (projectId: string) => (useDatabase().prepare(`
   GROUP BY r.id ORDER BY r.updated_at DESC
 `).all(projectId) as RepositoryRow[]).map(repositoryFromRow)
 
-const listPeople = (projectId: string) => (useDatabase().prepare(`
-  SELECT p.*, COUNT(rp.requirement_id) AS reference_count
-  FROM people p
-  LEFT JOIN requirement_people rp ON rp.person_id = p.id
-  WHERE p.project_id = ?
-  GROUP BY p.id ORDER BY p.updated_at DESC
-`).all(projectId) as PersonRow[]).map(personFromRow)
+const listProjectMembers = (projectId: string) => (useDatabase().prepare(`
+  SELECT m.*, u.name AS user_name, u.email AS user_email, u.role AS user_role,
+    u.created_at AS user_created_at, u.updated_at AS user_updated_at,
+    COUNT(rm.requirement_id) AS reference_count
+  FROM project_members m
+  JOIN users u ON u.id = m.user_id
+  LEFT JOIN requirement_members rm ON rm.member_id = m.id
+  WHERE m.project_id = ?
+  GROUP BY m.id ORDER BY m.updated_at DESC
+`).all(projectId) as ProjectMemberRow[]).map(projectMemberFromRow)
 
 const requirementFromRow = (row: RequirementRow): Requirement => {
   const database = useDatabase()
@@ -164,11 +183,15 @@ const requirementFromRow = (row: RequirementRow): Requirement => {
     JOIN requirement_repositories rr ON rr.repository_id = r.id
     WHERE rr.requirement_id = ? ORDER BY r.name
   `).all(row.id) as RepositoryRow[]).map(repositoryFromRow)
-  const people = (database.prepare(`
-    SELECT p.*, 0 AS reference_count FROM people p
-    JOIN requirement_people rp ON rp.person_id = p.id
-    WHERE rp.requirement_id = ? ORDER BY p.name
-  `).all(row.id) as PersonRow[]).map(personFromRow)
+  const members = (database.prepare(`
+    SELECT m.*, u.name AS user_name, u.email AS user_email, u.role AS user_role,
+      u.created_at AS user_created_at, u.updated_at AS user_updated_at,
+      0 AS reference_count
+    FROM project_members m
+    JOIN users u ON u.id = m.user_id
+    JOIN requirement_members rm ON rm.member_id = m.id
+    WHERE rm.requirement_id = ? ORDER BY u.name
+  `).all(row.id) as ProjectMemberRow[]).map(projectMemberFromRow)
 
   return {
     id: row.id,
@@ -180,9 +203,9 @@ const requirementFromRow = (row: RequirementRow): Requirement => {
     status,
     priority: row.priority,
     repositoryIds: repositories.map(repository => repository.id),
-    personIds: people.map(person => person.id),
+    memberIds: members.map(member => member.id),
     repositories,
-    people,
+    members,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }
@@ -192,7 +215,7 @@ const listRequirements = (projectId: string) => (useDatabase().prepare(`
   SELECT * FROM requirements WHERE project_id = ? ORDER BY updated_at DESC
 `).all(projectId) as RequirementRow[]).map(requirementFromRow)
 
-const validateAssetIds = (projectId: string, table: 'repository_assets' | 'people', ids: string[]) => {
+const validateAssetIds = (projectId: string, table: 'repository_assets' | 'project_members', ids: string[]) => {
   if (ids.length === 0) return
   const placeholders = ids.map(() => '?').join(', ')
   const rows = useDatabase().prepare(`SELECT id FROM ${table} WHERE project_id = ? AND id IN (${placeholders})`).all(projectId, ...ids) as { id: string }[]
@@ -205,13 +228,13 @@ export const listProjects = (): ProjectSummary[] => (useDatabase().prepare(`
   SELECT p.*,
     (SELECT COUNT(*) FROM requirements r WHERE r.project_id = p.id) AS requirement_count,
     (SELECT COUNT(*) FROM repository_assets a WHERE a.project_id = p.id) AS repository_count,
-    (SELECT COUNT(*) FROM people m WHERE m.project_id = p.id) AS person_count
+    (SELECT COUNT(*) FROM project_members m WHERE m.project_id = p.id) AS member_count
   FROM projects p ORDER BY p.updated_at DESC
-`).all() as (ProjectRow & { requirement_count: number, repository_count: number, person_count: number })[]).map(row => ({
+`).all() as (ProjectRow & { requirement_count: number, repository_count: number, member_count: number })[]).map(row => ({
   ...projectFromRow(row),
   requirementCount: Number(row.requirement_count),
   repositoryCount: Number(row.repository_count),
-  personCount: Number(row.person_count),
+  memberCount: Number(row.member_count),
 }))
 
 export const listUsers = (): UserAccount[] => (useDatabase().prepare(`
@@ -228,8 +251,7 @@ export const createUser = (input: CreateUserInput) => {
     throw createError({ statusCode: 409, statusMessage: 'This email is already registered', cause: error })
   }
 
-  const row = useDatabase().prepare('SELECT * FROM users WHERE id = ?').get(id) as UserRow
-  return userFromRow(row)
+  return userFromRow(getUserRow(id))
 }
 
 export const getProjectWorkspace = (id: string): ProjectWorkspace => {
@@ -239,7 +261,7 @@ export const getProjectWorkspace = (id: string): ProjectWorkspace => {
     requirements: listRequirements(id),
     requirementStatuses: listRequirementStatuses(id),
     repositories: listRepositories(id),
-    people: listPeople(id),
+    members: listProjectMembers(id),
   }
 }
 
@@ -375,45 +397,42 @@ export const deleteRepository = (id: string) => {
   useDatabase().prepare('DELETE FROM repository_assets WHERE id = ?').run(id)
 }
 
-export const createPerson = (projectId: string, input: CreatePersonInput) => {
+export const createProjectMember = (projectId: string, input: CreateProjectMemberInput) => {
   getProjectRow(projectId)
+  getUserRow(input.userId)
   const id = randomUUID()
   const timestamp = now()
   try {
-    useDatabase().prepare('INSERT INTO people (id, project_id, name, email, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(id, projectId, input.name, input.email, input.role, timestamp, timestamp)
+    useDatabase().prepare('INSERT INTO project_members (id, project_id, user_id, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(id, projectId, input.userId, input.role, timestamp, timestamp)
   } catch (error) {
-    throw createError({ statusCode: 409, statusMessage: 'This email is already registered in the project', cause: error })
+    throw createError({ statusCode: 409, statusMessage: 'This user is already a member of the project', cause: error })
   }
-  return personFromRow(getPersonRow(id))
+  return projectMemberFromRow(getProjectMemberRow(id))
 }
 
-export const updatePerson = (id: string, input: UpdatePersonInput) => {
-  const current = personFromRow(getPersonRow(id))
-  try {
-    useDatabase().prepare('UPDATE people SET name = ?, email = ?, role = ?, updated_at = ? WHERE id = ?')
-      .run(input.name ?? current.name, input.email ?? current.email, input.role ?? current.role, now(), id)
-  } catch (error) {
-    throw createError({ statusCode: 409, statusMessage: 'This email is already registered in the project', cause: error })
-  }
-  return personFromRow(getPersonRow(id))
+export const updateProjectMember = (id: string, input: UpdateProjectMemberInput) => {
+  const current = projectMemberFromRow(getProjectMemberRow(id))
+  useDatabase().prepare('UPDATE project_members SET role = ?, updated_at = ? WHERE id = ?')
+    .run(input.role ?? current.role, now(), id)
+  return projectMemberFromRow(getProjectMemberRow(id))
 }
 
-export const deletePerson = (id: string) => {
-  getPersonRow(id)
-  useDatabase().prepare('DELETE FROM people WHERE id = ?').run(id)
+export const deleteProjectMember = (id: string) => {
+  getProjectMemberRow(id)
+  useDatabase().prepare('DELETE FROM project_members WHERE id = ?').run(id)
 }
 
-const replaceRequirementAssets = (requirementId: string, projectId: string, repositoryIds: string[], personIds: string[]) => {
+const replaceRequirementAssets = (requirementId: string, projectId: string, repositoryIds: string[], memberIds: string[]) => {
   validateAssetIds(projectId, 'repository_assets', repositoryIds)
-  validateAssetIds(projectId, 'people', personIds)
+  validateAssetIds(projectId, 'project_members', memberIds)
   const database = useDatabase()
   database.prepare('DELETE FROM requirement_repositories WHERE requirement_id = ?').run(requirementId)
-  database.prepare('DELETE FROM requirement_people WHERE requirement_id = ?').run(requirementId)
+  database.prepare('DELETE FROM requirement_members WHERE requirement_id = ?').run(requirementId)
   const insertRepository = database.prepare('INSERT INTO requirement_repositories (requirement_id, repository_id) VALUES (?, ?)')
-  const insertPerson = database.prepare('INSERT INTO requirement_people (requirement_id, person_id) VALUES (?, ?)')
+  const insertMember = database.prepare('INSERT INTO requirement_members (requirement_id, member_id) VALUES (?, ?)')
   repositoryIds.forEach(repositoryId => insertRepository.run(requirementId, repositoryId))
-  personIds.forEach(personId => insertPerson.run(requirementId, personId))
+  memberIds.forEach(memberId => insertMember.run(requirementId, memberId))
 }
 
 const resolveRequirementStatus = (projectId: string, statusId?: string) => {
@@ -443,7 +462,7 @@ export const createRequirement = (projectId: string, input: CreateRequirementInp
       INSERT INTO requirements (id, project_id, title, description, acceptance_criteria, status, status_id, priority, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(id, projectId, input.title, input.description, input.acceptanceCriteria, status.key, status.id, input.priority, timestamp, timestamp)
-    replaceRequirementAssets(id, projectId, input.repositoryIds, input.personIds)
+    replaceRequirementAssets(id, projectId, input.repositoryIds, input.memberIds)
   })()
   return requirementFromRow(getRequirementRow(id))
 }
@@ -469,7 +488,7 @@ export const updateRequirement = (id: string, input: UpdateRequirementInput) => 
       id,
       current.projectId,
       input.repositoryIds ?? current.repositoryIds,
-      input.personIds ?? current.personIds,
+      input.memberIds ?? current.memberIds,
     )
   })()
   return requirementFromRow(getRequirementRow(id))

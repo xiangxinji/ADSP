@@ -163,6 +163,16 @@ const createDatabase = async () => {
       UNIQUE(project_id, email)
     );
 
+    CREATE TABLE IF NOT EXISTS project_members (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      user_id TEXT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+      role TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(project_id, user_id)
+    );
+
     CREATE TABLE IF NOT EXISTS requirement_statuses (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -201,14 +211,69 @@ const createDatabase = async () => {
       PRIMARY KEY(requirement_id, person_id)
     );
 
+    CREATE TABLE IF NOT EXISTS requirement_members (
+      requirement_id TEXT NOT NULL REFERENCES requirements(id) ON DELETE CASCADE,
+      member_id TEXT NOT NULL REFERENCES project_members(id) ON DELETE CASCADE,
+      PRIMARY KEY(requirement_id, member_id)
+    );
+
     CREATE INDEX IF NOT EXISTS idx_requirements_project ON requirements(project_id);
     CREATE INDEX IF NOT EXISTS idx_repositories_project ON repository_assets(project_id);
     CREATE INDEX IF NOT EXISTS idx_people_project ON people(project_id);
+    CREATE INDEX IF NOT EXISTS idx_project_members_project ON project_members(project_id);
+    CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id);
     CREATE INDEX IF NOT EXISTS idx_users_updated ON users(updated_at);
     CREATE INDEX IF NOT EXISTS idx_requirement_statuses_project ON requirement_statuses(project_id, sort_order);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_requirement_statuses_initial
       ON requirement_statuses(project_id) WHERE is_initial = 1;
   `)
+
+  const legacyPersonCount = persistentDatabase.prepare('SELECT COUNT(*) AS count FROM people').get() as { count: number }
+  if (Number(legacyPersonCount.count) > 0) {
+    persistentDatabase.transaction(() => {
+      persistentDatabase.prepare(`
+        INSERT OR IGNORE INTO users (id, name, email, role, created_at, updated_at)
+          SELECT id, name, LOWER(email), 'member', created_at, updated_at
+          FROM people ORDER BY created_at
+      `).run()
+      persistentDatabase.prepare(`
+        INSERT OR IGNORE INTO project_members (id, project_id, user_id, role, created_at, updated_at)
+          SELECT p.id, p.project_id, u.id, p.role, p.created_at, p.updated_at
+          FROM people p JOIN users u ON u.email = p.email COLLATE NOCASE
+      `).run()
+      persistentDatabase.prepare(`
+        INSERT OR IGNORE INTO requirement_members (requirement_id, member_id)
+          SELECT rp.requirement_id, m.id
+          FROM requirement_people rp
+          JOIN people p ON p.id = rp.person_id
+          JOIN users u ON u.email = p.email COLLATE NOCASE
+          JOIN project_members m ON m.project_id = p.project_id AND m.user_id = u.id
+      `).run()
+
+      const missingMembers = persistentDatabase.prepare(`
+        SELECT COUNT(*) AS count
+        FROM people p
+        LEFT JOIN users u ON u.email = p.email COLLATE NOCASE
+        LEFT JOIN project_members m ON m.project_id = p.project_id AND m.user_id = u.id
+        WHERE m.id IS NULL
+      `).get() as { count: number }
+      const missingReferences = persistentDatabase.prepare(`
+        SELECT COUNT(*) AS count
+        FROM requirement_people rp
+        JOIN people p ON p.id = rp.person_id
+        JOIN users u ON u.email = p.email COLLATE NOCASE
+        JOIN project_members m ON m.project_id = p.project_id AND m.user_id = u.id
+        LEFT JOIN requirement_members rm ON rm.requirement_id = rp.requirement_id AND rm.member_id = m.id
+        WHERE rm.member_id IS NULL
+      `).get() as { count: number }
+      if (Number(missingMembers.count) > 0 || Number(missingReferences.count) > 0) {
+        throw new Error('Legacy project people migration did not preserve every record')
+      }
+
+      persistentDatabase.prepare('DELETE FROM requirement_people').run()
+      persistentDatabase.prepare('DELETE FROM people').run()
+    })()
+  }
 
   const repositoryColumns = persistentDatabase.prepare('PRAGMA table_info(repository_assets)').all() as { name: string }[]
   if (!repositoryColumns.some(column => column.name === 'provider')) {

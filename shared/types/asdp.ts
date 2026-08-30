@@ -26,7 +26,7 @@ export type Project = {
 export type ProjectSummary = Project & {
   requirementCount: number
   repositoryCount: number
-  personCount: number
+  memberCount: number
 }
 
 export type RepositoryAsset = {
@@ -76,11 +76,11 @@ export type GitLabRepositoryPage = {
   nextPage: number | null
 }
 
-export type PersonAsset = {
+export type ProjectMember = {
   id: string
   projectId: string
-  name: string
-  email: string
+  userId: string
+  user: UserAccount
   role: string
   referenceCount: number
   createdAt: string
@@ -111,9 +111,9 @@ export type Requirement = {
   status: RequirementStatus
   priority: RequirementPriority
   repositoryIds: string[]
-  personIds: string[]
+  memberIds: string[]
   repositories: RepositoryAsset[]
-  people: PersonAsset[]
+  members: ProjectMember[]
   createdAt: string
   updatedAt: string
 }
@@ -123,7 +123,7 @@ export type ProjectWorkspace = {
   requirements: Requirement[]
   requirementStatuses: RequirementStatus[]
   repositories: RepositoryAsset[]
-  people: PersonAsset[]
+  members: ProjectMember[]
 }
 
 export type CreateProjectInput = Pick<Project, 'name' | 'description'>
@@ -133,11 +133,11 @@ export type CreateRepositoryInput = Pick<RepositoryAsset, 'provider' | 'name' | 
   externalId?: string | null
 }
 export type UpdateRepositoryInput = Partial<CreateRepositoryInput>
-export type CreatePersonInput = Pick<PersonAsset, 'name' | 'email' | 'role'>
-export type UpdatePersonInput = Partial<CreatePersonInput>
+export type CreateProjectMemberInput = Pick<ProjectMember, 'userId' | 'role'>
+export type UpdateProjectMemberInput = Pick<ProjectMember, 'role'>
 export type CreateRequirementStatusInput = Pick<RequirementStatus, 'key' | 'name' | 'color' | 'sortOrder' | 'isInitial' | 'isTerminal'>
 export type UpdateRequirementStatusInput = Partial<CreateRequirementStatusInput>
-export type CreateRequirementInput = Pick<Requirement, 'title' | 'description' | 'acceptanceCriteria' | 'priority' | 'repositoryIds' | 'personIds'> & {
+export type CreateRequirementInput = Pick<Requirement, 'title' | 'description' | 'acceptanceCriteria' | 'priority' | 'repositoryIds' | 'memberIds'> & {
   statusId?: string
 }
 export type UpdateRequirementInput = Partial<CreateRequirementInput>

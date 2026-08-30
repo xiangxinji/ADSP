@@ -2,21 +2,21 @@
 
 ## Goal
 
-Deliver the first usable ASDP project workspace. Users enter a project, manage requirements, maintain project-level code repositories and people, and reference those assets from each requirement.
+Deliver the first usable ASDP project workspace. Users enter a project, manage requirements, maintain project-level code repositories and memberships, and reference those assets from each requirement.
 
 This iteration includes a Nuxt server API and SQLite persistence. The browser accesses domain data only through the API. A global encrypted GitLab connection supports identity validation, repository discovery, and importing repository metadata; authentication, webhooks, and bidirectional GitLab synchronization are not yet included.
 
 ## Domain Rules
 
 - A project contains many requirements, repository assets, and project members.
-- A requirement may reference zero or more repositories and people.
+- A requirement may reference zero or more repositories and project members.
 - A project owns its requirement-status records; every requirement references one status.
 - Status keys are project-local and unique. Exactly one status is designated as the initial status.
 - Referenced statuses cannot be deleted until their requirements are reassigned.
-- Repositories and people must belong to the same project as the requirement.
+- Repositories and project memberships must belong to the same project as the requirement.
 - Asset references use stable IDs rather than copied names.
 - Removing an asset also removes its references from existing requirements.
-- A person is organization-owned in the future domain model; the prototype stores a project member record locally.
+- A user is global and does not belong to a project. A project member selects one global user and stores a project-specific role.
 - Requirements and workflow runs are different objects. Workflow runs are outside this iteration.
 
 ## Required Screens and Actions
@@ -41,14 +41,14 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 ### Asset Management
 
 - Create, edit, and remove repository assets with hosting provider (GitLab or GitHub), name, URL, and default branch.
-- Create, edit, and remove people with name, email, and project role.
+- Add project members by selecting global users, edit their project roles, and remove their memberships.
 - Show where an asset is referenced before deletion.
 
 ## Acceptance Criteria
 
 1. A newly created project can be opened immediately.
-2. Repository and person records are stored in SQLite and remain after a server restart.
-3. A requirement can reference more than one repository and person.
+2. Repository and project membership records are stored in SQLite and remain after a server restart.
+3. A requirement can reference more than one repository and project member.
 4. Editing a requirement preserves its existing asset references.
 5. Deleting a referenced asset leaves no broken labels or IDs in requirements.
 6. An empty project provides clear actions for adding its first requirement or asset.
@@ -59,3 +59,5 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 11. Existing repository records migrate to the GitLab provider, and new records can select GitLab or GitHub.
 12. A saved GitLab Token is encrypted at rest, never returned to the browser, and can list repositories visible to its identity.
 13. A GitLab repository can be selected from the project asset dialog and stored with its external project ID.
+14. Project members are selected from global users and store only a project-specific role.
+15. Existing project people migrate to global users, project memberships, and requirement-member references without data loss.
