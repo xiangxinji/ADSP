@@ -3,6 +3,7 @@ import type {
   PersonAsset,
   ProjectWorkspace,
   RepositoryAsset,
+  RepositoryProvider,
   Requirement,
   RequirementPriority,
   RequirementStatus,
@@ -28,7 +29,7 @@ const requirementForm = reactive({
   repositoryIds: [] as string[],
   personIds: [] as string[],
 })
-const repositoryForm = reactive({ name: '', url: '', defaultBranch: 'main' })
+const repositoryForm = reactive({ provider: 'gitlab' as RepositoryProvider, name: '', url: '', defaultBranch: 'main' })
 const personForm = reactive({ name: '', email: '', role: '' })
 const requirementStatusForm = reactive({
   key: '',
@@ -46,7 +47,16 @@ const priorityOptions: { value: RequirementPriority, label: string }[] = [
   { value: 'urgent', label: '紧急' },
 ]
 
+const repositoryProviderOptions: { value: RepositoryProvider, label: string }[] = [
+  { value: 'gitlab', label: 'GitLab' },
+  { value: 'github', label: 'GitHub' },
+]
+
 const priorityLabel = (value: RequirementPriority) => priorityOptions.find(option => option.value === value)?.label || value
+const repositoryProviderLabel = (value: RepositoryProvider) => repositoryProviderOptions.find(option => option.value === value)?.label || value
+const repositoryUrlPlaceholder = computed(() => repositoryForm.provider === 'github'
+  ? 'https://github.com/team/repo.git'
+  : 'https://gitlab.example.com/team/repo.git')
 const formatDate = (value: string) => new Intl.DateTimeFormat('zh-CN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(new Date(value))
 
 const openRequirement = (requirement?: Requirement) => {
@@ -106,8 +116,8 @@ const editRequirementStatus = (requirementStatus: RequirementStatus) => {
 const openRepository = (repository?: RepositoryAsset) => {
   editingId.value = repository?.id || null
   Object.assign(repositoryForm, repository ? {
-    name: repository.name, url: repository.url, defaultBranch: repository.defaultBranch,
-  } : { name: '', url: '', defaultBranch: 'main' })
+    provider: repository.provider, name: repository.name, url: repository.url, defaultBranch: repository.defaultBranch,
+  } : { provider: 'gitlab', name: '', url: '', defaultBranch: 'main' })
   actionError.value = ''
   dialog.value = 'repository'
 }
@@ -270,7 +280,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'person', id: s
             <div class="asset-group-heading"><div><h3>代码仓库</h3><span>{{ workspace.repositories.length }} 条记录</span></div><button class="button secondary" type="button" @click="openRepository()">添加仓库</button></div>
             <article v-for="repository in workspace.repositories" :key="repository.id" class="panel asset-card">
               <div class="asset-icon repository-icon">⌘</div>
-              <div class="asset-copy"><strong>{{ repository.name }}</strong><a :href="repository.url" target="_blank" rel="noreferrer">{{ repository.url }}</a><small>默认分支：{{ repository.defaultBranch }} · 被 {{ repository.referenceCount }} 条需求引用</small></div>
+              <div class="asset-copy"><strong>{{ repository.name }} <span class="provider-badge">{{ repositoryProviderLabel(repository.provider) }}</span></strong><a :href="repository.url" target="_blank" rel="noreferrer">{{ repository.url }}</a><small>默认分支：{{ repository.defaultBranch }} · 被 {{ repository.referenceCount }} 条需求引用</small></div>
               <div class="asset-actions"><button class="text-button" type="button" @click="openRepository(repository)">编辑</button><button class="text-button danger" type="button" @click="removeRecord('repository', repository.id, repository.name, repository.referenceCount)">删除</button></div>
             </article>
             <div v-if="!workspace.repositories.length" class="panel empty-state compact"><span>尚未登记代码仓库</span><button class="text-button" type="button" @click="openRepository()">添加第一个仓库</button></div>
@@ -296,7 +306,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'person', id: s
         <form v-if="dialog === 'requirement'" class="dialog large" @submit.prevent="saveRequirement">
           <div class="dialog-heading"><div><p class="overline">REQUIREMENT</p><h2>{{ editingId ? '编辑需求' : '新建需求' }}</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
           <div class="form-grid two"><div class="field span-two"><label>标题</label><input v-model="requirementForm.title" required placeholder="描述要交付的功能" /></div><div class="field"><label>状态</label><select v-model="requirementForm.statusId" required><option v-for="requirementStatus in workspace?.requirementStatuses" :key="requirementStatus.id" :value="requirementStatus.id">{{ requirementStatus.name }}</option></select></div><div class="field"><label>优先级</label><select v-model="requirementForm.priority"><option v-for="option in priorityOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div><div class="field span-two"><label>需求说明</label><textarea v-model="requirementForm.description" rows="3" placeholder="说明背景、目标和范围" /></div><div class="field span-two"><label>验收标准</label><textarea v-model="requirementForm.acceptanceCriteria" rows="3" placeholder="说明怎样才算完成" /></div></div>
-          <div class="reference-picker"><div><h3>引用代码仓库</h3><p>可以选择多个仓库</p></div><div v-if="workspace?.repositories.length" class="check-list"><label v-for="repository in workspace.repositories" :key="repository.id"><input v-model="requirementForm.repositoryIds" type="checkbox" :value="repository.id" /><span><strong>{{ repository.name }}</strong><small>{{ repository.defaultBranch }}</small></span></label></div><p v-else class="picker-empty">请先在资产模块添加代码仓库。</p></div>
+          <div class="reference-picker"><div><h3>引用代码仓库</h3><p>可以选择多个仓库</p></div><div v-if="workspace?.repositories.length" class="check-list"><label v-for="repository in workspace.repositories" :key="repository.id"><input v-model="requirementForm.repositoryIds" type="checkbox" :value="repository.id" /><span><strong>{{ repository.name }}</strong><small>{{ repositoryProviderLabel(repository.provider) }} · {{ repository.defaultBranch }}</small></span></label></div><p v-else class="picker-empty">请先在资产模块添加代码仓库。</p></div>
           <div class="reference-picker"><div><h3>引用项目人员</h3><p>可以选择多位参与者</p></div><div v-if="workspace?.people.length" class="check-list"><label v-for="person in workspace.people" :key="person.id"><input v-model="requirementForm.personIds" type="checkbox" :value="person.id" /><span><strong>{{ person.name }}</strong><small>{{ person.role || person.email }}</small></span></label></div><p v-else class="picker-empty">请先在资产模块添加人员。</p></div>
           <p v-if="actionError" class="form-error">{{ actionError }}</p>
           <div class="dialog-actions"><button class="button secondary" type="button" @click="closeDialog">取消</button><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存需求' }}</button></div>
@@ -326,7 +336,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'person', id: s
 
         <form v-else-if="dialog === 'repository'" class="dialog" @submit.prevent="saveRepository">
           <div class="dialog-heading"><div><p class="overline">REPOSITORY ASSET</p><h2>{{ editingId ? '编辑代码仓库' : '添加代码仓库' }}</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
-          <div class="field"><label>仓库名称</label><input v-model="repositoryForm.name" required placeholder="例如：asdp-web" /></div><div class="field"><label>GitLab 仓库地址</label><input v-model="repositoryForm.url" required type="url" placeholder="https://gitlab.example.com/team/repo.git" /></div><div class="field"><label>默认分支</label><input v-model="repositoryForm.defaultBranch" required placeholder="main" /></div>
+          <div class="field"><label>代码托管平台</label><select v-model="repositoryForm.provider" required><option v-for="option in repositoryProviderOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div><div class="field"><label>仓库名称</label><input v-model="repositoryForm.name" required placeholder="例如：asdp-web" /></div><div class="field"><label>{{ repositoryProviderLabel(repositoryForm.provider) }} 仓库地址</label><input v-model="repositoryForm.url" required type="url" :placeholder="repositoryUrlPlaceholder" /></div><div class="field"><label>默认分支</label><input v-model="repositoryForm.defaultBranch" required placeholder="main" /></div>
           <p v-if="actionError" class="form-error">{{ actionError }}</p><div class="dialog-actions"><button class="button secondary" type="button" @click="closeDialog">取消</button><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存仓库' }}</button></div>
         </form>
 

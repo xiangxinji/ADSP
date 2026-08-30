@@ -11,7 +11,7 @@ import type {
   UpdateRequirementInput,
   UpdateRequirementStatusInput,
 } from '../../shared/types/asdp'
-import { requirementPriorities } from '../../shared/types/asdp'
+import { repositoryProviders, requirementPriorities } from '../../shared/types/asdp'
 import { bodyObject, enumValue, optionalStringArray, optionalText, requiredText } from './http-input'
 
 export const projectPayload = (value: unknown, partial = false): CreateProjectInput | UpdateProjectInput => {
@@ -25,6 +25,7 @@ export const projectPayload = (value: unknown, partial = false): CreateProjectIn
 export const repositoryPayload = (value: unknown, partial = false): CreateRepositoryInput | UpdateRepositoryInput => {
   const body = bodyObject(value)
   return {
+    provider: partial && body.provider === undefined ? undefined : enumValue(body.provider, repositoryProviders, 'gitlab'),
     name: partial && body.name === undefined ? undefined : requiredText(body.name, 'name'),
     url: partial && body.url === undefined ? undefined : requiredText(body.url, 'url'),
     defaultBranch: partial && body.defaultBranch === undefined ? undefined : optionalText(body.defaultBranch, 'main') || 'main',

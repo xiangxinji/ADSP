@@ -22,7 +22,7 @@ import type {
 import { seedDefaultRequirementStatuses, useDatabase } from './database'
 
 type ProjectRow = { id: string, name: string, description: string, created_at: string, updated_at: string }
-type RepositoryRow = { id: string, project_id: string, name: string, url: string, default_branch: string, reference_count: number, created_at: string, updated_at: string }
+type RepositoryRow = { id: string, project_id: string, provider: RepositoryAsset['provider'], name: string, url: string, default_branch: string, reference_count: number, created_at: string, updated_at: string }
 type PersonRow = { id: string, project_id: string, name: string, email: string, role: string, reference_count: number, created_at: string, updated_at: string }
 type RequirementStatusRow = { id: string, project_id: string, key: string, name: string, color: string, sort_order: number, is_initial: number, is_terminal: number, requirement_count: number, created_at: string, updated_at: string }
 type RequirementRow = { id: string, project_id: string, title: string, description: string, acceptance_criteria: string, status: string, status_id: string, priority: Requirement['priority'], created_at: string, updated_at: string }
@@ -40,6 +40,7 @@ const projectFromRow = (row: ProjectRow): Project => ({
 const repositoryFromRow = (row: RepositoryRow): RepositoryAsset => ({
   id: row.id,
   projectId: row.project_id,
+  provider: row.provider,
   name: row.name,
   url: row.url,
   defaultBranch: row.default_branch,
@@ -319,8 +320,8 @@ export const createRepository = (projectId: string, input: CreateRepositoryInput
   const id = randomUUID()
   const timestamp = now()
   try {
-    useDatabase().prepare(`INSERT INTO repository_assets (id, project_id, name, url, default_branch, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-      .run(id, projectId, input.name, input.url, input.defaultBranch, timestamp, timestamp)
+    useDatabase().prepare(`INSERT INTO repository_assets (id, project_id, provider, name, url, default_branch, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(id, projectId, input.provider, input.name, input.url, input.defaultBranch, timestamp, timestamp)
   } catch (error) {
     throw createError({ statusCode: 409, statusMessage: 'This repository URL is already registered in the project', cause: error })
   }
@@ -330,8 +331,8 @@ export const createRepository = (projectId: string, input: CreateRepositoryInput
 export const updateRepository = (id: string, input: UpdateRepositoryInput) => {
   const current = repositoryFromRow(getRepositoryRow(id))
   try {
-    useDatabase().prepare('UPDATE repository_assets SET name = ?, url = ?, default_branch = ?, updated_at = ? WHERE id = ?')
-      .run(input.name ?? current.name, input.url ?? current.url, input.defaultBranch ?? current.defaultBranch, now(), id)
+    useDatabase().prepare('UPDATE repository_assets SET provider = ?, name = ?, url = ?, default_branch = ?, updated_at = ? WHERE id = ?')
+      .run(input.provider ?? current.provider, input.name ?? current.name, input.url ?? current.url, input.defaultBranch ?? current.defaultBranch, now(), id)
   } catch (error) {
     throw createError({ statusCode: 409, statusMessage: 'This repository URL is already registered in the project', cause: error })
   }

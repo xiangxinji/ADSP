@@ -49,7 +49,7 @@ GitLab CI pipeline triggered
 - **Policy and Approval Engine:** risk rules, quality gates, human checkpoints, budgets, and permissions.
 - **Audit and Observability:** event history, traces, cost, execution metrics, and failure diagnosis.
 
-GitLab is the first adapter. GitHub Actions, Jenkins, and Argo CD should be possible later without changing the core workflow domain.
+Repository connections identify their source-control provider. GitLab remains the first delivery adapter, while GitHub repositories can be registered now without leaking provider-specific data into the core workflow domain. GitHub Actions, Jenkins, and Argo CD delivery adapters can be added later without changing that domain.
 
 ## Core Domain Model
 
@@ -85,6 +85,8 @@ Requirement 1─* WorkflowRun
 ```
 
 `RequirementRepository` records how a repository participates, such as primary target, dependency, or read-only reference, together with branch or write-scope constraints. `RequirementParticipant` records responsibility such as requester, owner, contributor, reviewer, or approver.
+
+Each `RepositoryAsset` stores a provider discriminator (`gitlab` or `github`) alongside its URL and default branch. Existing records migrate to `gitlab`. Provider-specific synchronization and delivery behavior stays behind source-control and delivery adapters.
 
 People may appear in the product's Asset module, but the domain must not model a person as project-owned data. A person belongs to the organization; `ProjectMember` grants project context, and `RequirementParticipant` grants requirement context.
 

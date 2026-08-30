@@ -120,6 +120,7 @@ const createDatabase = async () => {
     CREATE TABLE IF NOT EXISTS repository_assets (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL DEFAULT 'gitlab',
       name TEXT NOT NULL,
       url TEXT NOT NULL,
       default_branch TEXT NOT NULL DEFAULT 'main',
@@ -184,6 +185,11 @@ const createDatabase = async () => {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_requirement_statuses_initial
       ON requirement_statuses(project_id) WHERE is_initial = 1;
   `)
+
+  const repositoryColumns = persistentDatabase.prepare('PRAGMA table_info(repository_assets)').all() as { name: string }[]
+  if (!repositoryColumns.some(column => column.name === 'provider')) {
+    persistentDatabase.exec("ALTER TABLE repository_assets ADD COLUMN provider TEXT NOT NULL DEFAULT 'gitlab'")
+  }
 
   const requirementColumns = persistentDatabase.prepare('PRAGMA table_info(requirements)').all() as { name: string }[]
   if (!requirementColumns.some(column => column.name === 'status_id')) {

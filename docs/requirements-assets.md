@@ -40,7 +40,7 @@ This iteration includes a Nuxt server API and SQLite persistence. Authentication
 
 ### Asset Management
 
-- Create, edit, and remove repository assets with name, GitLab URL, and default branch.
+- Create, edit, and remove repository assets with hosting provider (GitLab or GitHub), name, URL, and default branch.
 - Create, edit, and remove people with name, email, and project role.
 - Show where an asset is referenced before deletion.
 
@@ -56,3 +56,4 @@ This iteration includes a Nuxt server API and SQLite persistence. Authentication
 8. API validation rejects references to assets outside the requirement's project.
 9. Existing enum-based requirement statuses migrate to status records without data loss.
 10. API validation rejects a requirement status from another project.
+11. Existing repository records migrate to the GitLab provider, and new records can select GitLab or GitHub.

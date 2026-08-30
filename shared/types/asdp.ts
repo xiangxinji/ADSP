@@ -1,6 +1,8 @@
 export const requirementPriorities = ['low', 'medium', 'high', 'urgent'] as const
+export const repositoryProviders = ['gitlab', 'github'] as const
 
 export type RequirementPriority = typeof requirementPriorities[number]
+export type RepositoryProvider = typeof repositoryProviders[number]
 
 export type Project = {
   id: string
@@ -19,6 +21,7 @@ export type ProjectSummary = Project & {
 export type RepositoryAsset = {
   id: string
   projectId: string
+  provider: RepositoryProvider
   name: string
   url: string
   defaultBranch: string
@@ -79,7 +82,7 @@ export type ProjectWorkspace = {
 
 export type CreateProjectInput = Pick<Project, 'name' | 'description'>
 export type UpdateProjectInput = Partial<CreateProjectInput>
-export type CreateRepositoryInput = Pick<RepositoryAsset, 'name' | 'url' | 'defaultBranch'>
+export type CreateRepositoryInput = Pick<RepositoryAsset, 'provider' | 'name' | 'url' | 'defaultBranch'>
 export type UpdateRepositoryInput = Partial<CreateRepositoryInput>
 export type CreatePersonInput = Pick<PersonAsset, 'name' | 'email' | 'role'>
 export type UpdatePersonInput = Partial<CreatePersonInput>

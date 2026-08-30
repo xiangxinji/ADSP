@@ -81,7 +81,9 @@ requirements or designate another initial status first.
 | `PATCH` | `/api/repositories/:id` | Update repository metadata |
 | `DELETE` | `/api/repositories/:id` | Remove it and cascade requirement references |
 
-Body: `{ "name": string, "url": string, "defaultBranch": string }`.
+Body: `{ "provider": "gitlab" | "github", "name": string, "url": string, "defaultBranch": string }`.
+
+Existing repository records default to `gitlab` during migration.
 
 ## People
 

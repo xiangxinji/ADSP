@@ -47,7 +47,7 @@ The target is not merely faster code generation. ASDP should make the complete e
 ```text
 Organization
 └─ Project
-   ├─ Repository connection
+   ├─ Repository connection (GitLab or GitHub)
    ├─ Requirement
    │  └─ Workflow run
    │     ├─ Agent tasks
@@ -87,5 +87,5 @@ Requirement creation will eventually begin with a natural-language AI entry. ASD
 
 - Whether the first release supports only ASDP-created repositories or existing company repositories as well.
 - Which software outputs are supported first: web applications, backend services, mobile applications, or infrastructure.
-- Which deployment target and GitLab operating model should define the initial integration.
+- Which deployment target and source-control operating model should define each provider integration.
 - Which actions are autonomous by default and which require approval.
