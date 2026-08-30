@@ -29,6 +29,11 @@ const activeAssetModule = computed<AssetModule | null>(() => {
     ? module as AssetModule
     : null
 })
+const assetModuleLabel = computed(() => ({
+  repositories: '代码仓库',
+  members: '项目成员',
+  environments: '环境管理',
+})[activeAssetModule.value || 'repositories'])
 const dialog = ref<'requirement' | 'statuses' | 'repository' | 'member' | 'environment' | null>(null)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
@@ -93,18 +98,6 @@ const selectableUsers = computed(() => {
   const editingUserId = editingId.value ? memberForm.userId : ''
   return (users.value || []).filter(user => user.id === editingUserId || !assignedUserIds.has(user.id))
 })
-
-const selectProjectTab = (tab: 'requirements' | 'assets') => {
-  void navigateTo({ path: route.path, query: tab === 'assets' ? { tab: 'assets' } : {} })
-}
-
-const openAssetModule = (module: AssetModule) => {
-  void navigateTo({ path: route.path, query: { tab: 'assets', asset: module } })
-}
-
-const returnToAssetOverview = () => {
-  void navigateTo({ path: route.path, query: { tab: 'assets' } })
-}
 
 const openRequirement = (requirement?: Requirement) => {
   editingId.value = requirement?.id || null
@@ -363,18 +356,29 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
   <div class="app-frame">
     <header class="site-header">
       <NuxtLink to="/" class="brand"><span>ASDP</span><small>Autonomous Software Delivery Platform</small></NuxtLink>
-      <nav class="header-nav" aria-label="全局导航"><NuxtLink to="/">← 所有项目</NuxtLink><NuxtLink to="/users">用户管理</NuxtLink><NuxtLink to="/settings">全局设置</NuxtLink></nav>
+      <nav class="header-nav" aria-label="全局导航"><NuxtLink to="/" class="active">项目</NuxtLink><NuxtLink to="/users">用户管理</NuxtLink><NuxtLink to="/settings">全局设置</NuxtLink></nav>
     </header>
 
     <main v-if="workspace" class="page workspace-page">
+      <nav class="breadcrumbs" aria-label="当前位置">
+        <NuxtLink to="/">项目</NuxtLink><span aria-hidden="true">/</span>
+        <NuxtLink :to="route.path">{{ workspace.project.name }}</NuxtLink><span aria-hidden="true">/</span>
+        <template v-if="activeTab === 'requirements'"><span aria-current="page">需求</span></template>
+        <template v-else>
+          <NuxtLink v-if="activeAssetModule" :to="{ path: route.path, query: { tab: 'assets' } }">资产</NuxtLink>
+          <span v-else aria-current="page">资产</span>
+          <template v-if="activeAssetModule"><span aria-hidden="true">/</span><span aria-current="page">{{ assetModuleLabel }}</span></template>
+        </template>
+      </nav>
+
       <section class="workspace-heading">
         <div><p class="overline">PROJECT WORKSPACE</p><h1>{{ workspace.project.name }}</h1><p>{{ workspace.project.description || '暂无项目说明' }}</p></div>
         <div class="workspace-stats"><span><strong>{{ workspace.requirements.length }}</strong>需求</span><span><strong>{{ workspace.repositories.length }}</strong>仓库</span><span><strong>{{ workspace.members.length }}</strong>成员</span><span><strong>{{ workspace.environments.length }}</strong>环境</span></div>
       </section>
 
       <nav class="tabs" aria-label="项目模块">
-        <button type="button" :class="{ active: activeTab === 'requirements' }" @click="selectProjectTab('requirements')">需求</button>
-        <button type="button" :class="{ active: activeTab === 'assets' }" @click="selectProjectTab('assets')">资产</button>
+        <NuxtLink :to="route.path" :class="{ active: activeTab === 'requirements' }" :aria-current="activeTab === 'requirements' ? 'page' : undefined">需求</NuxtLink>
+        <NuxtLink :to="{ path: route.path, query: { tab: 'assets' } }" :class="{ active: activeTab === 'assets' }" :aria-current="activeTab === 'assets' ? 'page' : undefined">资产</NuxtLink>
       </nav>
 
       <p v-if="actionError && !dialog" class="alert error-state">{{ actionError }}</p>
@@ -408,26 +412,26 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
           </div>
 
           <div class="asset-module-grid">
-            <button class="panel asset-module-card" type="button" @click="openAssetModule('repositories')">
+            <NuxtLink class="panel asset-module-card" :to="{ path: route.path, query: { tab: 'assets', asset: 'repositories' } }">
               <span class="asset-module-icon repository-icon" aria-hidden="true">⌘</span>
               <span class="asset-module-copy"><strong>代码仓库</strong><small>管理 GitLab、GitHub 仓库连接与默认分支</small></span>
               <span class="asset-module-meta"><strong>{{ workspace.repositories.length }}</strong><small>个仓库</small></span>
               <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
-            </button>
+            </NuxtLink>
 
-            <button class="panel asset-module-card" type="button" @click="openAssetModule('members')">
+            <NuxtLink class="panel asset-module-card" :to="{ path: route.path, query: { tab: 'assets', asset: 'members' } }">
               <span class="asset-module-icon member-icon" aria-hidden="true">人</span>
               <span class="asset-module-copy"><strong>项目成员</strong><small>从全局用户中选择成员并设置项目角色</small></span>
               <span class="asset-module-meta"><strong>{{ workspace.members.length }}</strong><small>位成员</small></span>
               <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
-            </button>
+            </NuxtLink>
 
-            <button class="panel asset-module-card" type="button" @click="openAssetModule('environments')">
+            <NuxtLink class="panel asset-module-card" :to="{ path: route.path, query: { tab: 'assets', asset: 'environments' } }">
               <span class="asset-module-icon environment-icon" aria-hidden="true">◎</span>
               <span class="asset-module-copy"><strong>环境管理</strong><small>维护开发、测试和生产环境的访问入口</small></span>
               <span class="asset-module-meta"><strong>{{ workspace.environments.length }}</strong><small>个环境</small></span>
               <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
-            </button>
+            </NuxtLink>
           </div>
 
           <aside class="asset-security-note">
@@ -438,7 +442,6 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
 
         <template v-else-if="activeAssetModule === 'repositories'">
           <div class="asset-detail-heading">
-            <button class="asset-back-button" type="button" @click="returnToAssetOverview">← 返回资产管理</button>
             <div class="section-heading"><div><p class="overline">REPOSITORY ASSETS</p><h2>代码仓库</h2><p>管理项目引用的源代码仓库和默认分支。</p></div><button class="button primary" type="button" @click="openRepository()">添加仓库</button></div>
           </div>
           <div v-if="workspace.repositories.length" class="asset-record-list">
@@ -453,7 +456,6 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
 
         <template v-else-if="activeAssetModule === 'members'">
           <div class="asset-detail-heading">
-            <button class="asset-back-button" type="button" @click="returnToAssetOverview">← 返回资产管理</button>
             <div class="section-heading"><div><p class="overline">PROJECT MEMBERS</p><h2>项目成员</h2><p>选择全局用户加入项目，并维护其项目角色。</p></div><button class="button primary" type="button" @click="openMember()">添加成员</button></div>
           </div>
           <div v-if="workspace.members.length" class="asset-record-list">
@@ -468,7 +470,6 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
 
         <template v-else>
           <div class="asset-detail-heading">
-            <button class="asset-back-button" type="button" @click="returnToAssetOverview">← 返回资产管理</button>
             <div class="section-heading"><div><p class="overline">ENVIRONMENT ASSETS</p><h2>环境管理</h2><p>维护项目开发、测试和生产环境的访问入口。</p></div><button class="button primary" type="button" @click="openEnvironment()">添加环境</button></div>
           </div>
           <div v-if="workspace.environments.length" class="asset-record-list">
