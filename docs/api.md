@@ -81,9 +81,21 @@ requirements or designate another initial status first.
 | `PATCH` | `/api/repositories/:id` | Update repository metadata |
 | `DELETE` | `/api/repositories/:id` | Remove it and cascade requirement references |
 
-Body: `{ "provider": "gitlab" | "github", "name": string, "url": string, "defaultBranch": string }`.
+Body: `{ "provider": "gitlab" | "github", "externalId"?: string, "name": string, "url": string, "defaultBranch": string }`.
 
 Existing repository records default to `gitlab` during migration.
+
+## Global GitLab Settings
+
+| Method | Route | Purpose |
+|---|---|---|
+| `GET` | `/api/settings/gitlab` | Read non-secret connection status and masked token hint |
+| `PUT` | `/api/settings/gitlab` | Validate and save the base URL and Access Token |
+| `DELETE` | `/api/settings/gitlab` | Remove the saved GitLab credential |
+| `POST` | `/api/settings/gitlab/test` | Validate form values without saving |
+| `GET` | `/api/integrations/gitlab/repositories` | List membership projects visible to the saved token |
+
+`PUT` and `POST /test` accept `{ "baseUrl": string, "token"?: string }`. When a connection already exists, an omitted or empty token keeps and tests the saved token. Saved tokens are never returned by any API. Repository queries accept `search`, `page`, and `perPage` (maximum 100).
 
 ## People
 

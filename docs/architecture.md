@@ -105,6 +105,10 @@ ASDP is expected to use GitLab OAuth or scoped project tokens, REST/GraphQL APIs
 
 Integration code must be isolated behind adapters. GitLab-specific payloads must not leak into core domain entities. Store external IDs and immutable event records so synchronization is idempotent and recoverable.
 
+The current single-tenant preview provides one global GitLab connection. An operator configures the GitLab base URL and a scoped Personal Access Token; ASDP validates it through the GitLab user API before saving it. The token is encrypted with AES-256-GCM using `ASDP_CREDENTIAL_ENCRYPTION_KEY`, or a generated local key under `.data` for development. Read APIs return only connection metadata and a masked token hint. The browser never receives the saved token, and GitLab requests remain inside the server-side adapter.
+
+Repository discovery uses this connection to list membership projects. Importing a result creates an ASDP `RepositoryAsset` with its GitLab project ID as `external_id`; it does not copy or replace the GitLab repository. The global credential is an initial operating model for local or controlled deployments. Organization-scoped ownership, administrator authorization, OAuth, token rotation policy, and per-project credentials remain required before a multi-tenant production release.
+
 ## Cross-Cutting Requirements
 
 - Every automated action must record actor, model, input context, tool call, output, and resulting external reference.

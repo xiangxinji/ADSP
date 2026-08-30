@@ -30,6 +30,7 @@ const createProject = async () => {
   <div class="app-frame">
     <header class="site-header">
       <NuxtLink to="/" class="brand"><span>ASDP</span><small>Autonomous Software Delivery Platform</small></NuxtLink>
+      <nav class="header-nav" aria-label="全局导航"><NuxtLink to="/" class="active">项目</NuxtLink><NuxtLink to="/settings">全局设置</NuxtLink></nav>
       <span class="header-badge">Architecture Preview</span>
     </header>
 

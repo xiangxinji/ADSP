@@ -26,6 +26,7 @@ export const repositoryPayload = (value: unknown, partial = false): CreateReposi
   const body = bodyObject(value)
   return {
     provider: partial && body.provider === undefined ? undefined : enumValue(body.provider, repositoryProviders, 'gitlab'),
+    externalId: partial && body.externalId === undefined ? undefined : optionalText(body.externalId) || null,
     name: partial && body.name === undefined ? undefined : requiredText(body.name, 'name'),
     url: partial && body.url === undefined ? undefined : requiredText(body.url, 'url'),
     defaultBranch: partial && body.defaultBranch === undefined ? undefined : optionalText(body.defaultBranch, 'main') || 'main',

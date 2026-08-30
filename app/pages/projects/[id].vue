@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type {
+  GitLabRepository,
+  GitLabRepositoryPage,
   PersonAsset,
   ProjectWorkspace,
   RepositoryAsset,
@@ -29,7 +31,11 @@ const requirementForm = reactive({
   repositoryIds: [] as string[],
   personIds: [] as string[],
 })
-const repositoryForm = reactive({ provider: 'gitlab' as RepositoryProvider, name: '', url: '', defaultBranch: 'main' })
+const repositoryForm = reactive({ provider: 'gitlab' as RepositoryProvider, externalId: null as string | null, name: '', url: '', defaultBranch: 'main' })
+const gitlabRepositories = ref<GitLabRepository[]>([])
+const gitlabRepositorySearch = ref('')
+const gitlabRepositoriesLoading = ref(false)
+const gitlabRepositoryError = ref('')
 const personForm = reactive({ name: '', email: '', role: '' })
 const requirementStatusForm = reactive({
   key: '',
@@ -116,10 +122,14 @@ const editRequirementStatus = (requirementStatus: RequirementStatus) => {
 const openRepository = (repository?: RepositoryAsset) => {
   editingId.value = repository?.id || null
   Object.assign(repositoryForm, repository ? {
-    provider: repository.provider, name: repository.name, url: repository.url, defaultBranch: repository.defaultBranch,
-  } : { provider: 'gitlab', name: '', url: '', defaultBranch: 'main' })
+    provider: repository.provider, externalId: repository.externalId, name: repository.name, url: repository.url, defaultBranch: repository.defaultBranch,
+  } : { provider: 'gitlab', externalId: null, name: '', url: '', defaultBranch: 'main' })
+  gitlabRepositories.value = []
+  gitlabRepositorySearch.value = ''
+  gitlabRepositoryError.value = ''
   actionError.value = ''
   dialog.value = 'repository'
+  if (!repository) void loadGitLabRepositories()
 }
 
 const openPerson = (person?: PersonAsset) => {
@@ -136,6 +146,31 @@ const closeDialog = () => {
 }
 
 const errorMessage = (requestError: any) => requestError?.data?.statusMessage || requestError?.message || '操作失败'
+
+const loadGitLabRepositories = async () => {
+  gitlabRepositoriesLoading.value = true
+  gitlabRepositoryError.value = ''
+  try {
+    const result = await $fetch<GitLabRepositoryPage>('/api/integrations/gitlab/repositories', {
+      query: { search: gitlabRepositorySearch.value, perPage: 20 },
+    })
+    gitlabRepositories.value = result.items
+  } catch (requestError) {
+    gitlabRepositoryError.value = errorMessage(requestError)
+  } finally {
+    gitlabRepositoriesLoading.value = false
+  }
+}
+
+const selectGitLabRepository = (repository: GitLabRepository) => {
+  Object.assign(repositoryForm, {
+    provider: 'gitlab',
+    externalId: String(repository.id),
+    name: repository.name,
+    url: repository.webUrl,
+    defaultBranch: repository.defaultBranch,
+  })
+}
 
 const saveRequirement = async () => {
   saving.value = true
@@ -235,7 +270,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'person', id: s
   <div class="app-frame">
     <header class="site-header">
       <NuxtLink to="/" class="brand"><span>ASDP</span><small>Autonomous Software Delivery Platform</small></NuxtLink>
-      <NuxtLink to="/" class="back-link">← 所有项目</NuxtLink>
+      <nav class="header-nav" aria-label="全局导航"><NuxtLink to="/">← 所有项目</NuxtLink><NuxtLink to="/settings">全局设置</NuxtLink></nav>
     </header>
 
     <main v-if="workspace" class="page workspace-page">
@@ -334,9 +369,10 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'person', id: s
           </div>
         </div>
 
-        <form v-else-if="dialog === 'repository'" class="dialog" @submit.prevent="saveRepository">
+        <form v-else-if="dialog === 'repository'" class="dialog repository-dialog" @submit.prevent="saveRepository">
           <div class="dialog-heading"><div><p class="overline">REPOSITORY ASSET</p><h2>{{ editingId ? '编辑代码仓库' : '添加代码仓库' }}</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
-          <div class="field"><label>代码托管平台</label><select v-model="repositoryForm.provider" required><option v-for="option in repositoryProviderOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div><div class="field"><label>仓库名称</label><input v-model="repositoryForm.name" required placeholder="例如：asdp-web" /></div><div class="field"><label>{{ repositoryProviderLabel(repositoryForm.provider) }} 仓库地址</label><input v-model="repositoryForm.url" required type="url" :placeholder="repositoryUrlPlaceholder" /></div><div class="field"><label>默认分支</label><input v-model="repositoryForm.defaultBranch" required placeholder="main" /></div>
+          <section v-if="!editingId && repositoryForm.provider === 'gitlab'" class="gitlab-picker"><div class="gitlab-picker-heading"><div><strong>从 GitLab 选择</strong><small>使用全局 Token 读取你有权访问的仓库</small></div><NuxtLink to="/settings" class="text-button">全局设置</NuxtLink></div><div class="gitlab-picker-search"><input v-model="gitlabRepositorySearch" placeholder="搜索 GitLab 仓库" @keydown.enter.prevent="loadGitLabRepositories" /><button class="button secondary" type="button" :disabled="gitlabRepositoriesLoading" @click="loadGitLabRepositories">{{ gitlabRepositoriesLoading ? '读取中…' : '查询' }}</button></div><p v-if="gitlabRepositoryError" class="picker-error">{{ gitlabRepositoryError }}</p><div v-if="gitlabRepositories.length" class="gitlab-results"><button v-for="repository in gitlabRepositories" :key="repository.id" type="button" :class="{ selected: repositoryForm.externalId === String(repository.id) }" @click="selectGitLabRepository(repository)"><span><strong>{{ repository.name }}</strong><small>{{ repository.nameWithNamespace }}</small></span><em>{{ repository.defaultBranch }}</em></button></div></section>
+          <div class="field"><label>代码托管平台</label><select v-model="repositoryForm.provider" required><option v-for="option in repositoryProviderOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div><div class="field"><label>仓库名称</label><input v-model="repositoryForm.name" required placeholder="例如：asdp-web" /></div><div class="field"><label>{{ repositoryProviderLabel(repositoryForm.provider) }} 仓库地址</label><input v-model="repositoryForm.url" required type="url" :placeholder="repositoryUrlPlaceholder" @input="repositoryForm.externalId = null" /></div><div class="field"><label>默认分支</label><input v-model="repositoryForm.defaultBranch" required placeholder="main" /></div>
           <p v-if="actionError" class="form-error">{{ actionError }}</p><div class="dialog-actions"><button class="button secondary" type="button" @click="closeDialog">取消</button><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存仓库' }}</button></div>
         </form>
 

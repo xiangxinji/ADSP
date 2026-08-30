@@ -4,7 +4,7 @@
 
 Deliver the first usable ASDP project workspace. Users enter a project, manage requirements, maintain project-level code repositories and people, and reference those assets from each requirement.
 
-This iteration includes a Nuxt server API and SQLite persistence. Authentication and GitLab synchronization are not yet included. The browser accesses domain data only through the API.
+This iteration includes a Nuxt server API and SQLite persistence. The browser accesses domain data only through the API. A global encrypted GitLab connection supports identity validation, repository discovery, and importing repository metadata; authentication, webhooks, and bidirectional GitLab synchronization are not yet included.
 
 ## Domain Rules
 
@@ -57,3 +57,5 @@ This iteration includes a Nuxt server API and SQLite persistence. Authentication
 9. Existing enum-based requirement statuses migrate to status records without data loss.
 10. API validation rejects a requirement status from another project.
 11. Existing repository records migrate to the GitLab provider, and new records can select GitLab or GitHub.
+12. A saved GitLab Token is encrypted at rest, never returned to the browser, and can list repositories visible to its identity.
+13. A GitLab repository can be selected from the project asset dialog and stored with its external project ID.

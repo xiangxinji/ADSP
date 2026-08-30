@@ -121,12 +121,26 @@ const createDatabase = async () => {
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       provider TEXT NOT NULL DEFAULT 'gitlab',
+      external_id TEXT,
       name TEXT NOT NULL,
       url TEXT NOT NULL,
       default_branch TEXT NOT NULL DEFAULT 'main',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       UNIQUE(project_id, url)
+    );
+
+    CREATE TABLE IF NOT EXISTS integration_settings (
+      provider TEXT PRIMARY KEY,
+      base_url TEXT NOT NULL,
+      encrypted_token TEXT NOT NULL,
+      token_hint TEXT NOT NULL,
+      connected_user_id INTEGER,
+      connected_user_name TEXT,
+      connected_username TEXT,
+      verified_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
     );
 
     CREATE TABLE IF NOT EXISTS people (
@@ -190,6 +204,13 @@ const createDatabase = async () => {
   if (!repositoryColumns.some(column => column.name === 'provider')) {
     persistentDatabase.exec("ALTER TABLE repository_assets ADD COLUMN provider TEXT NOT NULL DEFAULT 'gitlab'")
   }
+  if (!repositoryColumns.some(column => column.name === 'external_id')) {
+    persistentDatabase.exec('ALTER TABLE repository_assets ADD COLUMN external_id TEXT')
+  }
+  persistentDatabase.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_repositories_external
+      ON repository_assets(project_id, provider, external_id) WHERE external_id IS NOT NULL
+  `)
 
   const requirementColumns = persistentDatabase.prepare('PRAGMA table_info(requirements)').all() as { name: string }[]
   if (!requirementColumns.some(column => column.name === 'status_id')) {
