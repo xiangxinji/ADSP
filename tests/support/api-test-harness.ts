@@ -69,7 +69,7 @@ const startGitLabMock = async () => {
     }
 
     if (url.pathname === '/api/v4/user') {
-      response.end(JSON.stringify({ id: 42, name: 'ASDP Tester', username: 'asdp-tester' }))
+      response.end(JSON.stringify({ id: 42, name: 'ForgePilot Tester', username: 'forgepilot-tester' }))
       return
     }
 
@@ -78,10 +78,10 @@ const startGitLabMock = async () => {
       response.setHeader('X-Next-Page', '')
       response.end(JSON.stringify([{
         id: 101,
-        name: 'asdp-api',
-        name_with_namespace: 'ASDP / asdp-api',
-        web_url: 'https://gitlab.example.com/asdp/asdp-api',
-        http_url_to_repo: 'https://gitlab.example.com/asdp/asdp-api.git',
+        name: 'forgepilot-api',
+        name_with_namespace: 'ForgePilot / forgepilot-api',
+        web_url: 'https://gitlab.example.com/forgepilot/forgepilot-api',
+        http_url_to_repo: 'https://gitlab.example.com/forgepilot/forgepilot-api.git',
         default_branch: 'main',
         visibility: 'private',
         archived: false,
@@ -104,7 +104,7 @@ const waitForAsdp = async (process: ChildProcess, baseUrl: string, output: strin
   const deadline = Date.now() + 15_000
   while (Date.now() < deadline) {
     if (process.exitCode !== null) {
-      throw new Error(`ASDP test server exited during startup:\n${output.join('')}`)
+      throw new Error(`ForgePilot test server exited during startup:\n${output.join('')}`)
     }
     try {
       const response = await fetch(`${baseUrl}/api/projects`)
@@ -114,7 +114,7 @@ const waitForAsdp = async (process: ChildProcess, baseUrl: string, output: strin
     }
     await delay(100)
   }
-  throw new Error(`Timed out waiting for ASDP test server:\n${output.join('')}`)
+  throw new Error(`Timed out waiting for ForgePilot test server:\n${output.join('')}`)
 }
 
 const stopProcess = async (process: ChildProcess) => {
@@ -132,7 +132,7 @@ const stopProcess = async (process: ChildProcess) => {
 }
 
 export const startApiTestHarness = async (): Promise<ApiTestHarness> => {
-  const testDirectory = await mkdtemp(join(tmpdir(), 'asdp-api-test-'))
+  const testDirectory = await mkdtemp(join(tmpdir(), 'forgepilot-api-test-'))
   let gitLab: Awaited<ReturnType<typeof startGitLabMock>> | undefined
   let child: ChildProcess | undefined
   const serverOutput: string[] = []

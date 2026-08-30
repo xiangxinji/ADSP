@@ -65,7 +65,7 @@ const routeCases: ApiRouteCase[] = [
       const response = await harness.request<ProjectSummary[]>('/api/projects')
       expect(response.status).toBe(200)
       expect(response.data).toEqual(expect.arrayContaining([
-        expect.objectContaining({ id: 'project-asdp', name: 'ASDP Platform' }),
+        expect.objectContaining({ id: 'project-asdp', name: 'ForgePilot Platform' }),
       ]))
     },
   },
@@ -146,7 +146,7 @@ const routeCases: ApiRouteCase[] = [
         body: { baseUrl: harness.gitLabBaseUrl, token: 'valid-token' },
       })
       expect(response.status).toBe(200)
-      expect(response.data).toEqual({ id: 42, name: 'ASDP Tester', username: 'asdp-tester' })
+      expect(response.data).toEqual({ id: 42, name: 'ForgePilot Tester', username: 'forgepilot-tester' })
 
       const settings = await harness.request<GitLabSettings>('/api/settings/gitlab')
       expect(settings.data.configured).toBe(false)
@@ -165,7 +165,7 @@ const routeCases: ApiRouteCase[] = [
         configured: true,
         tokenHint: '••••oken',
       })
-      expect(response.data.connectedUser).toEqual({ id: 42, name: 'ASDP Tester', username: 'asdp-tester' })
+      expect(response.data.connectedUser).toEqual({ id: 42, name: 'ForgePilot Tester', username: 'forgepilot-tester' })
       expect(response.data).not.toHaveProperty('token')
 
       const stored = await harness.request<GitLabSettings>('/api/settings/gitlab')
@@ -179,7 +179,7 @@ const routeCases: ApiRouteCase[] = [
       const response = await harness.request<GitLabRepositoryPage>('/api/integrations/gitlab/repositories?search=asdp&page=2&perPage=200')
       expect(response.status).toBe(200)
       expect(response.data).toMatchObject({ page: 2, perPage: 100, total: 1, nextPage: null })
-      expect(response.data.items[0]).toMatchObject({ id: 101, name: 'asdp-api', defaultBranch: 'main' })
+      expect(response.data.items[0]).toMatchObject({ id: 101, name: 'forgepilot-api', defaultBranch: 'main' })
 
       const request = harness.gitLabRequests.at(-1)
       expect(request).toMatchObject({
@@ -197,7 +197,7 @@ const routeCases: ApiRouteCase[] = [
         body: {
           provider: 'gitlab',
           externalId: null,
-          name: 'asdp-api-test',
+          name: 'forgepilot-api-test',
           note: '接口测试仓库',
           url: 'https://gitlab.example.com/asdp/api-test.git',
           defaultBranch: 'main',
@@ -440,7 +440,7 @@ const routeCases: ApiRouteCase[] = [
   },
 ]
 
-describe.sequential('ASDP HTTP API', () => {
+describe.sequential('ForgePilot HTTP API', () => {
   beforeAll(async () => {
     harness = await startApiTestHarness()
   })

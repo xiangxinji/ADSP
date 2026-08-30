@@ -2,9 +2,9 @@
 
 ## Project Identity & Boundaries
 
-This repository is **ASDP — Autonomous Software Delivery Platform**（自主软件交付平台）. Display `ASDP` as the product name and use the `asdp-` prefix for services. ASDP converts requirements into verified code changes and orchestrates delivery through external systems.
+This repository is **ForgePilot · 铸航 — Autonomous Software Delivery Platform**（自主软件交付平台）. Display `ForgePilot` as the product name, `铸航` as its Chinese name, and use the `forgepilot-` prefix for new services. ForgePilot converts requirements into verified code changes and orchestrates delivery through external systems.
 
-ASDP is the AI control plane, not a replacement for source control, CI/CD, or runtime infrastructure. GitLab remains the source of truth for repositories, commits, merge requests, pipelines, and deployment execution. ASDP creates changes, triggers pipelines, interprets results, and retries failures through APIs and webhooks. Production credentials stay in GitLab CI or the target infrastructure.
+ForgePilot is the AI control plane, not a replacement for source control, CI/CD, or runtime infrastructure. GitLab remains the source of truth for repositories, commits, merge requests, pipelines, and deployment execution. ForgePilot creates changes, triggers pipelines, interprets results, and retries failures through APIs and webhooks. Production credentials stay in GitLab CI or the target infrastructure. Preserve legacy `ASDP_*` environment variables and persisted identifiers when compatibility requires them.
 
 Read `docs/product-vision.md` and `docs/architecture.md` before changing product boundaries. Update those documents when an architectural decision changes.
 

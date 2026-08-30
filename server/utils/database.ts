@@ -90,7 +90,9 @@ type DatabaseHolder = typeof globalThis & {
 const globalDatabase = globalThis as DatabaseHolder
 
 const createDatabase = async () => {
-  const databasePath = process.env.ASDP_DB_PATH || resolve(process.cwd(), '.data', 'asdp.sqlite')
+  const databasePath = process.env.FORGEPILOT_DB_PATH
+    || process.env.ASDP_DB_PATH
+    || resolve(process.cwd(), '.data', 'asdp.sqlite')
   const wasmPath = resolve(process.cwd(), 'node_modules', 'sql.js', 'dist', 'sql-wasm.wasm')
   mkdirSync(dirname(databasePath), { recursive: true })
 
@@ -314,12 +316,25 @@ const createDatabase = async () => {
       VALUES (?, ?, ?, ?, ?)
     `).run(
       'project-asdp',
-      'ASDP Platform',
-      'Autonomous Software Delivery Platform 核心产品项目',
+      'ForgePilot Platform',
+      'ForgePilot 自主软件交付平台核心产品项目',
       timestamp,
       timestamp,
     )
   }
+
+  persistentDatabase.prepare(`
+    UPDATE projects
+    SET name = ?, description = ?, updated_at = ?
+    WHERE id = ? AND name = ? AND description = ?
+  `).run(
+    'ForgePilot Platform',
+    'ForgePilot 自主软件交付平台核心产品项目',
+    new Date().toISOString(),
+    'project-asdp',
+    'ASDP Platform',
+    'Autonomous Software Delivery Platform 核心产品项目',
+  )
 
   const insertStatus = persistentDatabase.prepare(`
     INSERT OR IGNORE INTO requirement_statuses

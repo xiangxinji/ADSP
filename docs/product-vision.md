@@ -1,13 +1,13 @@
-# ASDP Product Vision
+# ForgePilot Product Vision
 
 ## Product Identity
 
-- **Name:** ASDP
-- **Full name:** Autonomous Software Delivery Platform
-- **Chinese name:** 自主软件交付平台
-- **Tagline:** 从需求到交付，让软件工程自主运行。
+- **Name:** ForgePilot
+- **Chinese name:** 铸航
+- **Category:** Autonomous Software Delivery Platform（自主软件交付平台）
+- **Tagline:** 从需求启航，让软件自主交付。
 
-ASDP is an AI-native software engineering orchestration platform. A user states an outcome; ASDP turns it into an executable plan, coordinates AI agents to produce verified changes, and delegates delivery execution to established CI/CD systems.
+ForgePilot is an AI-native software engineering orchestration platform. A user states an outcome; ForgePilot turns it into an executable plan, coordinates AI agents to produce verified changes, and delegates delivery execution to established CI/CD systems.
 
 ## Product Goal
 
@@ -25,7 +25,7 @@ Requirement
   → diagnosis, correction, and continuous improvement
 ```
 
-The target is not merely faster code generation. ASDP should make the complete engineering process observable, repeatable, traceable, and increasingly autonomous.
+The target is not merely faster code generation. ForgePilot should make the complete engineering process observable, repeatable, traceable, and increasingly autonomous.
 
 ## Primary Capabilities
 
@@ -76,7 +76,7 @@ Project workspace
 
 A project may contain multiple repositories, environment records, and global users selected as project members with project-specific roles. Environments record an address, lifecycle type, and one or more non-secret account identifiers; passwords, tokens, and private keys remain in CI/CD or the target infrastructure. A requirement may reference multiple repositories and multiple project members. Assets and memberships are registered once at project level and reused across requirements. A requirement represents business intent; each execution attempt is a separate workflow run so failures and retries remain auditable.
 
-Requirement creation will eventually begin with a natural-language AI entry. ASDP will create a draft, derive acceptance criteria, recommend assets and participants, clarify missing information, and start execution according to project policy.
+Requirement creation will eventually begin with a natural-language AI entry. ForgePilot will create a draft, derive acceptance criteria, recommend assets and participants, clarify missing information, and start execution according to project policy.
 
 ## Non-Goals
 
@@ -87,7 +87,7 @@ Requirement creation will eventually begin with a natural-language AI entry. ASD
 
 ## Open Product Decisions
 
-- Whether the first release supports only ASDP-created repositories or existing company repositories as well.
+- Whether the first release supports only ForgePilot-created repositories or existing company repositories as well.
 - Which software outputs are supported first: web applications, backend services, mobile applications, or infrastructure.
 - Which deployment target and source-control operating model should define each provider integration.
 - Which actions are autonomous by default and which require approval.

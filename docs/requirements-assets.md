@@ -2,7 +2,7 @@
 
 ## Goal
 
-Deliver the first usable ASDP project workspace. Users enter a project, manage requirements, maintain project-level code repositories, memberships, and environments, and reference applicable assets from each requirement.
+Deliver the first usable ForgePilot project workspace. Users enter a project, manage requirements, maintain project-level code repositories, memberships, and environments, and reference applicable assets from each requirement.
 
 This iteration includes a Nuxt server API and SQLite persistence. The browser accesses domain data only through the API. A global encrypted GitLab connection supports identity validation, repository discovery, and importing repository metadata; authentication, webhooks, and bidirectional GitLab synchronization are not yet included.
 

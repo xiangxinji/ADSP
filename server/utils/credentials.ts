@@ -8,20 +8,25 @@ let credentialKey: Buffer | undefined
 const readLocalKey = (keyPath: string) => {
   const encodedKey = readFileSync(keyPath, 'utf8').trim()
   const key = Buffer.from(encodedKey, 'base64')
-  if (key.length !== 32) throw new Error('ASDP credential key is invalid')
+  if (key.length !== 32) throw new Error('ForgePilot credential key is invalid')
   return key
 }
 
 const useCredentialKey = () => {
   if (credentialKey) return credentialKey
 
-  const configuredKey = process.env.ASDP_CREDENTIAL_ENCRYPTION_KEY?.trim()
+  const configuredKey = (
+    process.env.FORGEPILOT_CREDENTIAL_ENCRYPTION_KEY
+    || process.env.ASDP_CREDENTIAL_ENCRYPTION_KEY
+  )?.trim()
   if (configuredKey) {
     credentialKey = createHash('sha256').update(configuredKey).digest()
     return credentialKey
   }
 
-  const keyPath = process.env.ASDP_CREDENTIAL_KEY_PATH || resolve(process.cwd(), '.data', 'credential.key')
+  const keyPath = process.env.FORGEPILOT_CREDENTIAL_KEY_PATH
+    || process.env.ASDP_CREDENTIAL_KEY_PATH
+    || resolve(process.cwd(), '.data', 'credential.key')
   mkdirSync(dirname(keyPath), { recursive: true })
 
   if (!existsSync(keyPath)) {
@@ -48,7 +53,7 @@ export const encryptCredential = (plaintext: string) => {
 export const decryptCredential = (value: string) => {
   const [version, ivValue, tagValue, encryptedValue] = value.split(':')
   if (version !== 'v1' || !ivValue || !tagValue || !encryptedValue) {
-    throw new Error('ASDP credential value is invalid')
+    throw new Error('ForgePilot credential value is invalid')
   }
 
   const decipher = createDecipheriv(algorithm, useCredentialKey(), Buffer.from(ivValue, 'base64'))

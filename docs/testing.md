@@ -1,11 +1,11 @@
-# ASDP Testing Guide
+# ForgePilot Testing Guide
 
 ## Commands
 
-- `npm test`: build ASDP and run the complete automated test suite.
+- `npm test`: build ForgePilot and run the complete automated test suite.
 - `npm run test:api`: explicit alias for the same API integration suite.
 
-The API suite starts the built ASDP server on an available local port, uses a fresh
+The API suite starts the built ForgePilot server on an available local port, uses a fresh
 temporary SQLite database, and replaces GitLab with a local HTTP mock. It never reads
 the development database, a real GitLab Token, or an external GitLab instance. Test
 processes and temporary files are removed when the suite completes.

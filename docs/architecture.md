@@ -1,4 +1,4 @@
-# ASDP Architecture Overview
+# ForgePilot Architecture Overview
 
 ## Status
 
@@ -6,16 +6,16 @@ This is a living architecture document. It records agreed boundaries and early c
 
 ## System Context and Responsibility Boundary
 
-ASDP is the orchestration and intelligence control plane. GitLab and the runtime environment remain execution systems.
+ForgePilot is the orchestration and intelligence control plane. GitLab and the runtime environment remain execution systems.
 
 | System | Responsibility |
 |---|---|
-| ASDP | Requirements, specifications, planning, agent coordination, code-change workflows, result interpretation, retry, audit, and policy |
+| ForgePilot | Requirements, specifications, planning, agent coordination, code-change workflows, result interpretation, retry, audit, and policy |
 | GitLab | Repositories, branches, commits, merge requests, permissions, and review history |
 | GitLab CI | Build, test, security scan, artifact generation, deployment, and rollback jobs |
 | Runtime infrastructure | Kubernetes, cloud services, servers, databases, secrets, logs, and metrics |
 
-ASDP must not require direct production credentials when GitLab CI or the target infrastructure can perform the operation.
+ForgePilot must not require direct production credentials when GitLab CI or the target infrastructure can perform the operation.
 
 ## End-to-End Control Loop
 
@@ -34,7 +34,7 @@ GitLab CI pipeline triggered
     ├─ failed → webhook → log analysis → repair task → new commit
     └─ passed → policy gate → merge → GitLab CI deployment
                                       ↓
-                           status synchronized to ASDP
+                           status synchronized to ForgePilot
 ```
 
 ## Logical Modules
@@ -105,9 +105,11 @@ Requirement 1─* WorkflowRun
 
 Each `RepositoryAsset` stores a provider discriminator (`gitlab` or `github`) alongside its URL and default branch. Existing records migrate to `gitlab`. Provider-specific synchronization and delivery behavior stays behind source-control and delivery adapters.
 
-Each `EnvironmentAsset` is project-owned and records an HTTP(S) address plus a lifecycle type: `development`, `testing`, or `production`. It owns one or more ordered `EnvironmentAccount` identifiers so operators can document the accounts available for that target. These values are identifiers only; ASDP does not store environment passwords, tokens, private keys, or direct production credentials. Authentication material remains in GitLab CI or the target infrastructure and later integrations should reference a secret manager rather than extending the environment API with plaintext credentials.
+Each `EnvironmentAsset` is project-owned and records an HTTP(S) address plus a lifecycle type: `development`, `testing`, or `production`. It owns one or more ordered `EnvironmentAccount` identifiers so operators can document the accounts available for that target. These values are identifiers only; ForgePilot does not store environment passwords, tokens, private keys, or direct production credentials. Authentication material remains in GitLab CI or the target infrastructure and later integrations should reference a secret manager rather than extending the environment API with plaintext credentials.
 
 The SQLite bootstrap creates the environment and account tables idempotently for existing installations. Existing projects and assets require no data rewrite; their environment collections begin empty.
+
+The ForgePilot rebrand preserves legacy database identifiers and the default `.data/asdp.sqlite` path. During bootstrap, only the untouched `project-asdp` sample project with its exact former default name and description is renamed; user-edited project records are never overwritten.
 
 People may appear in the product's Asset module, but the domain must not model a person as project-owned data. A person belongs to the organization; `ProjectMember` grants project context, and `RequirementParticipant` grants requirement context.
 
@@ -130,13 +132,13 @@ each project evolve its workflow vocabulary without deploying application code.
 
 ## Integration Contract with GitLab
 
-ASDP is expected to use GitLab OAuth or scoped project tokens, REST/GraphQL APIs, and signed webhooks. Relevant resources include projects, branches, commits, merge requests, pipelines, jobs, logs, artifacts, and environments. Webhook events enter ASDP's event processing layer and advance or suspend the associated workflow run.
+ForgePilot is expected to use GitLab OAuth or scoped project tokens, REST/GraphQL APIs, and signed webhooks. Relevant resources include projects, branches, commits, merge requests, pipelines, jobs, logs, artifacts, and environments. Webhook events enter ForgePilot's event processing layer and advance or suspend the associated workflow run.
 
 Integration code must be isolated behind adapters. GitLab-specific payloads must not leak into core domain entities. Store external IDs and immutable event records so synchronization is idempotent and recoverable.
 
-The current single-tenant preview provides one global GitLab connection. An operator configures the GitLab base URL and a scoped Personal Access Token; ASDP validates it through the GitLab user API before saving it. The token is encrypted with AES-256-GCM using `ASDP_CREDENTIAL_ENCRYPTION_KEY`, or a generated local key under `.data` for development. Read APIs return only connection metadata and a masked token hint. The browser never receives the saved token, and GitLab requests remain inside the server-side adapter.
+The current single-tenant preview provides one global GitLab connection. An operator configures the GitLab base URL and a scoped Personal Access Token; ForgePilot validates it through the GitLab user API before saving it. The token is encrypted with AES-256-GCM using `FORGEPILOT_CREDENTIAL_ENCRYPTION_KEY`, or a generated local key under `.data` for development. Legacy `ASDP_*` configuration names remain supported for existing deployments. Read APIs return only connection metadata and a masked token hint. The browser never receives the saved token, and GitLab requests remain inside the server-side adapter.
 
-Repository discovery uses this connection to list membership projects. Importing a result creates an ASDP `RepositoryAsset` with its GitLab project ID as `external_id`; it does not copy or replace the GitLab repository. The global credential is an initial operating model for local or controlled deployments. Organization-scoped ownership, administrator authorization, OAuth, token rotation policy, and per-project credentials remain required before a multi-tenant production release.
+Repository discovery uses this connection to list membership projects. Importing a result creates a ForgePilot `RepositoryAsset` with its GitLab project ID as `external_id`; it does not copy or replace the GitLab repository. The global credential is an initial operating model for local or controlled deployments. Organization-scoped ownership, administrator authorization, OAuth, token rotation policy, and per-project credentials remain required before a multi-tenant production release.
 
 ## Cross-Cutting Requirements
 

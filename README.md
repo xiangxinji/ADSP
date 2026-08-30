@@ -1,10 +1,10 @@
-# ASDP
+# ForgePilot · 铸航
 
 **Autonomous Software Delivery Platform**（自主软件交付平台）
 
-ASDP is an AI-native software engineering orchestration platform. It turns requirements into planned, verified code changes and coordinates existing delivery systems such as GitLab CI.
+ForgePilot is an AI-native software engineering orchestration platform. It turns requirements into planned, verified code changes and coordinates existing delivery systems such as GitLab CI.
 
-> 从需求到交付，让软件工程自主运行。
+> 从需求启航，让软件自主交付。
 
 The product is currently in the architecture-design stage. Read [Product Vision](docs/product-vision.md), [Architecture](docs/architecture.md), the current [Requirements & Assets specification](docs/requirements-assets.md), and [API contract](docs/api.md) before implementation.
 

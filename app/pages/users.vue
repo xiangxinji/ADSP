@@ -54,7 +54,7 @@ const createUser = async () => {
 <template>
   <div class="app-frame">
     <header class="site-header">
-      <NuxtLink to="/" class="brand"><span>ASDP</span><small>Autonomous Software Delivery Platform</small></NuxtLink>
+      <NuxtLink to="/" class="brand"><span>ForgePilot</span><small>铸航 · Autonomous Software Delivery</small></NuxtLink>
       <nav class="header-nav" aria-label="全局导航"><NuxtLink to="/">项目</NuxtLink><NuxtLink to="/users" class="active">用户管理</NuxtLink><NuxtLink to="/settings">全局设置</NuxtLink></nav>
       <span class="header-badge">Architecture Preview</span>
     </header>
@@ -64,7 +64,7 @@ const createUser = async () => {
         <div>
           <p class="overline">IDENTITY</p>
           <h1>用户管理</h1>
-          <p>管理 ASDP 平台用户。用户是全局身份，不归属于任何项目。</p>
+          <p>管理 ForgePilot 平台用户。用户是全局身份，不归属于任何项目。</p>
         </div>
         <button class="button primary" type="button" @click="openCreateDialog">新增用户</button>
       </section>
@@ -87,7 +87,7 @@ const createUser = async () => {
           <time :datetime="user.createdAt">{{ formatDate(user.createdAt) }}</time>
         </article>
       </section>
-      <div v-else class="panel empty-state"><strong>还没有用户</strong><span>新增第一位平台用户，建立 ASDP 的全局身份目录。</span><button class="button primary" type="button" @click="openCreateDialog">新增用户</button></div>
+      <div v-else class="panel empty-state"><strong>还没有用户</strong><span>新增第一位平台用户，建立 ForgePilot 的全局身份目录。</span><button class="button primary" type="button" @click="openCreateDialog">新增用户</button></div>
     </main>
 
     <Teleport to="body">
