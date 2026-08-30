@@ -20,7 +20,15 @@ const workspaceUrl = computed(() => `/api/projects/${projectId.value}`)
 const { data: workspace, status, error, refresh } = await useFetch<ProjectWorkspace>(workspaceUrl)
 const { data: users, status: usersStatus, error: usersError } = await useFetch<UserAccount[]>('/api/users')
 
-const activeTab = ref<'requirements' | 'assets'>('requirements')
+type AssetModule = 'repositories' | 'members' | 'environments'
+
+const activeTab = computed<'requirements' | 'assets'>(() => route.query.tab === 'assets' ? 'assets' : 'requirements')
+const activeAssetModule = computed<AssetModule | null>(() => {
+  const module = String(route.query.asset || '')
+  return activeTab.value === 'assets' && ['repositories', 'members', 'environments'].includes(module)
+    ? module as AssetModule
+    : null
+})
 const dialog = ref<'requirement' | 'statuses' | 'repository' | 'member' | 'environment' | null>(null)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
@@ -85,6 +93,18 @@ const selectableUsers = computed(() => {
   const editingUserId = editingId.value ? memberForm.userId : ''
   return (users.value || []).filter(user => user.id === editingUserId || !assignedUserIds.has(user.id))
 })
+
+const selectProjectTab = (tab: 'requirements' | 'assets') => {
+  void navigateTo({ path: route.path, query: tab === 'assets' ? { tab: 'assets' } : {} })
+}
+
+const openAssetModule = (module: AssetModule) => {
+  void navigateTo({ path: route.path, query: { tab: 'assets', asset: module } })
+}
+
+const returnToAssetOverview = () => {
+  void navigateTo({ path: route.path, query: { tab: 'assets' } })
+}
 
 const openRequirement = (requirement?: Requirement) => {
   editingId.value = requirement?.id || null
@@ -353,8 +373,8 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
       </section>
 
       <nav class="tabs" aria-label="项目模块">
-        <button type="button" :class="{ active: activeTab === 'requirements' }" @click="activeTab = 'requirements'">需求</button>
-        <button type="button" :class="{ active: activeTab === 'assets' }" @click="activeTab = 'assets'">资产</button>
+        <button type="button" :class="{ active: activeTab === 'requirements' }" @click="selectProjectTab('requirements')">需求</button>
+        <button type="button" :class="{ active: activeTab === 'assets' }" @click="selectProjectTab('assets')">资产</button>
       </nav>
 
       <p v-if="actionError && !dialog" class="alert error-state">{{ actionError }}</p>
@@ -382,38 +402,84 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
       </section>
 
       <section v-else class="module-section assets-module">
-        <div class="section-heading"><div><h2>资产管理</h2><p>集中维护项目的代码仓库、成员和交付环境。</p></div></div>
-        <div class="asset-columns">
-          <section class="asset-group">
-            <div class="asset-group-heading"><div><h3>代码仓库</h3><span>{{ workspace.repositories.length }} 条记录</span></div><button class="button secondary" type="button" @click="openRepository()">添加仓库</button></div>
-            <article v-for="repository in workspace.repositories" :key="repository.id" class="panel asset-card">
+        <template v-if="!activeAssetModule">
+          <div class="section-heading">
+            <div><h2>资产管理</h2><p>按资产类型进入独立空间，查看和维护当前项目的交付资源。</p></div>
+          </div>
+
+          <div class="asset-module-grid">
+            <button class="panel asset-module-card" type="button" @click="openAssetModule('repositories')">
+              <span class="asset-module-icon repository-icon" aria-hidden="true">⌘</span>
+              <span class="asset-module-copy"><strong>代码仓库</strong><small>管理 GitLab、GitHub 仓库连接与默认分支</small></span>
+              <span class="asset-module-meta"><strong>{{ workspace.repositories.length }}</strong><small>个仓库</small></span>
+              <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
+            </button>
+
+            <button class="panel asset-module-card" type="button" @click="openAssetModule('members')">
+              <span class="asset-module-icon member-icon" aria-hidden="true">人</span>
+              <span class="asset-module-copy"><strong>项目成员</strong><small>从全局用户中选择成员并设置项目角色</small></span>
+              <span class="asset-module-meta"><strong>{{ workspace.members.length }}</strong><small>位成员</small></span>
+              <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
+            </button>
+
+            <button class="panel asset-module-card" type="button" @click="openAssetModule('environments')">
+              <span class="asset-module-icon environment-icon" aria-hidden="true">◎</span>
+              <span class="asset-module-copy"><strong>环境管理</strong><small>维护开发、测试和生产环境的访问入口</small></span>
+              <span class="asset-module-meta"><strong>{{ workspace.environments.length }}</strong><small>个环境</small></span>
+              <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
+            </button>
+          </div>
+
+          <aside class="asset-security-note">
+            <span aria-hidden="true">✓</span>
+            <p><strong>凭据始终由交付系统保管</strong>ASDP 只记录资产标识与访问地址，不保存密码、Token 或私钥。</p>
+          </aside>
+        </template>
+
+        <template v-else-if="activeAssetModule === 'repositories'">
+          <div class="asset-detail-heading">
+            <button class="asset-back-button" type="button" @click="returnToAssetOverview">← 返回资产管理</button>
+            <div class="section-heading"><div><p class="overline">REPOSITORY ASSETS</p><h2>代码仓库</h2><p>管理项目引用的源代码仓库和默认分支。</p></div><button class="button primary" type="button" @click="openRepository()">添加仓库</button></div>
+          </div>
+          <div v-if="workspace.repositories.length" class="asset-record-list">
+            <article v-for="repository in workspace.repositories" :key="repository.id" class="panel asset-card asset-record-card">
               <div class="asset-icon repository-icon">⌘</div>
               <div class="asset-copy"><strong>{{ repository.name }} <span class="provider-badge">{{ repositoryProviderLabel(repository.provider) }}</span></strong><a :href="repository.url" target="_blank" rel="noreferrer">{{ repository.url }}</a><small>默认分支：{{ repository.defaultBranch }} · 被 {{ repository.referenceCount }} 条需求引用</small></div>
               <div class="asset-actions"><button class="text-button" type="button" @click="openRepository(repository)">编辑</button><button class="text-button danger" type="button" @click="removeRecord('repository', repository.id, repository.name, repository.referenceCount)">删除</button></div>
             </article>
-            <div v-if="!workspace.repositories.length" class="panel empty-state compact"><span>尚未登记代码仓库</span><button class="text-button" type="button" @click="openRepository()">添加第一个仓库</button></div>
-          </section>
+          </div>
+          <div v-else class="panel empty-state"><strong>还没有代码仓库</strong><span>添加仓库后，需求可以直接引用它。</span><button class="button primary" type="button" @click="openRepository()">添加第一个仓库</button></div>
+        </template>
 
-          <section class="asset-group">
-            <div class="asset-group-heading"><div><h3>项目成员</h3><span>{{ workspace.members.length }} 条记录</span></div><button class="button secondary" type="button" @click="openMember()">添加成员</button></div>
-            <article v-for="member in workspace.members" :key="member.id" class="panel asset-card">
+        <template v-else-if="activeAssetModule === 'members'">
+          <div class="asset-detail-heading">
+            <button class="asset-back-button" type="button" @click="returnToAssetOverview">← 返回资产管理</button>
+            <div class="section-heading"><div><p class="overline">PROJECT MEMBERS</p><h2>项目成员</h2><p>选择全局用户加入项目，并维护其项目角色。</p></div><button class="button primary" type="button" @click="openMember()">添加成员</button></div>
+          </div>
+          <div v-if="workspace.members.length" class="asset-record-list">
+            <article v-for="member in workspace.members" :key="member.id" class="panel asset-card asset-record-card">
               <div class="asset-icon member-icon">{{ member.user.name.slice(0, 1) }}</div>
               <div class="asset-copy"><strong>{{ member.user.name }}</strong><span>{{ member.user.email }}</span><small>{{ member.role }} · 被 {{ member.referenceCount }} 条需求引用</small></div>
               <div class="asset-actions"><button class="text-button" type="button" @click="openMember(member)">编辑角色</button><button class="text-button danger" type="button" @click="removeRecord('member', member.id, member.user.name, member.referenceCount)">移除</button></div>
             </article>
-            <div v-if="!workspace.members.length" class="panel empty-state compact"><span>尚未添加项目成员</span><button class="text-button" type="button" @click="openMember()">添加第一位成员</button></div>
-          </section>
+          </div>
+          <div v-else class="panel empty-state"><strong>还没有项目成员</strong><span>从全局用户中选择成员，并为其设置项目角色。</span><button class="button primary" type="button" @click="openMember()">添加第一位成员</button></div>
+        </template>
 
-          <section class="asset-group">
-            <div class="asset-group-heading"><div><h3>环境管理</h3><span>{{ workspace.environments.length }} 条记录</span></div><button class="button secondary" type="button" @click="openEnvironment()">添加环境</button></div>
-            <article v-for="environment in workspace.environments" :key="environment.id" class="panel asset-card">
+        <template v-else>
+          <div class="asset-detail-heading">
+            <button class="asset-back-button" type="button" @click="returnToAssetOverview">← 返回资产管理</button>
+            <div class="section-heading"><div><p class="overline">ENVIRONMENT ASSETS</p><h2>环境管理</h2><p>维护项目开发、测试和生产环境的访问入口。</p></div><button class="button primary" type="button" @click="openEnvironment()">添加环境</button></div>
+          </div>
+          <div v-if="workspace.environments.length" class="asset-record-list">
+            <article v-for="environment in workspace.environments" :key="environment.id" class="panel asset-card asset-record-card">
               <div class="asset-icon environment-icon">◎</div>
               <div class="asset-copy"><strong>项目环境 <span class="provider-badge environment-badge" :data-environment="environment.type">{{ environmentTypeLabel(environment.type) }}</span></strong><a :href="environment.address" target="_blank" rel="noreferrer">{{ environment.address }}</a><small>账号：{{ environment.accounts.join('、') }}</small></div>
               <div class="asset-actions"><button class="text-button" type="button" @click="openEnvironment(environment)">编辑</button><button class="text-button danger" type="button" @click="removeRecord('environment', environment.id, environment.address)">删除</button></div>
             </article>
-            <div v-if="!workspace.environments.length" class="panel empty-state compact"><span>尚未登记项目环境</span><button class="text-button" type="button" @click="openEnvironment()">添加第一个环境</button></div>
-          </section>
-        </div>
+          </div>
+          <div v-else class="panel empty-state"><strong>还没有项目环境</strong><span>登记环境地址与账号标识，凭据仍由交付系统保管。</span><button class="button primary" type="button" @click="openEnvironment()">添加第一个环境</button></div>
+        </template>
       </section>
     </main>
 
