@@ -15,17 +15,39 @@ import type {
 } from '#shared/types/asdp'
 
 const route = useRoute()
-const projectId = computed(() => String(route.params.id))
+const routeSegments = computed(() => Array.isArray(route.params.slug)
+  ? route.params.slug.map(segment => String(segment))
+  : [String(route.params.slug || '')])
+const projectId = computed(() => routeSegments.value[0])
+const projectPath = computed(() => `/projects/${projectId.value}`)
+const assetsPath = computed(() => `${projectPath.value}/assets`)
+const assetModules = ['repositories', 'members', 'environments'] as const
+
+type AssetModule = typeof assetModules[number]
+
+const requestedSection = routeSegments.value[1]
+const requestedModule = routeSegments.value[2]
+
+if ((requestedSection && requestedSection !== 'assets')
+  || (requestedModule && !assetModules.includes(requestedModule as AssetModule))
+  || routeSegments.value.length > 3) {
+  throw createError({ statusCode: 404, statusMessage: '项目页面不存在' })
+}
+
+if (!requestedSection && route.query.tab === 'assets') {
+  const legacyModule = String(route.query.asset || '')
+  const modulePath = assetModules.includes(legacyModule as AssetModule) ? `/${legacyModule}` : ''
+  await navigateTo(`${assetsPath.value}${modulePath}`, { replace: true })
+}
+
 const workspaceUrl = computed(() => `/api/projects/${projectId.value}`)
 const { data: workspace, status, error, refresh } = await useFetch<ProjectWorkspace>(workspaceUrl)
 const { data: users, status: usersStatus, error: usersError } = await useFetch<UserAccount[]>('/api/users')
 
-type AssetModule = 'repositories' | 'members' | 'environments'
-
-const activeTab = computed<'requirements' | 'assets'>(() => route.query.tab === 'assets' ? 'assets' : 'requirements')
+const activeTab = computed<'requirements' | 'assets'>(() => routeSegments.value[1] === 'assets' ? 'assets' : 'requirements')
 const activeAssetModule = computed<AssetModule | null>(() => {
-  const module = String(route.query.asset || '')
-  return activeTab.value === 'assets' && ['repositories', 'members', 'environments'].includes(module)
+  const module = routeSegments.value[2] || ''
+  return activeTab.value === 'assets' && assetModules.includes(module as AssetModule)
     ? module as AssetModule
     : null
 })
@@ -362,10 +384,10 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
     <main v-if="workspace" class="page workspace-page">
       <nav class="breadcrumbs" aria-label="当前位置">
         <NuxtLink to="/">项目</NuxtLink><span aria-hidden="true">/</span>
-        <NuxtLink :to="route.path">{{ workspace.project.name }}</NuxtLink><span aria-hidden="true">/</span>
+        <NuxtLink :to="projectPath">{{ workspace.project.name }}</NuxtLink><span aria-hidden="true">/</span>
         <template v-if="activeTab === 'requirements'"><span aria-current="page">需求</span></template>
         <template v-else>
-          <NuxtLink v-if="activeAssetModule" :to="{ path: route.path, query: { tab: 'assets' } }">资产</NuxtLink>
+          <NuxtLink v-if="activeAssetModule" :to="assetsPath">资产</NuxtLink>
           <span v-else aria-current="page">资产</span>
           <template v-if="activeAssetModule"><span aria-hidden="true">/</span><span aria-current="page">{{ assetModuleLabel }}</span></template>
         </template>
@@ -377,8 +399,8 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
       </section>
 
       <nav class="tabs" aria-label="项目模块">
-        <NuxtLink :to="route.path" :class="{ active: activeTab === 'requirements' }" :aria-current="activeTab === 'requirements' ? 'page' : undefined">需求</NuxtLink>
-        <NuxtLink :to="{ path: route.path, query: { tab: 'assets' } }" :class="{ active: activeTab === 'assets' }" :aria-current="activeTab === 'assets' ? 'page' : undefined">资产</NuxtLink>
+        <NuxtLink :to="projectPath" :class="{ active: activeTab === 'requirements' }" :aria-current="activeTab === 'requirements' ? 'page' : undefined">需求</NuxtLink>
+        <NuxtLink :to="assetsPath" :class="{ active: activeTab === 'assets' }" :aria-current="activeTab === 'assets' ? 'page' : undefined">资产</NuxtLink>
       </nav>
 
       <p v-if="actionError && !dialog" class="alert error-state">{{ actionError }}</p>
@@ -412,21 +434,21 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
           </div>
 
           <div class="asset-module-grid">
-            <NuxtLink class="panel asset-module-card" :to="{ path: route.path, query: { tab: 'assets', asset: 'repositories' } }">
+            <NuxtLink class="panel asset-module-card" :to="`${assetsPath}/repositories`">
               <span class="asset-module-icon repository-icon" aria-hidden="true">⌘</span>
               <span class="asset-module-copy"><strong>代码仓库</strong><small>管理 GitLab、GitHub 仓库连接与默认分支</small></span>
               <span class="asset-module-meta"><strong>{{ workspace.repositories.length }}</strong><small>个仓库</small></span>
               <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
             </NuxtLink>
 
-            <NuxtLink class="panel asset-module-card" :to="{ path: route.path, query: { tab: 'assets', asset: 'members' } }">
+            <NuxtLink class="panel asset-module-card" :to="`${assetsPath}/members`">
               <span class="asset-module-icon member-icon" aria-hidden="true">人</span>
               <span class="asset-module-copy"><strong>项目成员</strong><small>从全局用户中选择成员并设置项目角色</small></span>
               <span class="asset-module-meta"><strong>{{ workspace.members.length }}</strong><small>位成员</small></span>
               <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
             </NuxtLink>
 
-            <NuxtLink class="panel asset-module-card" :to="{ path: route.path, query: { tab: 'assets', asset: 'environments' } }">
+            <NuxtLink class="panel asset-module-card" :to="`${assetsPath}/environments`">
               <span class="asset-module-icon environment-icon" aria-hidden="true">◎</span>
               <span class="asset-module-copy"><strong>环境管理</strong><small>维护开发、测试和生产环境的访问入口</small></span>
               <span class="asset-module-meta"><strong>{{ workspace.environments.length }}</strong><small>个环境</small></span>
