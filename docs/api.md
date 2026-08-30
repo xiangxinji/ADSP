@@ -162,3 +162,10 @@ the API does not accept passwords, tokens, or private keys.
 Each requirement contains `statusId`, expanded `status`, `repositoryIds`, `memberIds`,
 and expanded `repositories` and `members` arrays for direct display. Every member
 contains its project role and an expanded global `user`.
+
+## Automated Verification
+
+All routes in this contract are exercised through real HTTP integration tests. Run
+`npm test` before merging an API change. The suite uses an isolated SQLite database,
+a local GitLab mock, and a route-inventory guard that fails when a new API route is
+added without a corresponding test. See `docs/testing.md` for the required coverage.

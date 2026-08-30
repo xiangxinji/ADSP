@@ -6,6 +6,8 @@
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
+    "test": "npm run test:api",
+    "test:api": "npm run build && vitest run",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
   },
@@ -16,6 +18,7 @@
     "vue-router": "^5.2.0"
   },
   "devDependencies": {
-    "@types/sql.js": "^1.4.11"
+    "@types/sql.js": "^1.4.11",
+    "vitest": "^4.1.11"
   }
 }
