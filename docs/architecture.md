@@ -1,0 +1,121 @@
+# ASDP Architecture Overview
+
+## Status
+
+This is a living architecture document. It records agreed boundaries and early conceptual design; implementation technology beyond the current Nuxt 4 shell is not yet decided.
+
+## System Context and Responsibility Boundary
+
+ASDP is the orchestration and intelligence control plane. GitLab and the runtime environment remain execution systems.
+
+| System | Responsibility |
+|---|---|
+| ASDP | Requirements, specifications, planning, agent coordination, code-change workflows, result interpretation, retry, audit, and policy |
+| GitLab | Repositories, branches, commits, merge requests, permissions, and review history |
+| GitLab CI | Build, test, security scan, artifact generation, deployment, and rollback jobs |
+| Runtime infrastructure | Kubernetes, cloud services, servers, databases, secrets, logs, and metrics |
+
+ASDP must not require direct production credentials when GitLab CI or the target infrastructure can perform the operation.
+
+## End-to-End Control Loop
+
+```text
+User requirement
+    ↓
+Requirement specification + acceptance criteria
+    ↓
+Workflow definition and dependency graph
+    ↓
+Agent tasks execute in isolated workspaces
+    ↓
+Branch / commit / merge request created in GitLab
+    ↓
+GitLab CI pipeline triggered
+    ├─ failed → webhook → log analysis → repair task → new commit
+    └─ passed → policy gate → merge → GitLab CI deployment
+                                      ↓
+                           status synchronized to ASDP
+```
+
+## Logical Modules
+
+- **Identity and Organization:** users, teams, projects, roles, and integration ownership.
+- **Requirement Service:** requirements, clarification history, specifications, and acceptance criteria.
+- **Workflow Orchestrator:** definitions, runs, steps, dependencies, state transitions, retries, and cancellation.
+- **Agent Runtime:** agent roles, task context, model selection, tool authorization, and isolated execution.
+- **Artifact and Context Service:** plans, patches, reports, logs, generated documents, and provenance.
+- **Source Control Adapter:** repository discovery, branches, commits, merge requests, comments, and webhooks.
+- **Delivery Adapter:** pipelines, jobs, logs, artifacts, environments, and deployment status.
+- **Policy and Approval Engine:** risk rules, quality gates, human checkpoints, budgets, and permissions.
+- **Audit and Observability:** event history, traces, cost, execution metrics, and failure diagnosis.
+
+GitLab is the first adapter. GitHub Actions, Jenkins, and Argo CD should be possible later without changing the core workflow domain.
+
+## Core Domain Model
+
+```text
+Organization 1─* Project
+Project      1─* RepositoryConnection
+Project      1─* Requirement
+Requirement  1─* WorkflowRun
+WorkflowRun  1─* AgentTask
+WorkflowRun  1─* Artifact
+WorkflowRun  1─* Approval
+WorkflowRun  1─* DeliveryReference
+
+DeliveryReference → Commit → MergeRequest → Pipeline → Environment
+```
+
+A workflow run is the central auditable unit. It links the original intent to every task, generated artifact, code change, quality result, approval, and delivery outcome.
+
+## Project Entry, Requirements, and Assets
+
+`Project` is the primary workspace and authorization boundary. It owns requirement records and repository connections, and associates organization users through project memberships.
+
+```text
+Project 1─* Requirement
+Project 1─* RequirementStatus
+Project 1─* RepositoryAsset
+Project 1─* ProjectMember *─1 User
+
+Requirement *─1 RequirementStatus
+Requirement *─* RepositoryAsset through RequirementRepository
+Requirement *─* ProjectMember through RequirementParticipant
+Requirement 1─* WorkflowRun
+```
+
+`RequirementRepository` records how a repository participates, such as primary target, dependency, or read-only reference, together with branch or write-scope constraints. `RequirementParticipant` records responsibility such as requester, owner, contributor, reviewer, or approver.
+
+People may appear in the product's Asset module, but the domain must not model a person as project-owned data. A person belongs to the organization; `ProjectMember` grants project context, and `RequirementParticipant` grants requirement context.
+
+The first implementation persists these records in SQLite through the Nuxt server API. Database access remains behind a repository layer so a future PostgreSQL migration can preserve the same identities, constraints, and API contracts.
+
+Requirement lifecycle states are project-owned records, not application enums. Each
+`RequirementStatus` has a stable project-local key, display name, color, ordering,
+and initial/terminal flags. A requirement stores `status_id`; status deletion is
+rejected while requirements reference it. Projects start with six editable states:
+Draft, Clarifying, Ready, In Progress, Validating, and Delivered. This design lets
+each project evolve its workflow vocabulary without deploying application code.
+
+## Integration Contract with GitLab
+
+ASDP is expected to use GitLab OAuth or scoped project tokens, REST/GraphQL APIs, and signed webhooks. Relevant resources include projects, branches, commits, merge requests, pipelines, jobs, logs, artifacts, and environments. Webhook events enter ASDP's event processing layer and advance or suspend the associated workflow run.
+
+Integration code must be isolated behind adapters. GitLab-specific payloads must not leak into core domain entities. Store external IDs and immutable event records so synchronization is idempotent and recoverable.
+
+## Cross-Cutting Requirements
+
+- Every automated action must record actor, model, input context, tool call, output, and resulting external reference.
+- Agent permissions and credentials must be least-privilege, scoped, revocable, and short-lived where possible.
+- Workflow steps must be resumable and idempotent; webhook delivery may be duplicated or delayed.
+- Policies must support unattended execution, approval checkpoints, and immediate human takeover.
+- Cost, token usage, elapsed time, retries, and failure reasons must be observable per run.
+
+## Open Architecture Decisions
+
+- Modular monolith versus separately deployed control-plane services.
+- Persistent database, queue, event bus, and workflow-engine technology.
+- Workspace isolation model: containers, Kubernetes jobs, or remote development environments.
+- Artifact storage and long-term execution-log retention.
+- Multi-tenant isolation and enterprise identity integration.
+- Runtime monitoring integration after GitLab CI completes deployment.

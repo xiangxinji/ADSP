@@ -1,0 +1,91 @@
+# ASDP Product Vision
+
+## Product Identity
+
+- **Name:** ASDP
+- **Full name:** Autonomous Software Delivery Platform
+- **Chinese name:** 自主软件交付平台
+- **Tagline:** 从需求到交付，让软件工程自主运行。
+
+ASDP is an AI-native software engineering orchestration platform. A user states an outcome; ASDP turns it into an executable plan, coordinates AI agents to produce verified changes, and delegates delivery execution to established CI/CD systems.
+
+## Product Goal
+
+Create an end-to-end, policy-governed automation loop:
+
+```text
+Requirement
+  → clarification and acceptance criteria
+  → specification and architecture
+  → execution plan and agent tasks
+  → code, configuration, and documentation
+  → automated quality checks
+  → merge and delivery through GitLab CI
+  → delivery status and operational feedback
+  → diagnosis, correction, and continuous improvement
+```
+
+The target is not merely faster code generation. ASDP should make the complete engineering process observable, repeatable, traceable, and increasingly autonomous.
+
+## Primary Capabilities
+
+1. **Requirement Center** — capture natural-language goals, clarify ambiguity, and define acceptance criteria.
+2. **Workflow Engine** — transform goals into dependency-aware, resumable execution graphs.
+3. **Agent Orchestration** — assign architecture, implementation, review, testing, and diagnosis responsibilities.
+4. **Execution Environments** — provide isolated workspaces with code, terminal, browser, and controlled credentials.
+5. **Quality Gates** — coordinate tests, reviews, security checks, and policy decisions.
+6. **Delivery Center** — connect workflow runs to commits, merge requests, pipelines, and environments.
+7. **Governance** — manage permissions, approvals, audit history, cost, and model policies.
+8. **Feedback Loop** — interpret pipeline or runtime failures and initiate repair workflows.
+
+## Automation Principle
+
+“Fully automated” means automation within explicit policies, not uncontrolled production access. Low-risk work may run unattended. Production releases, database migrations, permission changes, and other high-risk actions may require configurable approval. Every run must support pause, human takeover, retry, cancellation, and audit.
+
+## Product Hierarchy
+
+```text
+Organization
+└─ Project
+   ├─ Repository connection
+   ├─ Requirement
+   │  └─ Workflow run
+   │     ├─ Agent tasks
+   │     ├─ Code and artifacts
+   │     ├─ quality results
+   │     └─ delivery references
+   └─ Policies and environments
+```
+
+## Initial Product Entry
+
+The first usable workflow starts from a project. A project is the context boundary for requirements, repositories, people, permissions, and workflow runs.
+
+```text
+Project workspace
+├─ Requirements
+│  └─ referenced repositories and participants
+├─ Assets
+│  ├─ code repositories
+│  └─ people
+├─ Workflow runs
+└─ Delivery records
+```
+
+A project may contain multiple repositories. A requirement may reference multiple repositories and multiple people. Assets are registered once at project level and reused across requirements. A requirement represents business intent; each execution attempt is a separate workflow run so failures and retries remain auditable.
+
+Requirement creation will eventually begin with a natural-language AI entry. ASDP will create a draft, derive acceptance criteria, recommend assets and participants, clarify missing information, and start execution according to project policy.
+
+## Non-Goals
+
+- Reimplementing Git repository hosting.
+- Replacing GitLab CI runners or deployment engines.
+- Holding production deployment credentials when CI or infrastructure systems can own them.
+- Becoming a generic task-management product unrelated to autonomous software delivery.
+
+## Open Product Decisions
+
+- Whether the first release supports only ASDP-created repositories or existing company repositories as well.
+- Which software outputs are supported first: web applications, backend services, mobile applications, or infrastructure.
+- Which deployment target and GitLab operating model should define the initial integration.
+- Which actions are autonomous by default and which require approval.
