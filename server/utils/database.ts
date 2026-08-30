@@ -131,6 +131,23 @@ const createDatabase = async () => {
       UNIQUE(project_id, url)
     );
 
+    CREATE TABLE IF NOT EXISTS environment_assets (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      address TEXT NOT NULL,
+      environment_type TEXT NOT NULL CHECK(environment_type IN ('development', 'testing', 'production')),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(project_id, address)
+    );
+
+    CREATE TABLE IF NOT EXISTS environment_accounts (
+      environment_id TEXT NOT NULL REFERENCES environment_assets(id) ON DELETE CASCADE,
+      account TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY(environment_id, account)
+    );
+
     CREATE TABLE IF NOT EXISTS integration_settings (
       provider TEXT PRIMARY KEY,
       base_url TEXT NOT NULL,
@@ -211,6 +228,7 @@ const createDatabase = async () => {
 
     CREATE INDEX IF NOT EXISTS idx_requirements_project ON requirements(project_id);
     CREATE INDEX IF NOT EXISTS idx_repositories_project ON repository_assets(project_id);
+    CREATE INDEX IF NOT EXISTS idx_environments_project ON environment_assets(project_id);
     CREATE INDEX IF NOT EXISTS idx_people_project ON people(project_id);
     CREATE INDEX IF NOT EXISTS idx_project_members_project ON project_members(project_id);
     CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id);

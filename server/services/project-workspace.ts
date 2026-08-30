@@ -1,4 +1,5 @@
 import type { ProjectWorkspace } from '../../shared/types/asdp'
+import { listProjectEnvironments } from './environment-assets'
 import { listMembersForProject } from './project-members'
 import { getProject } from './projects'
 import { listProjectRepositories } from './repository-assets'
@@ -11,4 +12,5 @@ export const getProjectWorkspace = (projectId: string): ProjectWorkspace => ({
   requirementStatuses: listRequirementStatusesForProject(projectId),
   repositories: listProjectRepositories(projectId),
   members: listMembersForProject(projectId),
+  environments: listProjectEnvironments(projectId),
 })

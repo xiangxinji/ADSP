@@ -93,6 +93,7 @@ Project 1─* Requirement
 Project 1─* RequirementStatus
 Project 1─* RepositoryAsset
 Project 1─* ProjectMember *─1 User
+Project 1─* EnvironmentAsset 1─* EnvironmentAccount
 
 Requirement *─1 RequirementStatus
 Requirement *─* RepositoryAsset through RequirementRepository
@@ -103,6 +104,10 @@ Requirement 1─* WorkflowRun
 `RequirementRepository` records how a repository participates, such as primary target, dependency, or read-only reference, together with branch or write-scope constraints. `RequirementParticipant` records responsibility such as requester, owner, contributor, reviewer, or approver.
 
 Each `RepositoryAsset` stores a provider discriminator (`gitlab` or `github`) alongside its URL and default branch. Existing records migrate to `gitlab`. Provider-specific synchronization and delivery behavior stays behind source-control and delivery adapters.
+
+Each `EnvironmentAsset` is project-owned and records an HTTP(S) address plus a lifecycle type: `development`, `testing`, or `production`. It owns one or more ordered `EnvironmentAccount` identifiers so operators can document the accounts available for that target. These values are identifiers only; ASDP does not store environment passwords, tokens, private keys, or direct production credentials. Authentication material remains in GitLab CI or the target infrastructure and later integrations should reference a secret manager rather than extending the environment API with plaintext credentials.
+
+The SQLite bootstrap creates the environment and account tables idempotently for existing installations. Existing projects and assets require no data rewrite; their environment collections begin empty.
 
 People may appear in the product's Asset module, but the domain must not model a person as project-owned data. A person belongs to the organization; `ProjectMember` grants project context, and `RequirementParticipant` grants requirement context.
 

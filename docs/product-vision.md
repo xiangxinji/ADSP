@@ -68,12 +68,13 @@ Project workspace
 │  └─ referenced repositories and participants
 ├─ Assets
 │  ├─ code repositories
-│  └─ project members selected from global users
+│  ├─ project members selected from global users
+│  └─ development, testing, and production environments
 ├─ Workflow runs
 └─ Delivery records
 ```
 
-A project may contain multiple repositories and may select multiple global users as project members with project-specific roles. A requirement may reference multiple repositories and multiple project members. Assets and memberships are registered once at project level and reused across requirements. A requirement represents business intent; each execution attempt is a separate workflow run so failures and retries remain auditable.
+A project may contain multiple repositories, environment records, and global users selected as project members with project-specific roles. Environments record an address, lifecycle type, and one or more non-secret account identifiers; passwords, tokens, and private keys remain in CI/CD or the target infrastructure. A requirement may reference multiple repositories and multiple project members. Assets and memberships are registered once at project level and reused across requirements. A requirement represents business intent; each execution attempt is a separate workflow run so failures and retries remain auditable.
 
 Requirement creation will eventually begin with a natural-language AI entry. ASDP will create a draft, derive acceptance criteria, recommend assets and participants, clarify missing information, and start execution according to project policy.
 

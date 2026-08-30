@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import type {
+  EnvironmentAsset,
+  EnvironmentType,
   GitLabRepository,
   GitLabRepositoryPage,
   ProjectWorkspace,
@@ -19,7 +21,7 @@ const { data: workspace, status, error, refresh } = await useFetch<ProjectWorksp
 const { data: users, status: usersStatus, error: usersError } = await useFetch<UserAccount[]>('/api/users')
 
 const activeTab = ref<'requirements' | 'assets'>('requirements')
-const dialog = ref<'requirement' | 'statuses' | 'repository' | 'member' | null>(null)
+const dialog = ref<'requirement' | 'statuses' | 'repository' | 'member' | 'environment' | null>(null)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
 const actionError = ref('')
@@ -39,6 +41,11 @@ const gitlabRepositorySearch = ref('')
 const gitlabRepositoriesLoading = ref(false)
 const gitlabRepositoryError = ref('')
 const memberForm = reactive({ userId: '', role: '项目成员' })
+const environmentForm = reactive({
+  address: '',
+  type: 'development' as EnvironmentType,
+  accounts: [''] as string[],
+})
 const requirementStatusForm = reactive({
   key: '',
   name: '',
@@ -60,8 +67,15 @@ const repositoryProviderOptions: { value: RepositoryProvider, label: string }[] 
   { value: 'github', label: 'GitHub' },
 ]
 
+const environmentTypeOptions: { value: EnvironmentType, label: string }[] = [
+  { value: 'development', label: '开发环境' },
+  { value: 'testing', label: '测试环境' },
+  { value: 'production', label: '生产环境' },
+]
+
 const priorityLabel = (value: RequirementPriority) => priorityOptions.find(option => option.value === value)?.label || value
 const repositoryProviderLabel = (value: RepositoryProvider) => repositoryProviderOptions.find(option => option.value === value)?.label || value
+const environmentTypeLabel = (value: EnvironmentType) => environmentTypeOptions.find(option => option.value === value)?.label || value
 const repositoryUrlPlaceholder = computed(() => repositoryForm.provider === 'github'
   ? 'https://github.com/team/repo.git'
   : 'https://gitlab.example.com/team/repo.git')
@@ -146,6 +160,31 @@ const openMember = (member?: ProjectMember) => {
     : { userId: selectableUsers.value[0]?.id || '', role: '项目成员' })
   actionError.value = ''
   dialog.value = 'member'
+}
+
+const openEnvironment = (environment?: EnvironmentAsset) => {
+  editingId.value = environment?.id || null
+  Object.assign(environmentForm, environment ? {
+    address: environment.address,
+    type: environment.type,
+    accounts: [...environment.accounts],
+  } : {
+    address: '',
+    type: 'development',
+    accounts: [''],
+  })
+  actionError.value = ''
+  dialog.value = 'environment'
+}
+
+const addEnvironmentAccount = () => environmentForm.accounts.push('')
+
+const removeEnvironmentAccount = (index: number) => {
+  if (environmentForm.accounts.length === 1) {
+    environmentForm.accounts[0] = ''
+    return
+  }
+  environmentForm.accounts.splice(index, 1)
 }
 
 const closeDialog = () => {
@@ -261,12 +300,37 @@ const saveMember = async () => {
   }
 }
 
-const removeRecord = async (kind: 'requirement' | 'repository' | 'member', id: string, label: string, referenceCount = 0) => {
+const saveEnvironment = async () => {
+  saving.value = true
+  actionError.value = ''
+  try {
+    await $fetch(editingId.value ? `/api/environments/${editingId.value}` : `/api/projects/${projectId.value}/environments`, {
+      method: editingId.value ? 'PATCH' : 'POST',
+      body: {
+        ...environmentForm,
+        accounts: environmentForm.accounts.map(account => account.trim()).filter(Boolean),
+      },
+    })
+    await refresh()
+    closeDialog()
+  } catch (requestError) {
+    actionError.value = errorMessage(requestError)
+  } finally {
+    saving.value = false
+  }
+}
+
+const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'environment', id: string, label: string, referenceCount = 0) => {
   const referenceNote = referenceCount ? `，并从 ${referenceCount} 条需求中移除引用` : ''
   if (!window.confirm(`确定删除“${label}”${referenceNote}吗？`)) return
   actionError.value = ''
   try {
-    const apiPath = kind === 'requirement' ? 'requirements' : kind === 'repository' ? 'repositories' : 'members'
+    const apiPath = {
+      requirement: 'requirements',
+      repository: 'repositories',
+      member: 'members',
+      environment: 'environments',
+    }[kind]
     await $fetch(`/api/${apiPath}/${id}`, { method: 'DELETE' })
     await refresh()
   } catch (requestError) {
@@ -285,7 +349,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member', id: s
     <main v-if="workspace" class="page workspace-page">
       <section class="workspace-heading">
         <div><p class="overline">PROJECT WORKSPACE</p><h1>{{ workspace.project.name }}</h1><p>{{ workspace.project.description || '暂无项目说明' }}</p></div>
-        <div class="workspace-stats"><span><strong>{{ workspace.requirements.length }}</strong>需求</span><span><strong>{{ workspace.repositories.length }}</strong>仓库</span><span><strong>{{ workspace.members.length }}</strong>成员</span></div>
+        <div class="workspace-stats"><span><strong>{{ workspace.requirements.length }}</strong>需求</span><span><strong>{{ workspace.repositories.length }}</strong>仓库</span><span><strong>{{ workspace.members.length }}</strong>成员</span><span><strong>{{ workspace.environments.length }}</strong>环境</span></div>
       </section>
 
       <nav class="tabs" aria-label="项目模块">
@@ -318,7 +382,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member', id: s
       </section>
 
       <section v-else class="module-section assets-module">
-        <div class="section-heading"><div><h2>资产管理</h2><p>先在项目中登记代码仓库和成员，再由需求进行引用。</p></div></div>
+        <div class="section-heading"><div><h2>资产管理</h2><p>集中维护项目的代码仓库、成员和交付环境。</p></div></div>
         <div class="asset-columns">
           <section class="asset-group">
             <div class="asset-group-heading"><div><h3>代码仓库</h3><span>{{ workspace.repositories.length }} 条记录</span></div><button class="button secondary" type="button" @click="openRepository()">添加仓库</button></div>
@@ -338,6 +402,16 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member', id: s
               <div class="asset-actions"><button class="text-button" type="button" @click="openMember(member)">编辑角色</button><button class="text-button danger" type="button" @click="removeRecord('member', member.id, member.user.name, member.referenceCount)">移除</button></div>
             </article>
             <div v-if="!workspace.members.length" class="panel empty-state compact"><span>尚未添加项目成员</span><button class="text-button" type="button" @click="openMember()">添加第一位成员</button></div>
+          </section>
+
+          <section class="asset-group">
+            <div class="asset-group-heading"><div><h3>环境管理</h3><span>{{ workspace.environments.length }} 条记录</span></div><button class="button secondary" type="button" @click="openEnvironment()">添加环境</button></div>
+            <article v-for="environment in workspace.environments" :key="environment.id" class="panel asset-card">
+              <div class="asset-icon environment-icon">◎</div>
+              <div class="asset-copy"><strong>项目环境 <span class="provider-badge environment-badge" :data-environment="environment.type">{{ environmentTypeLabel(environment.type) }}</span></strong><a :href="environment.address" target="_blank" rel="noreferrer">{{ environment.address }}</a><small>账号：{{ environment.accounts.join('、') }}</small></div>
+              <div class="asset-actions"><button class="text-button" type="button" @click="openEnvironment(environment)">编辑</button><button class="text-button danger" type="button" @click="removeRecord('environment', environment.id, environment.address)">删除</button></div>
+            </article>
+            <div v-if="!workspace.environments.length" class="panel empty-state compact"><span>尚未登记项目环境</span><button class="text-button" type="button" @click="openEnvironment()">添加第一个环境</button></div>
           </section>
         </div>
       </section>
@@ -383,6 +457,15 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member', id: s
           <section v-if="!editingId && repositoryForm.provider === 'gitlab'" class="gitlab-picker"><div class="gitlab-picker-heading"><div><strong>从 GitLab 选择</strong><small>使用全局 Token 读取你有权访问的仓库</small></div><NuxtLink to="/settings" class="text-button">全局设置</NuxtLink></div><div class="gitlab-picker-search"><input v-model="gitlabRepositorySearch" placeholder="搜索 GitLab 仓库" @keydown.enter.prevent="loadGitLabRepositories" /><button class="button secondary" type="button" :disabled="gitlabRepositoriesLoading" @click="loadGitLabRepositories">{{ gitlabRepositoriesLoading ? '读取中…' : '查询' }}</button></div><p v-if="gitlabRepositoryError" class="picker-error">{{ gitlabRepositoryError }}</p><div v-if="gitlabRepositories.length" class="gitlab-results"><button v-for="repository in gitlabRepositories" :key="repository.id" type="button" :class="{ selected: repositoryForm.externalId === String(repository.id) }" @click="selectGitLabRepository(repository)"><span><strong>{{ repository.name }}</strong><small>{{ repository.nameWithNamespace }}</small></span><em>{{ repository.defaultBranch }}</em></button></div></section>
           <div class="field"><label>代码托管平台</label><select v-model="repositoryForm.provider" required><option v-for="option in repositoryProviderOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div><div class="field"><label>仓库名称</label><input v-model="repositoryForm.name" required placeholder="例如：asdp-web" /></div><div class="field"><label>{{ repositoryProviderLabel(repositoryForm.provider) }} 仓库地址</label><input v-model="repositoryForm.url" required type="url" :placeholder="repositoryUrlPlaceholder" @input="repositoryForm.externalId = null" /></div><div class="field"><label>默认分支</label><input v-model="repositoryForm.defaultBranch" required placeholder="main" /></div>
           <p v-if="actionError" class="form-error">{{ actionError }}</p><div class="dialog-actions"><button class="button secondary" type="button" @click="closeDialog">取消</button><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存仓库' }}</button></div>
+        </form>
+
+        <form v-else-if="dialog === 'environment'" class="dialog" @submit.prevent="saveEnvironment">
+          <div class="dialog-heading"><div><p class="overline">ENVIRONMENT ASSET</p><h2>{{ editingId ? '编辑环境' : '添加环境' }}</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
+          <p class="dialog-intro">登记可访问的环境地址和账号标识。密码、Token 与私钥仍由 CI/CD 或目标基础设施管理。</p>
+          <div class="field"><label>环境类型</label><select v-model="environmentForm.type" required><option v-for="option in environmentTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>
+          <div class="field"><label>环境地址</label><input v-model="environmentForm.address" required type="url" placeholder="https://dev.example.com" /><small>仅支持 HTTP 或 HTTPS 地址，地址中不能包含账号密码。</small></div>
+          <div class="field"><label>账号</label><div class="account-list"><div v-for="(_, index) in environmentForm.accounts" :key="index" class="account-row"><input v-model="environmentForm.accounts[index]" required maxlength="100" :placeholder="`账号 ${index + 1}`" /><button class="text-button danger" type="button" @click="removeEnvironmentAccount(index)">移除</button></div><button class="text-button add-account" type="button" :disabled="environmentForm.accounts.length >= 20" @click="addEnvironmentAccount">＋ 添加账号</button></div><small>最多 20 个账号；这里只保存账号名称，不保存任何登录凭据。</small></div>
+          <p v-if="actionError" class="form-error">{{ actionError }}</p><div class="dialog-actions"><button class="button secondary" type="button" @click="closeDialog">取消</button><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存环境' }}</button></div>
         </form>
 
         <form v-else-if="dialog === 'member'" class="dialog" @submit.prevent="saveMember">

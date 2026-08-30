@@ -135,7 +135,7 @@ a { color: inherit; text-decoration: none; }
 .requirement-meta { min-width: 145px; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; color: #98a2b3; font-size: 9px; }
 .requirement-meta > div { display: flex; gap: 8px; }
 
-.asset-columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px; }
+.asset-columns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; }
 .asset-group { min-width: 0; }
 .asset-group-heading { margin-bottom: 11px; }
 .asset-group-heading h3 { margin: 0 0 3px; font-size: 14px; }
@@ -144,14 +144,23 @@ a { color: inherit; text-decoration: none; }
 .asset-icon { width: 36px; height: 36px; display: grid; place-items: center; border-radius: 8px; font-size: 12px; font-weight: 750; }
 .repository-icon { color: var(--blue); background: var(--blue-soft); }
 .member-icon { color: #6941c6; background: #f4f3ff; }
+.environment-icon { color: #067647; background: #ecfdf3; }
 .asset-copy { min-width: 0; }
 .asset-copy strong, .asset-copy a, .asset-copy span, .asset-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .asset-copy strong { margin-bottom: 4px; font-size: 11px; }
 .asset-copy strong .provider-badge { display: inline-block; margin: 0 0 0 5px; padding: 2px 5px; border-radius: 4px; color: var(--blue); background: var(--blue-soft); font-size: 7px; font-weight: 650; vertical-align: 1px; }
+.asset-copy strong .environment-badge { color: #067647; background: #ecfdf3; }
+.asset-copy strong .environment-badge[data-environment="testing"] { color: #b54708; background: #fffaeb; }
+.asset-copy strong .environment-badge[data-environment="production"] { color: #b42318; background: #fef3f2; }
 .asset-copy a, .asset-copy span { margin-bottom: 4px; color: var(--muted); font-size: 9px; }
 .asset-copy a:hover { color: var(--blue); }
 .asset-copy small { color: #98a2b3; font-size: 8px; }
 .asset-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+
+.account-list { display: flex; flex-direction: column; gap: 7px; }
+.account-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 7px; }
+.account-list .add-account { width: fit-content; margin-top: 2px; }
+.account-list .add-account:disabled { opacity: .45; cursor: not-allowed; text-decoration: none; }
 
 .dialog-backdrop { position: fixed; z-index: 20; inset: 0; display: grid; place-items: center; padding: 24px; overflow-y: auto; background: rgba(16,24,40,.5); }
 .dialog { width: min(470px, 100%); max-height: calc(100vh - 48px); padding: 24px; overflow-y: auto; border-radius: 12px; background: #fff; box-shadow: 0 24px 60px rgba(16,24,40,.22); }
@@ -250,6 +259,10 @@ a { color: inherit; text-decoration: none; }
 .remote-repository-card strong, .remote-repository-card span, .remote-repository-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .remote-repository-card strong { margin-bottom: 5px; font-size: 11px; }
 .remote-repository-card span, .remote-repository-card small { color: var(--muted); font-size: 8px; }
+
+@media (max-width: 980px) {
+  .asset-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 @media (max-width: 760px) {
   .site-header { padding: 0 18px; }

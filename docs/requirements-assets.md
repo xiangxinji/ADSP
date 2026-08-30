@@ -2,13 +2,15 @@
 
 ## Goal
 
-Deliver the first usable ASDP project workspace. Users enter a project, manage requirements, maintain project-level code repositories and memberships, and reference those assets from each requirement.
+Deliver the first usable ASDP project workspace. Users enter a project, manage requirements, maintain project-level code repositories, memberships, and environments, and reference applicable assets from each requirement.
 
 This iteration includes a Nuxt server API and SQLite persistence. The browser accesses domain data only through the API. A global encrypted GitLab connection supports identity validation, repository discovery, and importing repository metadata; authentication, webhooks, and bidirectional GitLab synchronization are not yet included.
 
 ## Domain Rules
 
-- A project contains many requirements, repository assets, and project members.
+- A project contains many requirements, repository assets, project members, and environment assets.
+- An environment has one HTTP(S) address, one lifecycle type (`development`, `testing`, or `production`), and one or more account identifiers.
+- Environment accounts contain names only. Passwords, tokens, private keys, and other credentials are not accepted or stored.
 - A requirement may reference zero or more repositories and project members.
 - A project owns its requirement-status records; every requirement references one status.
 - Status keys are project-local and unique. Exactly one status is designated as the initial status.
@@ -42,6 +44,7 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 
 - Create, edit, and remove repository assets with hosting provider (GitLab or GitHub), name, URL, and default branch.
 - Add project members by selecting global users, edit their project roles, and remove their memberships.
+- Create, edit, and remove development, testing, and production environments with an HTTP(S) address and multiple account identifiers.
 - Show where an asset is referenced before deletion.
 
 ## Acceptance Criteria
@@ -61,3 +64,6 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 13. A GitLab repository can be selected from the project asset dialog and stored with its external project ID.
 14. Project members are selected from global users and store only a project-specific role.
 15. Existing project people migrate to global users, project memberships, and requirement-member references without data loss.
+16. Environment records and all of their account identifiers remain after a server restart.
+17. Environment addresses reject unsupported protocols or embedded credentials.
+18. Removing an environment cascades its account identifiers without affecting other project assets.

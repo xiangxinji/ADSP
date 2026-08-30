@@ -26,17 +26,20 @@ export const listProjectSummaries = (): ProjectSummary[] => (useDatabase().prepa
   SELECT p.*,
     (SELECT COUNT(*) FROM requirements r WHERE r.project_id = p.id) AS requirement_count,
     (SELECT COUNT(*) FROM repository_assets a WHERE a.project_id = p.id) AS repository_count,
-    (SELECT COUNT(*) FROM project_members m WHERE m.project_id = p.id) AS member_count
+    (SELECT COUNT(*) FROM project_members m WHERE m.project_id = p.id) AS member_count,
+    (SELECT COUNT(*) FROM environment_assets e WHERE e.project_id = p.id) AS environment_count
   FROM projects p ORDER BY p.updated_at DESC
 `).all() as (ProjectRow & {
   requirement_count: number
   repository_count: number
   member_count: number
+  environment_count: number
 })[]).map(row => ({
   ...projectFromRow(row),
   requirementCount: Number(row.requirement_count),
   repositoryCount: Number(row.repository_count),
   memberCount: Number(row.member_count),
+  environmentCount: Number(row.environment_count),
 }))
 
 export const insertProject = (project: Project) => {

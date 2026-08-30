@@ -118,6 +118,29 @@ Users are global and are not owned by a project.
 Create body: `{ "userId": string, "role": string }`. Patch body: `{ "role": string }`.
 The selected user must exist globally and can appear only once in a project.
 
+## Environment Assets
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/projects/:id/environments` | Register a project environment |
+| `PATCH` | `/api/environments/:id` | Update its address, type, or accounts |
+| `DELETE` | `/api/environments/:id` | Remove the environment and its accounts |
+
+Create body:
+
+```json
+{
+  "address": "https://test.example.com",
+  "type": "testing",
+  "accounts": ["release-bot", "qa-user"]
+}
+```
+
+The address must be an HTTP(S) URL without embedded credentials. Types are
+`development`, `testing`, and `production`. At least one account is required, with a
+maximum of 20 unique account identifiers. Account values are non-secret names only;
+the API does not accept passwords, tokens, or private keys.
+
 ## Workspace Response
 
 `GET /api/projects/:id` returns:
@@ -128,7 +151,8 @@ The selected user must exist globally and can appear only once in a project.
   "requirements": [],
   "requirementStatuses": [],
   "repositories": [],
-  "members": []
+  "members": [],
+  "environments": []
 }
 ```
 
