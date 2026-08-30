@@ -176,6 +176,7 @@ a { color: inherit; text-decoration: none; }
 .asset-copy strong .environment-badge[data-environment="testing"] { color: #b54708; background: #fffaeb; }
 .asset-copy strong .environment-badge[data-environment="production"] { color: #b42318; background: #fef3f2; }
 .asset-copy a, .asset-copy span { margin-bottom: 4px; color: var(--muted); font-size: 9px; }
+.asset-copy .asset-note { color: #475467; }
 .asset-copy a:hover { color: var(--blue); }
 .asset-copy small { color: #98a2b3; font-size: 8px; }
 .asset-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }

@@ -124,6 +124,7 @@ const createDatabase = async () => {
       provider TEXT NOT NULL DEFAULT 'gitlab',
       external_id TEXT,
       name TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
       url TEXT NOT NULL,
       default_branch TEXT NOT NULL DEFAULT 'main',
       created_at TEXT NOT NULL,
@@ -291,6 +292,9 @@ const createDatabase = async () => {
   }
   if (!repositoryColumns.some(column => column.name === 'external_id')) {
     persistentDatabase.exec('ALTER TABLE repository_assets ADD COLUMN external_id TEXT')
+  }
+  if (!repositoryColumns.some(column => column.name === 'note')) {
+    persistentDatabase.exec("ALTER TABLE repository_assets ADD COLUMN note TEXT NOT NULL DEFAULT ''")
   }
   persistentDatabase.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_repositories_external

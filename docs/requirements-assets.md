@@ -42,7 +42,7 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 
 ### Asset Management
 
-- Create, edit, and remove repository assets with hosting provider (GitLab or GitHub), name, URL, and default branch.
+- Create, edit, and remove repository assets with hosting provider (GitLab or GitHub), name, note, URL, and default branch.
 - Add project members by selecting global users, edit their project roles, and remove their memberships.
 - Create, edit, and remove development, testing, and production environments with an HTTP(S) address and multiple account identifiers.
 - Show where an asset is referenced before deletion.
@@ -67,3 +67,5 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 16. Environment records and all of their account identifiers remain after a server restart.
 17. Environment addresses reject unsupported protocols or embedded credentials.
 18. Removing an environment cascades its account identifiers without affecting other project assets.
+19. A repository note can be recorded, edited, displayed in the asset list, and preserved after a server restart.
+20. Manual repository registration accepts no external project ID and does not require global GitLab settings.

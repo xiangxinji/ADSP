@@ -11,8 +11,13 @@ export const repositoryPayload = (
     provider: partial && body.provider === undefined
       ? undefined
       : enumValue(body.provider, repositoryProviders, 'gitlab'),
-    externalId: partial && body.externalId === undefined ? undefined : optionalText(body.externalId) || null,
+    externalId: partial && body.externalId === undefined
+      ? undefined
+      : body.externalId === null
+        ? null
+        : optionalText(body.externalId) || null,
     name: partial && body.name === undefined ? undefined : requiredText(body.name, 'name'),
+    note: partial && body.note === undefined ? undefined : optionalText(body.note),
     url: partial && body.url === undefined ? undefined : requiredText(body.url, 'url'),
     defaultBranch: partial && body.defaultBranch === undefined
       ? undefined
