@@ -138,6 +138,7 @@ const createDatabase = async () => {
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       address TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
       environment_type TEXT NOT NULL CHECK(environment_type IN ('development', 'testing', 'production')),
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -324,6 +325,11 @@ const createDatabase = async () => {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_repositories_external
       ON repository_assets(project_id, provider, external_id) WHERE external_id IS NOT NULL
   `)
+
+  const environmentColumns = persistentDatabase.prepare('PRAGMA table_info(environment_assets)').all() as { name: string }[]
+  if (!environmentColumns.some(column => column.name === 'note')) {
+    persistentDatabase.exec("ALTER TABLE environment_assets ADD COLUMN note TEXT NOT NULL DEFAULT ''")
+  }
 
   const environmentAccountColumns = persistentDatabase.prepare('PRAGMA table_info(environment_accounts)').all() as { name: string }[]
   if (!environmentAccountColumns.some(column => column.name === 'password')) {

@@ -1,7 +1,7 @@
 import { createError } from 'h3'
 import type { CreateEnvironmentInput, UpdateEnvironmentInput } from '../../shared/types/asdp'
 import { environmentTypes } from '../../shared/types/asdp'
-import { bodyObject, requiredText } from '../utils/http-input'
+import { bodyObject, optionalText, requiredText } from '../utils/http-input'
 
 const environmentAddress = (value: unknown) => {
   const address = requiredText(value, 'address')
@@ -77,6 +77,7 @@ export const environmentPayload = (
   const body = bodyObject(value)
   return {
     address: partial && body.address === undefined ? undefined : environmentAddress(body.address),
+    note: partial && body.note === undefined ? undefined : optionalText(body.note),
     type: partial && body.type === undefined ? undefined : environmentType(body.type),
     accounts: partial && body.accounts === undefined ? undefined : environmentAccounts(body.accounts),
   }

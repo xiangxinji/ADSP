@@ -267,6 +267,7 @@ const routeCases: ApiRouteCase[] = [
         method: 'POST',
         body: {
           address: 'https://test.example.com',
+          note: '接口测试环境',
           type: 'testing',
           accounts: [
             { account: 'qa-user', password: 'qa-password' },
@@ -277,6 +278,7 @@ const routeCases: ApiRouteCase[] = [
       expect(response.status).toBe(201)
       expect(response.data).toMatchObject({
         projectId,
+        note: '接口测试环境',
         type: 'testing',
         accounts: [
           { account: 'qa-user', password: 'qa-password' },
@@ -293,6 +295,7 @@ const routeCases: ApiRouteCase[] = [
         method: 'PATCH',
         body: {
           address: 'https://staging.example.com',
+          note: '已更新的接口测试环境',
           type: 'development',
           accounts: [{ account: 'developer', password: 'developer-password' }],
         },
@@ -301,6 +304,7 @@ const routeCases: ApiRouteCase[] = [
       expect(response.data).toMatchObject({
         id: environmentId,
         address: 'https://staging.example.com',
+        note: '已更新的接口测试环境',
         type: 'development',
         accounts: [{ account: 'developer', password: 'developer-password' }],
       })

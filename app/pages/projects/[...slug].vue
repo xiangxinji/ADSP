@@ -83,6 +83,7 @@ const gitlabRepositoryError = ref('')
 const memberForm = reactive({ userId: '', role: '项目成员' })
 const environmentForm = reactive({
   address: '',
+  note: '',
   type: 'development' as EnvironmentType,
   accounts: [{ account: '', password: '' }] as EnvironmentAccount[],
 })
@@ -263,10 +264,12 @@ const openEnvironment = (environment?: EnvironmentAsset) => {
   editingId.value = environment?.id || null
   Object.assign(environmentForm, environment ? {
     address: environment.address,
+    note: environment.note,
     type: environment.type,
     accounts: environment.accounts.map(account => ({ ...account })),
   } : {
     address: '',
+    note: '',
     type: 'development',
     accounts: [{ account: '', password: '' }],
   })
@@ -673,7 +676,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
           <div v-if="workspace.environments.length" class="asset-record-list">
             <article v-for="environment in workspace.environments" :id="`asset-${environment.id}`" :key="environment.id" class="panel asset-card asset-record-card">
               <div class="asset-icon environment-icon"><AppIcon name="environment" :size="18" /></div>
-              <div class="asset-copy"><strong>项目环境 <span class="provider-badge environment-badge" :data-environment="environment.type">{{ environmentTypeLabel(environment.type) }}</span></strong><a :href="environment.address" target="_blank" rel="noreferrer">{{ environment.address }}</a><small v-for="account in environment.accounts" :key="account.account" class="environment-account">账号：{{ account.account }}　密码：{{ account.password || '未设置' }}</small></div>
+              <div class="asset-copy"><strong>项目环境 <span class="provider-badge environment-badge" :data-environment="environment.type">{{ environmentTypeLabel(environment.type) }}</span></strong><a :href="environment.address" target="_blank" rel="noreferrer">{{ environment.address }}</a><span v-if="environment.note" class="asset-note">备注：{{ environment.note }}</span><small v-for="account in environment.accounts" :key="account.account" class="environment-account">账号：{{ account.account }}　密码：{{ account.password || '未设置' }}</small></div>
               <div class="asset-actions"><button class="text-button" type="button" @click="openEnvironment(environment)">编辑</button><button class="text-button danger" type="button" @click="removeRecord('environment', environment.id, environment.address)">删除</button></div>
             </article>
           </div>
@@ -785,6 +788,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
         <p class="dialog-intro">登记可访问的环境地址以及可自助使用的测试账号。账号和密码会直接展示，不做脱敏。</p>
         <div class="field"><label for="environment-type">环境类型</label><select id="environment-type" v-model="environmentForm.type" required><option v-for="option in environmentTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>
         <div class="field"><label for="environment-address">环境地址</label><input id="environment-address" v-model="environmentForm.address" required autofocus type="url" placeholder="https://dev.example.com" /><small>仅支持 HTTP 或 HTTPS 地址，地址中不能包含账号密码。</small></div>
+        <div class="field"><label for="environment-note">备注</label><textarea id="environment-note" v-model="environmentForm.note" maxlength="500" placeholder="例如：供测试团队进行验收验证"></textarea><small>可填写环境用途、访问限制或其他说明。</small></div>
         <div class="field"><span class="field-label">关联账号</span><div class="account-list"><div v-for="(_, index) in environmentForm.accounts" :key="index" class="account-row"><input v-model="environmentForm.accounts[index].account" required maxlength="100" :aria-label="`账号 ${index + 1}`" :placeholder="`账号 ${index + 1}`" /><input v-model="environmentForm.accounts[index].password" required maxlength="500" type="text" autocomplete="off" :aria-label="`密码 ${index + 1}`" :placeholder="`密码 ${index + 1}`" /><button class="text-button danger" type="button" @click="removeEnvironmentAccount(index)">移除</button></div><button class="text-button add-account" type="button" :disabled="environmentForm.accounts.length >= 20" @click="addEnvironmentAccount">＋ 添加账号</button></div><small>最多 20 个账号；密码按原文保存并明文展示，请仅登记非敏感测试账号。</small></div>
         <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
       </form>

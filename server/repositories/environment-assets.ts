@@ -5,6 +5,7 @@ type EnvironmentRow = {
   id: string
   project_id: string
   address: string
+  note: string
   environment_type: EnvironmentAsset['type']
   created_at: string
   updated_at: string
@@ -19,6 +20,7 @@ const environmentFromRow = (row: EnvironmentRow): EnvironmentAsset => ({
   id: row.id,
   projectId: row.project_id,
   address: row.address,
+  note: row.note || '',
   type: row.environment_type,
   accounts: listEnvironmentAccounts(row.id),
   createdAt: row.created_at,
@@ -40,12 +42,13 @@ export const listEnvironmentAssets = (projectId: string) => (useDatabase().prepa
 export const insertEnvironmentAsset = (environment: EnvironmentAsset) => {
   useDatabase().prepare(`
     INSERT INTO environment_assets
-      (id, project_id, address, environment_type, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?)
+      (id, project_id, address, note, environment_type, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
   `).run(
     environment.id,
     environment.projectId,
     environment.address,
+    environment.note,
     environment.type,
     environment.createdAt,
     environment.updatedAt,
@@ -55,9 +58,9 @@ export const insertEnvironmentAsset = (environment: EnvironmentAsset) => {
 export const updateEnvironmentAssetRecord = (environment: EnvironmentAsset) => {
   useDatabase().prepare(`
     UPDATE environment_assets
-    SET address = ?, environment_type = ?, updated_at = ?
+    SET address = ?, note = ?, environment_type = ?, updated_at = ?
     WHERE id = ?
-  `).run(environment.address, environment.type, environment.updatedAt, environment.id)
+  `).run(environment.address, environment.note, environment.type, environment.updatedAt, environment.id)
 }
 
 export const replaceEnvironmentAccounts = (environmentId: string, accounts: EnvironmentAccount[]) => {

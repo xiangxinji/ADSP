@@ -141,7 +141,7 @@ The selected user must exist globally and can appear only once in a project.
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/api/projects/:id/environments` | Register a project environment |
-| `PATCH` | `/api/environments/:id` | Update its address, type, or accounts |
+| `PATCH` | `/api/environments/:id` | Update its address, note, type, or accounts |
 | `DELETE` | `/api/environments/:id` | Remove the environment and its accounts |
 
 Create body:
@@ -149,6 +149,7 @@ Create body:
 ```json
 {
   "address": "https://test.example.com",
+  "note": "Used by the QA team for acceptance testing",
   "type": "testing",
   "accounts": [
     { "account": "release-bot", "password": "test-password" },
@@ -157,7 +158,8 @@ Create body:
 }
 ```
 
-The address must be an HTTP(S) URL without embedded credentials. Types are
+The optional note records the environment's purpose or access constraints. The
+address must be an HTTP(S) URL without embedded credentials. Types are
 `development`, `testing`, and `production`. At least one account is required, with a
 maximum of 20 unique account names. Each account requires a password of up to 500
 characters. Account passwords are intended for non-sensitive, self-service test

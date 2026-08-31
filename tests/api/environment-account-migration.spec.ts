@@ -54,8 +54,8 @@ const prepareLegacyDatabase = async (databasePath: string) => {
   database.close()
 }
 
-describe('environment account database migration', () => {
-  test('adds empty passwords to existing accounts and accepts a clear-text password update', async () => {
+describe('environment asset database migration', () => {
+  test('adds empty notes and passwords to existing environments and accepts updates', async () => {
     const harness = await startApiTestHarness({ prepareDatabase: prepareLegacyDatabase })
     try {
       const workspace = await harness.request<ProjectWorkspace>(`/api/projects/${legacyProjectId}`)
@@ -63,15 +63,20 @@ describe('environment account database migration', () => {
       expect(workspace.data.environments).toEqual([
         expect.objectContaining({
           id: legacyEnvironmentId,
+          note: '',
           accounts: [{ account: 'legacy-user', password: '' }],
         }),
       ])
 
       const updated = await harness.request<EnvironmentAsset>(`/api/environments/${legacyEnvironmentId}`, {
         method: 'PATCH',
-        body: { accounts: [{ account: 'legacy-user', password: 'visible-password' }] },
+        body: {
+          note: '旧环境备注',
+          accounts: [{ account: 'legacy-user', password: 'visible-password' }],
+        },
       })
       expect(updated.status).toBe(200)
+      expect(updated.data.note).toBe('旧环境备注')
       expect(updated.data.accounts).toEqual([{ account: 'legacy-user', password: 'visible-password' }])
     } finally {
       await harness.stop()

@@ -29,7 +29,10 @@ export const createEnvironment = (projectId: string, input: CreateEnvironmentInp
   const environment: EnvironmentAsset = {
     id: randomUUID(),
     projectId,
-    ...input,
+    address: input.address,
+    note: input.note || '',
+    type: input.type,
+    accounts: input.accounts,
     createdAt: timestamp,
     updatedAt: timestamp,
   }
@@ -49,6 +52,7 @@ export const updateEnvironment = (id: string, input: UpdateEnvironmentInput) => 
   const environment: EnvironmentAsset = {
     ...current,
     address: input.address ?? current.address,
+    note: input.note ?? current.note,
     type: input.type ?? current.type,
     accounts: input.accounts ?? current.accounts,
     updatedAt: new Date().toISOString(),

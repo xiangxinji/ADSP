@@ -12,7 +12,7 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 - A project contains many knowledge assets whose title and Markdown content are persisted in SQLite.
 - Knowledge Markdown may reference repositories, project members, environments, or other knowledge through `[[asset type：record id]]` tokens.
 - Knowledge references resolve only within the owning project. Missing, deleted, unknown, or cross-project targets remain in the Markdown and are reported as unresolved.
-- An environment has one HTTP(S) address, one lifecycle type (`development`, `testing`, or `production`), and one or more account-and-password pairs.
+- An environment has one HTTP(S) address, an optional note, one lifecycle type (`development`, `testing`, or `production`), and one or more account-and-password pairs.
 - Environment account passwords are for non-sensitive, self-service test accounts and are stored and displayed without masking. Tokens, private keys, and production deployment credentials are not accepted.
 - A requirement may reference zero or more repositories and project members.
 - A project owns major requirement versions, and a requirement may reference zero or more versions.
@@ -51,7 +51,7 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 
 - Create, edit, and remove repository assets with hosting provider (GitLab or GitHub), name, note, URL, and default branch.
 - Add project members by selecting global users, edit their project roles, and remove their memberships.
-- Create, edit, and remove development, testing, and production environments with an HTTP(S) address and multiple account-and-password pairs.
+- Create, edit, and remove development, testing, and production environments with an HTTP(S) address, an optional note, and multiple account-and-password pairs.
 - Create, edit, and remove knowledge assets with a title and Markdown body.
 - Insert and display knowledge references to repositories, project members, environments, and other knowledge.
 - Show where an asset is referenced before deletion.
@@ -86,3 +86,4 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 26. Version names always render as `v{major}.x`, and exactly the greatest configured major is marked `latest`.
 27. API validation rejects version IDs from another project and prevents deletion while referenced.
 28. Environment account passwords are stored and returned as clear text for self-service test use, while existing account-only records migrate with an empty password.
+29. An environment note can be recorded, edited, displayed in the asset list, and preserved after a server restart; existing environment rows migrate with an empty note.

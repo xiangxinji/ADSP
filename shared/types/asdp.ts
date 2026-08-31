@@ -58,6 +58,7 @@ export type EnvironmentAsset = {
   id: string
   projectId: string
   address: string
+  note: string
   type: EnvironmentType
   accounts: EnvironmentAccount[]
   createdAt: string
@@ -190,7 +191,9 @@ export type CreateRepositoryInput = Pick<RepositoryAsset, 'provider' | 'name' | 
   note?: string
 }
 export type UpdateRepositoryInput = Partial<CreateRepositoryInput>
-export type CreateEnvironmentInput = Pick<EnvironmentAsset, 'address' | 'type' | 'accounts'>
+export type CreateEnvironmentInput = Pick<EnvironmentAsset, 'address' | 'type' | 'accounts'> & {
+  note?: string
+}
 export type UpdateEnvironmentInput = Partial<CreateEnvironmentInput>
 export type CreateKnowledgeInput = Pick<KnowledgeAsset, 'title' | 'content'>
 export type UpdateKnowledgeInput = Partial<CreateKnowledgeInput>
