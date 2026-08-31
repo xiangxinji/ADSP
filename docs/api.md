@@ -172,8 +172,10 @@ production deployment credentials remain outside this API.
 | `PATCH` | `/api/knowledge/:id` | Update its title or Markdown content |
 | `DELETE` | `/api/knowledge/:id` | Delete the knowledge document |
 
-Create body: `{ "title": string, "content": string }`. Both values are required;
-patch requests may contain either field. `content` is stored as authored Markdown.
+Create body: `{ "title": string, "content": string }`. Both fields are required, but
+`content` may be an empty string so the knowledge metadata can be created before its
+Markdown body is authored. Patch requests may contain either field. `content` is
+stored as authored Markdown.
 
 Knowledge Markdown may contain `[[asset type：record id]]` tokens. Supported English
 types are `repository`, `member`, `environment`, and `knowledge`; the Chinese aliases

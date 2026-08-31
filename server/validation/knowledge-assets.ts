@@ -2,8 +2,8 @@ import type { CreateKnowledgeInput, UpdateKnowledgeInput } from '../../shared/ty
 import { bodyObject, requiredText } from '../utils/http-input'
 
 const markdownContent = (value: unknown) => {
-  if (typeof value !== 'string' || !value.trim()) {
-    throw createError({ statusCode: 400, statusMessage: 'content is required' })
+  if (typeof value !== 'string') {
+    throw createError({ statusCode: 400, statusMessage: 'content must be a string' })
   }
   return value
 }
