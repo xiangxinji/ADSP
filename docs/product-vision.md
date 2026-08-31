@@ -66,15 +66,16 @@ The first usable workflow starts from a project. A project is the context bounda
 Project workspace
 ├─ Requirements
 │  └─ referenced repositories and participants
-├─ Assets
-│  ├─ code repositories
-│  ├─ project members selected from global users
-│  └─ development, testing, and production environments
+   ├─ Assets
+   │  ├─ code repositories
+   │  ├─ project members selected from global users
+   │  ├─ development, testing, and production environments
+   │  └─ Markdown knowledge linked to project assets
 ├─ Workflow runs
 └─ Delivery records
 ```
 
-A project may contain multiple repositories, environment records, and global users selected as project members with project-specific roles. Environments record an address, lifecycle type, and one or more non-secret account identifiers; passwords, tokens, and private keys remain in CI/CD or the target infrastructure. A requirement may reference multiple repositories and multiple project members. Assets and memberships are registered once at project level and reused across requirements. A requirement represents business intent; each execution attempt is a separate workflow run so failures and retries remain auditable.
+A project may contain multiple repositories, environment records, Markdown knowledge documents, and global users selected as project members with project-specific roles. Environments record an address, lifecycle type, and one or more non-secret account identifiers; passwords, tokens, and private keys remain in CI/CD or the target infrastructure. Knowledge preserves authored Markdown in the project database and may link to other project assets through stable record IDs. A requirement may reference multiple repositories and multiple project members. Assets and memberships are registered once at project level and reused across requirements. A requirement represents business intent; each execution attempt is a separate workflow run so failures and retries remain auditable.
 
 Requirement creation will eventually begin with a natural-language AI entry. ForgePilot will create a draft, derive acceptance criteria, recommend assets and participants, clarify missing information, and start execution according to project policy.
 

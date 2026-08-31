@@ -6,6 +6,7 @@ import type {
   GitLabIdentity,
   GitLabRepositoryPage,
   GitLabSettings,
+  KnowledgeAsset,
   Project,
   ProjectMember,
   ProjectSummary,
@@ -54,6 +55,8 @@ let initialStatusId = ''
 let repositoryId = ''
 let memberId = ''
 let environmentId = ''
+let knowledgeId = ''
+let knowledgeContent = ''
 let customStatusId = ''
 let requirementId = ''
 let userId = ''
@@ -87,6 +90,7 @@ const routeCases: ApiRouteCase[] = [
       const response = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
       expect(response.status).toBe(200)
       expect(response.data.project.id).toBe(projectId)
+      expect(response.data.knowledge).toEqual([])
       expect(response.data.requirementStatuses).toHaveLength(6)
       const initialStatuses = response.data.requirementStatuses.filter(status => status.isInitial)
       expect(initialStatuses).toHaveLength(1)
@@ -271,6 +275,55 @@ const routeCases: ApiRouteCase[] = [
     },
   },
   {
+    route: 'POST /api/projects/:id/knowledge',
+    run: async () => {
+      const rejected = await harness.request(`/api/projects/${projectId}/knowledge`, {
+        method: 'POST',
+        body: { title: '空知识', content: '   ' },
+      })
+      expect(rejected.status).toBe(400)
+
+      knowledgeContent = [
+        '# 接口测试知识',
+        '',
+        `代码入口：[[代码仓库：${repositoryId}]]`,
+        `负责人：[[项目成员：${memberId}]]`,
+        `验证环境：[[环境：${environmentId}]]`,
+      ].join('\n')
+      const response = await harness.request<KnowledgeAsset>(`/api/projects/${projectId}/knowledge`, {
+        method: 'POST',
+        body: { title: 'API 测试知识', content: knowledgeContent },
+      })
+      expect(response.status).toBe(201)
+      expect(response.data).toMatchObject({ projectId, title: 'API 测试知识', content: knowledgeContent })
+      expect(response.data.references).toEqual(expect.arrayContaining([
+        expect.objectContaining({ targetType: 'repository', recordId: repositoryId, resolved: true }),
+        expect.objectContaining({ targetType: 'member', recordId: memberId, resolved: true }),
+        expect.objectContaining({ targetType: 'environment', recordId: environmentId, resolved: true }),
+      ]))
+      knowledgeId = response.data.id
+
+      const projects = await harness.request<ProjectSummary[]>('/api/projects')
+      expect(projects.data.find(project => project.id === projectId)?.knowledgeCount).toBe(1)
+    },
+  },
+  {
+    route: 'PATCH /api/knowledge/:id',
+    run: async () => {
+      const content = `${knowledgeContent}\n相关知识：[[知识：${knowledgeId}]]\n无效引用：[[未知资产：missing-id]]`
+      const response = await harness.request<KnowledgeAsset>(`/api/knowledge/${knowledgeId}`, {
+        method: 'PATCH',
+        body: { title: 'API 测试知识（已更新）', content },
+      })
+      expect(response.status).toBe(200)
+      expect(response.data).toMatchObject({ id: knowledgeId, title: 'API 测试知识（已更新）', content })
+      expect(response.data.references).toEqual(expect.arrayContaining([
+        expect.objectContaining({ targetType: 'knowledge', recordId: knowledgeId, resolved: true }),
+        expect.objectContaining({ assetType: '未知资产', targetType: null, recordId: 'missing-id', resolved: false }),
+      ]))
+    },
+  },
+  {
     route: 'POST /api/projects/:id/requirement-statuses',
     run: async () => {
       const response = await harness.request<RequirementStatus>(`/api/projects/${projectId}/requirement-statuses`, {
@@ -375,6 +428,11 @@ const routeCases: ApiRouteCase[] = [
       const workspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
       expect(workspace.data.requirements[0].repositoryIds).toEqual([])
       expect(workspace.data.requirements[0].repositories).toEqual([])
+      expect(workspace.data.knowledge[0].references).toContainEqual(expect.objectContaining({
+        targetType: 'repository',
+        recordId: repositoryId,
+        resolved: false,
+      }))
     },
   },
   {
@@ -385,6 +443,11 @@ const routeCases: ApiRouteCase[] = [
       const workspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
       expect(workspace.data.requirements[0].memberIds).toEqual([])
       expect(workspace.data.requirements[0].members).toEqual([])
+      expect(workspace.data.knowledge[0].references).toContainEqual(expect.objectContaining({
+        targetType: 'member',
+        recordId: memberId,
+        resolved: false,
+      }))
     },
   },
   {
@@ -394,6 +457,20 @@ const routeCases: ApiRouteCase[] = [
       expect(response.status).toBe(204)
       const workspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
       expect(workspace.data.environments).toEqual([])
+      expect(workspace.data.knowledge[0].references).toContainEqual(expect.objectContaining({
+        targetType: 'environment',
+        recordId: environmentId,
+        resolved: false,
+      }))
+    },
+  },
+  {
+    route: 'DELETE /api/knowledge/:id',
+    run: async () => {
+      const response = await harness.request<null>(`/api/knowledge/${knowledgeId}`, { method: 'DELETE' })
+      expect(response.status).toBe(204)
+      const workspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
+      expect(workspace.data.knowledge).toEqual([])
     },
   },
   {

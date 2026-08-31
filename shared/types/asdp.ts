@@ -1,11 +1,13 @@
 export const requirementPriorities = ['low', 'medium', 'high', 'urgent'] as const
 export const repositoryProviders = ['gitlab', 'github'] as const
 export const environmentTypes = ['development', 'testing', 'production'] as const
+export const knowledgeReferenceTypes = ['repository', 'member', 'environment', 'knowledge'] as const
 export const userRoles = ['administrator', 'member'] as const
 
 export type RequirementPriority = typeof requirementPriorities[number]
 export type RepositoryProvider = typeof repositoryProviders[number]
 export type EnvironmentType = typeof environmentTypes[number]
+export type KnowledgeReferenceType = typeof knowledgeReferenceTypes[number]
 export type UserRole = typeof userRoles[number]
 
 export type UserAccount = {
@@ -30,6 +32,7 @@ export type ProjectSummary = Project & {
   repositoryCount: number
   memberCount: number
   environmentCount: number
+  knowledgeCount: number
 }
 
 export type RepositoryAsset = {
@@ -52,6 +55,24 @@ export type EnvironmentAsset = {
   address: string
   type: EnvironmentType
   accounts: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export type KnowledgeReference = {
+  assetType: string
+  targetType: KnowledgeReferenceType | null
+  recordId: string
+  label: string | null
+  resolved: boolean
+}
+
+export type KnowledgeAsset = {
+  id: string
+  projectId: string
+  title: string
+  content: string
+  references: KnowledgeReference[]
   createdAt: string
   updatedAt: string
 }
@@ -139,6 +160,7 @@ export type ProjectWorkspace = {
   repositories: RepositoryAsset[]
   members: ProjectMember[]
   environments: EnvironmentAsset[]
+  knowledge: KnowledgeAsset[]
 }
 
 export type CreateProjectInput = Pick<Project, 'name' | 'description'>
@@ -151,6 +173,8 @@ export type CreateRepositoryInput = Pick<RepositoryAsset, 'provider' | 'name' | 
 export type UpdateRepositoryInput = Partial<CreateRepositoryInput>
 export type CreateEnvironmentInput = Pick<EnvironmentAsset, 'address' | 'type' | 'accounts'>
 export type UpdateEnvironmentInput = Partial<CreateEnvironmentInput>
+export type CreateKnowledgeInput = Pick<KnowledgeAsset, 'title' | 'content'>
+export type UpdateKnowledgeInput = Partial<CreateKnowledgeInput>
 export type CreateProjectMemberInput = Pick<ProjectMember, 'userId' | 'role'>
 export type UpdateProjectMemberInput = Pick<ProjectMember, 'role'>
 export type CreateRequirementStatusInput = Pick<RequirementStatus, 'key' | 'name' | 'color' | 'sortOrder' | 'isInitial' | 'isTerminal'>

@@ -144,6 +144,25 @@ The address must be an HTTP(S) URL without embedded credentials. Types are
 maximum of 20 unique account identifiers. Account values are non-secret names only;
 the API does not accept passwords, tokens, or private keys.
 
+## Knowledge Assets
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/projects/:id/knowledge` | Create a Markdown knowledge document |
+| `PATCH` | `/api/knowledge/:id` | Update its title or Markdown content |
+| `DELETE` | `/api/knowledge/:id` | Delete the knowledge document |
+
+Create body: `{ "title": string, "content": string }`. Both values are required;
+patch requests may contain either field. `content` is stored as authored Markdown.
+
+Knowledge Markdown may contain `[[asset type：record id]]` tokens. Supported English
+types are `repository`, `member`, `environment`, and `knowledge`; the Chinese aliases
+`代码仓库`, `项目成员`, `环境`, and `知识` are also accepted. The response includes a
+deduplicated `references` array with the authored `assetType`, canonical `targetType`,
+`recordId`, resolved label, and `resolved` flag. Targets outside the current project,
+deleted records, and unknown asset types are returned as unresolved. The API never
+rewrites the Markdown when a target is deleted.
+
 ## Workspace Response
 
 `GET /api/projects/:id` returns:
@@ -155,13 +174,15 @@ the API does not accept passwords, tokens, or private keys.
   "requirementStatuses": [],
   "repositories": [],
   "members": [],
-  "environments": []
+  "environments": [],
+  "knowledge": []
 }
 ```
 
 Each requirement contains `statusId`, expanded `status`, `repositoryIds`, `memberIds`,
 and expanded `repositories` and `members` arrays for direct display. Every member
 contains its project role and an expanded global `user`.
+Each knowledge record contains its stored Markdown and resolved reference metadata.
 
 ## Automated Verification
 

@@ -94,6 +94,7 @@ Project 1─* RequirementStatus
 Project 1─* RepositoryAsset
 Project 1─* ProjectMember *─1 User
 Project 1─* EnvironmentAsset 1─* EnvironmentAccount
+Project 1─* KnowledgeAsset
 
 Requirement *─1 RequirementStatus
 Requirement *─* RepositoryAsset through RequirementRepository
@@ -107,7 +108,9 @@ Each `RepositoryAsset` stores a provider discriminator (`gitlab` or `github`) al
 
 Each `EnvironmentAsset` is project-owned and records an HTTP(S) address plus a lifecycle type: `development`, `testing`, or `production`. It owns one or more ordered `EnvironmentAccount` identifiers so operators can document the accounts available for that target. These values are identifiers only; ForgePilot does not store environment passwords, tokens, private keys, or direct production credentials. Authentication material remains in GitLab CI or the target infrastructure and later integrations should reference a secret manager rather than extending the environment API with plaintext credentials.
 
-The SQLite bootstrap creates the environment and account tables idempotently for existing installations. Existing projects and assets require no data rewrite; their environment collections begin empty.
+Each `KnowledgeAsset` is a project-owned Markdown document. Its title and authored Markdown content are stored unchanged in SQLite. Inline tokens using `[[asset type：record id]]` are parsed when the API hydrates a knowledge record. Supported targets are repository assets, project members, environment assets, and other knowledge assets. Resolution is restricted to the current project. The Markdown remains the source of truth: deleting or moving a target does not rewrite authored content, and the API returns the token as unresolved instead of silently pointing elsewhere.
+
+The SQLite bootstrap creates the environment, account, and knowledge tables idempotently for existing installations. Existing projects and assets require no data rewrite; their environment and knowledge collections begin empty.
 
 The ForgePilot rebrand preserves legacy database identifiers and the default `.data/asdp.sqlite` path. During bootstrap, only the untouched `project-asdp` sample project with its exact former default name and description is renamed; user-edited project records are never overwritten.
 

@@ -2,13 +2,16 @@
 
 ## Goal
 
-Deliver the first usable ForgePilot project workspace. Users enter a project, manage requirements, maintain project-level code repositories, memberships, and environments, and reference applicable assets from each requirement.
+Deliver the first usable ForgePilot project workspace. Users enter a project, manage requirements, maintain project-level code repositories, memberships, environments, and Markdown knowledge, and reference applicable assets from each requirement or knowledge document.
 
 This iteration includes a Nuxt server API and SQLite persistence. The browser accesses domain data only through the API. A global encrypted GitLab connection supports identity validation, repository discovery, and importing repository metadata; authentication, webhooks, and bidirectional GitLab synchronization are not yet included.
 
 ## Domain Rules
 
 - A project contains many requirements, repository assets, project members, and environment assets.
+- A project contains many knowledge assets whose title and Markdown content are persisted in SQLite.
+- Knowledge Markdown may reference repositories, project members, environments, or other knowledge through `[[asset type：record id]]` tokens.
+- Knowledge references resolve only within the owning project. Missing, deleted, unknown, or cross-project targets remain in the Markdown and are reported as unresolved.
 - An environment has one HTTP(S) address, one lifecycle type (`development`, `testing`, or `production`), and one or more account identifiers.
 - Environment accounts contain names only. Passwords, tokens, private keys, and other credentials are not accepted or stored.
 - A requirement may reference zero or more repositories and project members.
@@ -45,6 +48,8 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 - Create, edit, and remove repository assets with hosting provider (GitLab or GitHub), name, note, URL, and default branch.
 - Add project members by selecting global users, edit their project roles, and remove their memberships.
 - Create, edit, and remove development, testing, and production environments with an HTTP(S) address and multiple account identifiers.
+- Create, edit, and remove knowledge assets with a title and Markdown body.
+- Insert and display knowledge references to repositories, project members, environments, and other knowledge.
 - Show where an asset is referenced before deletion.
 
 ## Acceptance Criteria
@@ -69,3 +74,7 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 18. Removing an environment cascades its account identifiers without affecting other project assets.
 19. A repository note can be recorded, edited, displayed in the asset list, and preserved after a server restart.
 20. Manual repository registration accepts no external project ID and does not require global GitLab settings.
+21. Knowledge titles and Markdown content remain available after a server restart.
+22. `[[asset type：record id]]` tokens resolve only to supported assets in the same project.
+23. Deleting a referenced asset preserves the authored Markdown and marks that reference as unresolved.
+24. The knowledge editor can insert valid reference tokens without requiring users to copy record IDs manually.
