@@ -9,8 +9,8 @@ import {
 } from './knowledge-reference-syntax'
 
 export type KnowledgeAssetReferenceOption = {
-  assetType: string
   targetType: 'repository' | 'member' | 'environment' | 'knowledge'
+  typeLabel: string
   recordId: string
   label: string
   detail: string
@@ -86,12 +86,12 @@ export const createKnowledgeAssetReferencePlugins = (options: KnowledgeAssetRefe
       root.dataset.raw = String(node.attrs.raw)
       root.contentEditable = 'false'
       root.title = option
-        ? `${option.assetType} · ${option.label} · ${option.detail}`
+        ? `${option.typeLabel} · ${option.label} · ${option.detail}`
         : `未解析 · ${assetType}：${recordId}`
 
       const type = document.createElement('span')
       type.className = 'knowledge-asset-control-type'
-      type.textContent = option?.assetType || assetType
+      type.textContent = option?.typeLabel || assetType
       const content = document.createElement('span')
       content.className = 'knowledge-asset-control-content'
       const label = document.createElement('strong')

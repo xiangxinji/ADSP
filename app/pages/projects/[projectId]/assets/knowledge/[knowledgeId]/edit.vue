@@ -32,22 +32,22 @@ watch(knowledge, (value) => {
 
 const referenceOptions = computed<KnowledgeAssetReferenceOption[]>(() => [
   ...(workspace.value?.repositories || []).map(repository => ({
-    assetType: '代码仓库',
     targetType: 'repository' as const,
+    typeLabel: '代码仓库',
     recordId: repository.id,
     label: repository.name,
     detail: repository.provider === 'gitlab' ? 'GitLab' : 'GitHub',
   })),
   ...(workspace.value?.members || []).map(member => ({
-    assetType: '项目成员',
     targetType: 'member' as const,
+    typeLabel: '项目成员',
     recordId: member.id,
     label: member.user.name,
     detail: `${member.role} · ${member.user.email}`,
   })),
   ...(workspace.value?.environments || []).map(environment => ({
-    assetType: '环境',
     targetType: 'environment' as const,
+    typeLabel: '环境',
     recordId: environment.id,
     label: environment.address,
     detail: `${({ development: '开发环境', testing: '测试环境', production: '生产环境' })[environment.type]} · ${environment.accounts.map(account => account.account).join('、')}`,
@@ -55,15 +55,15 @@ const referenceOptions = computed<KnowledgeAssetReferenceOption[]>(() => [
   ...(workspace.value?.knowledge || [])
     .filter(item => item.id !== knowledgeId)
     .map(item => ({
-      assetType: '知识',
       targetType: 'knowledge' as const,
+      typeLabel: '知识',
       recordId: item.id,
       label: item.title,
       detail: 'Markdown 知识',
     })),
 ])
 const editorReferenceKey = computed(() => referenceOptions.value
-  .map(option => `${option.targetType}:${option.recordId}:${option.label}:${option.detail}`)
+  .map(option => `${option.targetType}:${option.typeLabel}:${option.recordId}:${option.label}:${option.detail}`)
   .join('|'))
 
 const hasUnsavedChanges = computed(() => content.value !== savedContent.value)

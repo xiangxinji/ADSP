@@ -56,13 +56,13 @@ const applyEditorAccessibilityLabels = () => {
   root.querySelector<HTMLElement>('.ProseMirror')?.setAttribute('aria-label', 'Markdown 正文')
 }
 
-const knowledgeReferenceIcon = `
+const assetReferenceIcon = `
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-    <path d="M6 3.75h9.25A2.75 2.75 0 0 1 18 6.5v13.75H7.5A3.5 3.5 0 0 1 4 16.75V5.75A2 2 0 0 1 6 3.75Zm-.5 12.92v.08a2 2 0 0 0 2 2h9V17h-9c-.74 0-1.43-.12-2-.33ZM7 7h8v1.5H7V7Zm0 3.5h6v1.5H7v-1.5Z" />
+    <path d="M12 2.75 20 7.1v9.8l-8 4.35-8-4.35V7.1l8-4.35Zm0 1.9L6.2 7.8l5.8 3.15 5.8-3.15L12 4.65ZM5.5 9.1v6.95l5.75 3.12v-6.94L5.5 9.1Zm7.25 10.07 5.75-3.12V9.1l-5.75 3.13v6.94Z" />
   </svg>
 `
 
-const insertKnowledgeReferenceFromSlashMenu = (
+const insertAssetReferenceFromSlashMenu = (
   ctx: Ctx,
   option: KnowledgeAssetReferenceOption,
 ) => {
@@ -73,9 +73,9 @@ const insertKnowledgeReferenceFromSlashMenu = (
   const commands = ctx.get(commandsCtx)
   commands.call(clearTextInCurrentBlockCommand.key)
 
-  const raw = createKnowledgeReferenceToken(option.assetType, option.recordId)
+  const raw = createKnowledgeReferenceToken(option.targetType, option.recordId)
   const node = referenceNode.create({
-    assetType: option.assetType,
+    assetType: option.targetType,
     recordId: option.recordId,
     raw,
   })
@@ -95,7 +95,7 @@ onMounted(() => {
     },
     featureConfigs: {
       [Crepe.Feature.Placeholder]: {
-        text: '输入 Markdown，或输入 / 引用其他知识…',
+        text: '输入 Markdown，或输入 / 引用项目资产…',
         mode: 'doc',
       },
       [Crepe.Feature.TopBar]: {
@@ -142,23 +142,22 @@ onMounted(() => {
           math: { label: '公式' },
         },
         buildMenu: (builder) => {
-          const knowledgeOptions = props.references.filter(option => option.targetType === 'knowledge')
-          const group = builder.addGroup('knowledge-reference', '知识引用')
+          const group = builder.addGroup('asset-reference', '资产引用')
 
-          if (!knowledgeOptions.length) {
-            group.addItem('knowledge-reference-empty', {
-              label: '暂无其他可引用知识',
-              icon: knowledgeReferenceIcon,
+          if (!props.references.length) {
+            group.addItem('asset-reference-empty', {
+              label: '暂无可引用资产',
+              icon: assetReferenceIcon,
               onRun: ctx => ctx.get(editorViewCtx).focus(),
             })
             return
           }
 
-          knowledgeOptions.forEach((option) => {
-            group.addItem(`knowledge-reference-${option.recordId}`, {
-              label: `引用知识：${option.label}`,
-              icon: knowledgeReferenceIcon,
-              onRun: ctx => insertKnowledgeReferenceFromSlashMenu(ctx, option),
+          props.references.forEach((option) => {
+            group.addItem(`asset-reference-${option.targetType}-${option.recordId}`, {
+              label: `${option.typeLabel}：${option.label}`,
+              icon: assetReferenceIcon,
+              onRun: ctx => insertAssetReferenceFromSlashMenu(ctx, option),
             })
           })
         },
