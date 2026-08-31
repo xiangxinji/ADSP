@@ -147,6 +147,7 @@ const createDatabase = async () => {
     CREATE TABLE IF NOT EXISTS environment_accounts (
       environment_id TEXT NOT NULL REFERENCES environment_assets(id) ON DELETE CASCADE,
       account TEXT NOT NULL,
+      password TEXT NOT NULL DEFAULT '',
       sort_order INTEGER NOT NULL DEFAULT 0,
       PRIMARY KEY(environment_id, account)
     );
@@ -323,6 +324,11 @@ const createDatabase = async () => {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_repositories_external
       ON repository_assets(project_id, provider, external_id) WHERE external_id IS NOT NULL
   `)
+
+  const environmentAccountColumns = persistentDatabase.prepare('PRAGMA table_info(environment_accounts)').all() as { name: string }[]
+  if (!environmentAccountColumns.some(column => column.name === 'password')) {
+    persistentDatabase.exec("ALTER TABLE environment_accounts ADD COLUMN password TEXT NOT NULL DEFAULT ''")
+  }
 
   const versionColumns = persistentDatabase.prepare('PRAGMA table_info(requirement_versions)').all() as { name: string }[]
   if (versionColumns.some(column => column.name === 'name')) {

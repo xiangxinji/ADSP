@@ -37,18 +37,35 @@ const environmentType = (value: unknown) => {
 }
 
 const environmentAccounts = (value: unknown) => {
-  if (!Array.isArray(value) || value.some(account => typeof account !== 'string')) {
-    throw createError({ statusCode: 400, statusMessage: 'accounts must be an array of account names' })
+  if (!Array.isArray(value) || value.some(item => !item || typeof item !== 'object' || Array.isArray(item))) {
+    throw createError({ statusCode: 400, statusMessage: 'accounts must be an array of account and password objects' })
   }
-  const accounts = [...new Set(value.map(account => account.trim()).filter(Boolean))]
+  const accounts = value.map((item) => {
+    const entry = item as Record<string, unknown>
+    const account = typeof entry.account === 'string' ? entry.account.trim() : ''
+    const password = typeof entry.password === 'string' ? entry.password : ''
+    if (!account || !password) {
+      throw createError({ statusCode: 400, statusMessage: 'each environment account requires an account name and password' })
+    }
+    if (account.length > 100 || password.length > 500) {
+      throw createError({
+        statusCode: 400,
+        statusMessage: 'account names allow up to 100 characters and passwords up to 500 characters',
+      })
+    }
+    return { account, password }
+  })
   if (accounts.length === 0) {
     throw createError({ statusCode: 400, statusMessage: 'at least one account is required' })
   }
-  if (accounts.length > 20 || accounts.some(account => account.length > 100)) {
+  if (accounts.length > 20) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'accounts allow up to 20 values of 100 characters each',
+      statusMessage: 'accounts allow up to 20 values',
     })
+  }
+  if (new Set(accounts.map(account => account.account)).size !== accounts.length) {
+    throw createError({ statusCode: 400, statusMessage: 'environment account names must be unique' })
   }
   return accounts
 }

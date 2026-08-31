@@ -1,4 +1,4 @@
-import type { EnvironmentAsset } from '../../shared/types/asdp'
+import type { EnvironmentAccount, EnvironmentAsset } from '../../shared/types/asdp'
 import { useDatabase } from '../utils/database'
 
 type EnvironmentRow = {
@@ -11,9 +11,9 @@ type EnvironmentRow = {
 }
 
 const listEnvironmentAccounts = (environmentId: string) => (useDatabase().prepare(`
-  SELECT account FROM environment_accounts
+  SELECT account, password FROM environment_accounts
   WHERE environment_id = ? ORDER BY sort_order, account
-`).all(environmentId) as { account: string }[]).map(row => row.account)
+`).all(environmentId) as EnvironmentAccount[])
 
 const environmentFromRow = (row: EnvironmentRow): EnvironmentAsset => ({
   id: row.id,
@@ -60,14 +60,19 @@ export const updateEnvironmentAssetRecord = (environment: EnvironmentAsset) => {
   `).run(environment.address, environment.type, environment.updatedAt, environment.id)
 }
 
-export const replaceEnvironmentAccounts = (environmentId: string, accounts: string[]) => {
+export const replaceEnvironmentAccounts = (environmentId: string, accounts: EnvironmentAccount[]) => {
   const database = useDatabase()
   database.prepare('DELETE FROM environment_accounts WHERE environment_id = ?').run(environmentId)
   const insertAccount = database.prepare(`
-    INSERT INTO environment_accounts (environment_id, account, sort_order)
-    VALUES (?, ?, ?)
+    INSERT INTO environment_accounts (environment_id, account, password, sort_order)
+    VALUES (?, ?, ?, ?)
   `)
-  accounts.forEach((account, index) => insertAccount.run(environmentId, account, index))
+  accounts.forEach((account, index) => insertAccount.run(
+    environmentId,
+    account.account,
+    account.password,
+    index,
+  ))
 }
 
 export const removeEnvironmentAsset = (id: string) => {

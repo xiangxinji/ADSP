@@ -253,12 +253,36 @@ const routeCases: ApiRouteCase[] = [
   {
     route: 'POST /api/projects/:id/environments',
     run: async () => {
+      const rejected = await harness.request(`/api/projects/${projectId}/environments`, {
+        method: 'POST',
+        body: {
+          address: 'https://invalid-environment.example.com',
+          type: 'testing',
+          accounts: [{ account: 'qa-user' }],
+        },
+      })
+      expect(rejected.status).toBe(400)
+
       const response = await harness.request<EnvironmentAsset>(`/api/projects/${projectId}/environments`, {
         method: 'POST',
-        body: { address: 'https://test.example.com', type: 'testing', accounts: ['qa-user', 'release-bot'] },
+        body: {
+          address: 'https://test.example.com',
+          type: 'testing',
+          accounts: [
+            { account: 'qa-user', password: 'qa-password' },
+            { account: 'release-bot', password: 'release-password' },
+          ],
+        },
       })
       expect(response.status).toBe(201)
-      expect(response.data).toMatchObject({ projectId, type: 'testing', accounts: ['qa-user', 'release-bot'] })
+      expect(response.data).toMatchObject({
+        projectId,
+        type: 'testing',
+        accounts: [
+          { account: 'qa-user', password: 'qa-password' },
+          { account: 'release-bot', password: 'release-password' },
+        ],
+      })
       environmentId = response.data.id
     },
   },
@@ -267,14 +291,18 @@ const routeCases: ApiRouteCase[] = [
     run: async () => {
       const response = await harness.request<EnvironmentAsset>(`/api/environments/${environmentId}`, {
         method: 'PATCH',
-        body: { address: 'https://staging.example.com', type: 'development', accounts: ['developer'] },
+        body: {
+          address: 'https://staging.example.com',
+          type: 'development',
+          accounts: [{ account: 'developer', password: 'developer-password' }],
+        },
       })
       expect(response.status).toBe(200)
       expect(response.data).toMatchObject({
         id: environmentId,
         address: 'https://staging.example.com',
         type: 'development',
-        accounts: ['developer'],
+        accounts: [{ account: 'developer', password: 'developer-password' }],
       })
     },
   },

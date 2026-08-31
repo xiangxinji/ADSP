@@ -150,14 +150,19 @@ Create body:
 {
   "address": "https://test.example.com",
   "type": "testing",
-  "accounts": ["release-bot", "qa-user"]
+  "accounts": [
+    { "account": "release-bot", "password": "test-password" },
+    { "account": "qa-user", "password": "qa-password" }
+  ]
 }
 ```
 
 The address must be an HTTP(S) URL without embedded credentials. Types are
 `development`, `testing`, and `production`. At least one account is required, with a
-maximum of 20 unique account identifiers. Account values are non-secret names only;
-the API does not accept passwords, tokens, or private keys.
+maximum of 20 unique account names. Each account requires a password of up to 500
+characters. Account passwords are intended for non-sensitive, self-service test
+accounts and are stored and returned without masking. Tokens, private keys, and
+production deployment credentials remain outside this API.
 
 ## Knowledge Assets
 

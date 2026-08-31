@@ -12,8 +12,8 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 - A project contains many knowledge assets whose title and Markdown content are persisted in SQLite.
 - Knowledge Markdown may reference repositories, project members, environments, or other knowledge through `[[asset type：record id]]` tokens.
 - Knowledge references resolve only within the owning project. Missing, deleted, unknown, or cross-project targets remain in the Markdown and are reported as unresolved.
-- An environment has one HTTP(S) address, one lifecycle type (`development`, `testing`, or `production`), and one or more account identifiers.
-- Environment accounts contain names only. Passwords, tokens, private keys, and other credentials are not accepted or stored.
+- An environment has one HTTP(S) address, one lifecycle type (`development`, `testing`, or `production`), and one or more account-and-password pairs.
+- Environment account passwords are for non-sensitive, self-service test accounts and are stored and displayed without masking. Tokens, private keys, and production deployment credentials are not accepted.
 - A requirement may reference zero or more repositories and project members.
 - A project owns major requirement versions, and a requirement may reference zero or more versions.
 - Users enter only a non-negative major number; the display is always `v{major}.x` and the greatest major is `latest`.
@@ -51,7 +51,7 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 
 - Create, edit, and remove repository assets with hosting provider (GitLab or GitHub), name, note, URL, and default branch.
 - Add project members by selecting global users, edit their project roles, and remove their memberships.
-- Create, edit, and remove development, testing, and production environments with an HTTP(S) address and multiple account identifiers.
+- Create, edit, and remove development, testing, and production environments with an HTTP(S) address and multiple account-and-password pairs.
 - Create, edit, and remove knowledge assets with a title and Markdown body.
 - Insert and display knowledge references to repositories, project members, environments, and other knowledge.
 - Show where an asset is referenced before deletion.
@@ -73,9 +73,9 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 13. A GitLab repository can be selected from the project asset dialog and stored with its external project ID.
 14. Project members are selected from global users and store only a project-specific role.
 15. Existing project people migrate to global users, project memberships, and requirement-member references without data loss.
-16. Environment records and all of their account identifiers remain after a server restart.
+16. Environment records and all of their account-and-password pairs remain after a server restart.
 17. Environment addresses reject unsupported protocols or embedded credentials.
-18. Removing an environment cascades its account identifiers without affecting other project assets.
+18. Removing an environment cascades its account records without affecting other project assets.
 19. A repository note can be recorded, edited, displayed in the asset list, and preserved after a server restart.
 20. Manual repository registration accepts no external project ID and does not require global GitLab settings.
 21. Knowledge titles and Markdown content remain available after a server restart.
@@ -85,3 +85,4 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 25. A requirement can reference multiple project-local major versions stored as comma-separated stable IDs.
 26. Version names always render as `v{major}.x`, and exactly the greatest configured major is marked `latest`.
 27. API validation rejects version IDs from another project and prevents deletion while referenced.
+28. Environment account passwords are stored and returned as clear text for self-service test use, while existing account-only records migrate with an empty password.

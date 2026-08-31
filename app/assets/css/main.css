@@ -191,6 +191,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(37,99,235,.32); 
 .asset-copy .asset-note { color: #475467; }
 .asset-copy a:hover { color: var(--blue); }
 .asset-copy small { color: #98a2b3; font-size: 8px; }
+.asset-copy .environment-account { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
 .asset-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .knowledge-record-list { width: min(920px, 100%); }
 .knowledge-card { align-items: flex-start; scroll-margin-top: 18px; }
@@ -200,7 +201,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(37,99,235,.32); 
 .asset-copy .knowledge-reference.unresolved { color: #b42318; background: #fef3f2; }
 
 .account-list { display: flex; flex-direction: column; gap: 7px; }
-.account-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 7px; }
+.account-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; align-items: center; gap: 7px; }
 .account-list .add-account { width: fit-content; margin-top: 2px; }
 .account-list .add-account:disabled { opacity: .45; cursor: not-allowed; text-decoration: none; }
 
@@ -370,6 +371,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(37,99,235,.32); 
   .settings-layout, .remote-repository-grid { grid-template-columns: 1fr; }
   .settings-section-heading, .repository-browser .section-heading { align-items: flex-start; flex-direction: column; }
   .settings-actions { grid-template-columns: 1fr 1fr; }
+  .account-row { grid-template-columns: 1fr auto; }
+  .account-row input:first-child { grid-column: 1 / -1; }
   .settings-actions > span { display: none; }
   .repository-search { width: 100%; }
   .repository-search input { min-width: 0; flex: 1; }

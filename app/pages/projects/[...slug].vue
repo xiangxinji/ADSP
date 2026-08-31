@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type {
+  EnvironmentAccount,
   EnvironmentAsset,
   EnvironmentType,
   GitLabRepository,
@@ -89,7 +90,7 @@ const memberForm = reactive({ userId: '', role: '项目成员' })
 const environmentForm = reactive({
   address: '',
   type: 'development' as EnvironmentType,
-  accounts: [''] as string[],
+  accounts: [{ account: '', password: '' }] as EnvironmentAccount[],
 })
 const knowledgeForm = reactive({ title: '', content: '' })
 const knowledgeEditor = ref<KnowledgeMarkdownEditorHandle | null>(null)
@@ -121,7 +122,7 @@ const currentDialogState = () => {
     case 'versions': return { editingId: editingId.value, ...requirementVersionForm }
     case 'repository': return { ...repositoryForm }
     case 'member': return { ...memberForm }
-    case 'environment': return { ...environmentForm, accounts: [...environmentForm.accounts] }
+    case 'environment': return { ...environmentForm, accounts: environmentForm.accounts.map(account => ({ ...account })) }
     case 'knowledge': return { ...knowledgeForm }
     default: return null
   }
@@ -183,7 +184,7 @@ const knowledgeReferenceOptions = computed<KnowledgeAssetReferenceOption[]>(() =
     targetType: 'environment' as const,
     recordId: environment.id,
     label: environment.address,
-    detail: `${environmentTypeLabel(environment.type)} · ${environment.accounts.join('、')}`,
+    detail: `${environmentTypeLabel(environment.type)} · ${environment.accounts.map(account => account.account).join('、')}`,
   })),
   ...(workspace.value?.knowledge || [])
     .filter(knowledge => knowledge.id !== editingId.value)
@@ -305,11 +306,11 @@ const openEnvironment = (environment?: EnvironmentAsset) => {
   Object.assign(environmentForm, environment ? {
     address: environment.address,
     type: environment.type,
-    accounts: [...environment.accounts],
+    accounts: environment.accounts.map(account => ({ ...account })),
   } : {
     address: '',
     type: 'development',
-    accounts: [''],
+    accounts: [{ account: '', password: '' }],
   })
   actionError.value = ''
   dialog.value = 'environment'
@@ -340,11 +341,11 @@ const knowledgeReferencePath = (reference: KnowledgeReference) => {
 const knowledgeReferenceLabel = (reference: KnowledgeReference) => reference.label
   || `${reference.assetType}：${reference.recordId}`
 
-const addEnvironmentAccount = () => environmentForm.accounts.push('')
+const addEnvironmentAccount = () => environmentForm.accounts.push({ account: '', password: '' })
 
 const removeEnvironmentAccount = (index: number) => {
   if (environmentForm.accounts.length === 1) {
-    environmentForm.accounts[0] = ''
+    environmentForm.accounts[0] = { account: '', password: '' }
     return
   }
   environmentForm.accounts.splice(index, 1)
@@ -516,7 +517,10 @@ const saveEnvironment = async () => {
       method: editingId.value ? 'PATCH' : 'POST',
       body: {
         ...environmentForm,
-        accounts: environmentForm.accounts.map(account => account.trim()).filter(Boolean),
+        accounts: environmentForm.accounts.map(account => ({
+          account: account.account.trim(),
+          password: account.password,
+        })),
       },
     })
     await refresh()
@@ -705,7 +709,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
 
           <aside class="asset-security-note">
             <span><AppIcon name="shield-check" :size="16" /></span>
-            <p><strong>凭据始终由交付系统保管</strong>ForgePilot 只记录资产标识与访问地址，不保存密码、Token 或私钥。</p>
+            <p><strong>测试账号支持自助使用</strong>ForgePilot 会保存并明文展示环境账号密码；请勿登记生产凭据、Token 或私钥。</p>
           </aside>
         </template>
 
@@ -744,11 +748,11 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
           <div v-if="workspace.environments.length" class="asset-record-list">
             <article v-for="environment in workspace.environments" :id="`asset-${environment.id}`" :key="environment.id" class="panel asset-card asset-record-card">
               <div class="asset-icon environment-icon"><AppIcon name="environment" :size="18" /></div>
-              <div class="asset-copy"><strong>项目环境 <span class="provider-badge environment-badge" :data-environment="environment.type">{{ environmentTypeLabel(environment.type) }}</span></strong><a :href="environment.address" target="_blank" rel="noreferrer">{{ environment.address }}</a><small>账号：{{ environment.accounts.join('、') }}</small></div>
+              <div class="asset-copy"><strong>项目环境 <span class="provider-badge environment-badge" :data-environment="environment.type">{{ environmentTypeLabel(environment.type) }}</span></strong><a :href="environment.address" target="_blank" rel="noreferrer">{{ environment.address }}</a><small v-for="account in environment.accounts" :key="account.account" class="environment-account">账号：{{ account.account }}　密码：{{ account.password || '未设置' }}</small></div>
               <div class="asset-actions"><button class="text-button" type="button" @click="openEnvironment(environment)">编辑</button><button class="text-button danger" type="button" @click="removeRecord('environment', environment.id, environment.address)">删除</button></div>
             </article>
           </div>
-          <div v-else class="panel empty-state"><strong>还没有项目环境</strong><span>登记环境地址与账号标识，凭据仍由交付系统保管。</span><button class="button primary" type="button" @click="openEnvironment()">添加第一个环境</button></div>
+          <div v-else class="panel empty-state"><strong>还没有项目环境</strong><span>登记环境地址以及可自助使用的测试账号和密码。</span><button class="button primary" type="button" @click="openEnvironment()">添加第一个环境</button></div>
         </template>
 
         <template v-else>
@@ -863,10 +867,10 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
 
     <AppDialog :open="dialog === 'environment'" :title="editingId ? '编辑环境' : '添加环境'" overline="ENVIRONMENT ASSET" :busy="saving" @request-close="requestDialogClose">
       <form id="environment-form" @submit.prevent="saveEnvironment">
-        <p class="dialog-intro">登记可访问的环境地址和账号标识。密码、Token 与私钥仍由 CI/CD 或目标基础设施管理。</p>
+        <p class="dialog-intro">登记可访问的环境地址以及可自助使用的测试账号。账号和密码会直接展示，不做脱敏。</p>
         <div class="field"><label for="environment-type">环境类型</label><select id="environment-type" v-model="environmentForm.type" required><option v-for="option in environmentTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>
         <div class="field"><label for="environment-address">环境地址</label><input id="environment-address" v-model="environmentForm.address" required autofocus type="url" placeholder="https://dev.example.com" /><small>仅支持 HTTP 或 HTTPS 地址，地址中不能包含账号密码。</small></div>
-        <div class="field"><span class="field-label">账号</span><div class="account-list"><div v-for="(_, index) in environmentForm.accounts" :key="index" class="account-row"><input v-model="environmentForm.accounts[index]" required maxlength="100" :aria-label="`账号 ${index + 1}`" :placeholder="`账号 ${index + 1}`" /><button class="text-button danger" type="button" @click="removeEnvironmentAccount(index)">移除</button></div><button class="text-button add-account" type="button" :disabled="environmentForm.accounts.length >= 20" @click="addEnvironmentAccount">＋ 添加账号</button></div><small>最多 20 个账号；这里只保存账号名称，不保存任何登录凭据。</small></div>
+        <div class="field"><span class="field-label">关联账号</span><div class="account-list"><div v-for="(_, index) in environmentForm.accounts" :key="index" class="account-row"><input v-model="environmentForm.accounts[index].account" required maxlength="100" :aria-label="`账号 ${index + 1}`" :placeholder="`账号 ${index + 1}`" /><input v-model="environmentForm.accounts[index].password" required maxlength="500" type="text" autocomplete="off" :aria-label="`密码 ${index + 1}`" :placeholder="`密码 ${index + 1}`" /><button class="text-button danger" type="button" @click="removeEnvironmentAccount(index)">移除</button></div><button class="text-button add-account" type="button" :disabled="environmentForm.accounts.length >= 20" @click="addEnvironmentAccount">＋ 添加账号</button></div><small>最多 20 个账号；密码按原文保存并明文展示，请仅登记非敏感测试账号。</small></div>
         <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
       </form>
       <template #actions><button class="button secondary" type="button" :disabled="saving" @click="requestDialogClose">取消</button><button class="button primary" type="submit" form="environment-form" :disabled="saving">{{ saving ? '保存中…' : '保存环境' }}</button></template>

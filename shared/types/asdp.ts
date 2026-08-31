@@ -49,12 +49,17 @@ export type RepositoryAsset = {
   updatedAt: string
 }
 
+export type EnvironmentAccount = {
+  account: string
+  password: string
+}
+
 export type EnvironmentAsset = {
   id: string
   projectId: string
   address: string
   type: EnvironmentType
-  accounts: string[]
+  accounts: EnvironmentAccount[]
   createdAt: string
   updatedAt: string
 }
