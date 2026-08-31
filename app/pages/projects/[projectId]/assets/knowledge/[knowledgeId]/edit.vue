@@ -70,6 +70,8 @@ const hasUnsavedChanges = computed(() => content.value !== savedContent.value)
 const errorMessage = (requestError: any) => requestError?.data?.statusMessage || requestError?.message || '操作失败'
 
 const saveKnowledge = async () => {
+  if (saving.value || !knowledge.value) return
+
   const markdown = editor.value?.getMarkdown() ?? content.value
   saving.value = true
   actionError.value = ''
@@ -87,6 +89,16 @@ const saveKnowledge = async () => {
     saving.value = false
   }
 }
+
+const handleSaveShortcut = (event: KeyboardEvent) => {
+  if (event.key.toLowerCase() !== 's' || (!event.ctrlKey && !event.metaKey) || event.altKey || event.shiftKey) return
+
+  event.preventDefault()
+  void saveKnowledge()
+}
+
+onMounted(() => window.addEventListener('keydown', handleSaveShortcut))
+onBeforeUnmount(() => window.removeEventListener('keydown', handleSaveShortcut))
 
 onBeforeRouteLeave(() => {
   if (hasUnsavedChanges.value && import.meta.client && !window.confirm('正文尚未保存，确定离开当前页面吗？')) return false
