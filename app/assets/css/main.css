@@ -4,6 +4,9 @@
   --blue-soft: #eff6ff;
   --ink: #172033;
   --muted: #667085;
+  --scrollbar-thumb: color-mix(in srgb, var(--muted) 44%, transparent);
+  --scrollbar-thumb-hover: color-mix(in srgb, var(--muted) 70%, transparent);
+  --scrollbar-thumb-active: color-mix(in srgb, var(--muted) 88%, transparent);
   --line: #e4e7ec;
   --canvas: #f7f8fa;
   --surface: #ffffff;
@@ -14,6 +17,15 @@
 }
 
 * { box-sizing: border-box; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track, *::-webkit-scrollbar-corner { background: transparent; }
+*::-webkit-scrollbar-thumb { min-height: 36px; border: 2px solid transparent; border-radius: 999px; background: var(--scrollbar-thumb); background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); background-clip: padding-box; }
+*::-webkit-scrollbar-thumb:active { background: var(--scrollbar-thumb-active); background-clip: padding-box; }
+*::-webkit-scrollbar-button { width: 0; height: 0; }
+@supports not selector(::-webkit-scrollbar) {
+  * { scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent; }
+}
 html { scroll-behavior: smooth; }
 body { margin: 0; min-width: 320px; min-height: 100vh; background: var(--canvas); font-size: 14px; }
 button, input, textarea, select { font: inherit; }
