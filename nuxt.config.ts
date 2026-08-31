@@ -6,6 +6,7 @@ export default defineNuxtConfig({
     '@milkdown/crepe/theme/common/style.css',
     '@milkdown/crepe/theme/frame.css',
     '~/assets/css/main.css',
+    '~/assets/css/markdown-editor.css',
   ],
   nitro: {
     esbuild: {

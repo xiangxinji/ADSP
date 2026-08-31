@@ -11,7 +11,9 @@ const projectId = String(route.params.projectId || '')
 const knowledgeId = String(route.params.knowledgeId || '')
 const knowledgePath = `/projects/${projectId}/assets/knowledge`
 const infoPath = `${knowledgePath}/${knowledgeId}/info`
-const { data: workspace, status, error, refresh } = await useFetch<ProjectWorkspace>(`/api/projects/${projectId}`)
+const { data: workspace, status, error, refresh } = await useFetch<ProjectWorkspace>(`/api/projects/${projectId}`, {
+  key: `knowledge-editor-workspace-${projectId}-${knowledgeId}`,
+})
 const knowledge = computed(() => workspace.value?.knowledge.find(item => item.id === knowledgeId))
 const editor = ref<KnowledgeMarkdownEditorHandle | null>(null)
 const content = ref('')
@@ -60,6 +62,9 @@ const referenceOptions = computed<KnowledgeAssetReferenceOption[]>(() => [
       detail: 'Markdown 知识',
     })),
 ])
+const editorReferenceKey = computed(() => referenceOptions.value
+  .map(option => `${option.targetType}:${option.recordId}:${option.label}:${option.detail}`)
+  .join('|'))
 
 const hasUnsavedChanges = computed(() => content.value !== savedContent.value)
 const errorMessage = (requestError: any) => requestError?.data?.statusMessage || requestError?.message || '操作失败'
@@ -106,7 +111,7 @@ onBeforeRouteLeave(() => {
 
       <p v-if="actionError" class="knowledge-editor-error" role="alert">{{ actionError }}</p>
       <section class="knowledge-editor-body" aria-label="Markdown 正文编辑区">
-        <KnowledgeMarkdownEditor ref="editor" v-model="content" :references="referenceOptions" />
+        <KnowledgeMarkdownEditor :key="editorReferenceKey" ref="editor" v-model="content" :references="referenceOptions" />
       </section>
     </template>
 
