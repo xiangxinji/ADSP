@@ -23,6 +23,7 @@ export type GitLabRequest = {
 
 export type ApiTestHarness = {
   baseUrl: string
+  databasePath: string
   gitLabBaseUrl: string
   gitLabRequests: GitLabRequest[]
   request: <T>(path: string, options?: ApiRequestOptions) => Promise<ApiResponse<T>>
@@ -169,6 +170,7 @@ export const startApiTestHarness = async (options: ApiTestHarnessOptions = {}): 
     let stopped = false
     return {
       baseUrl,
+      databasePath,
       gitLabBaseUrl: activeGitLab.baseUrl,
       gitLabRequests: activeGitLab.requests,
       request: async <T>(path: string, options: ApiRequestOptions = {}) => {

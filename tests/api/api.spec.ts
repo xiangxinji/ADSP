@@ -208,11 +208,11 @@ const routeCases: ApiRouteCase[] = [
           name: 'forgepilot-api-test',
           note: '接口测试仓库',
           url: 'https://gitlab.example.com/asdp/api-test.git',
-          defaultBranch: 'main',
         },
       })
       expect(response.status).toBe(201)
       expect(response.data).toMatchObject({ externalId: null, note: '接口测试仓库' })
+      expect(response.data).not.toHaveProperty('defaultBranch')
       repositoryId = response.data.id
     },
   },
@@ -221,10 +221,11 @@ const routeCases: ApiRouteCase[] = [
     run: async () => {
       const response = await harness.request<RepositoryAsset>(`/api/repositories/${repositoryId}`, {
         method: 'PATCH',
-        body: { note: '已更新的接口测试仓库', defaultBranch: 'develop' },
+        body: { note: '已更新的接口测试仓库' },
       })
       expect(response.status).toBe(200)
-      expect(response.data).toMatchObject({ id: repositoryId, note: '已更新的接口测试仓库', defaultBranch: 'develop' })
+      expect(response.data).toMatchObject({ id: repositoryId, note: '已更新的接口测试仓库' })
+      expect(response.data).not.toHaveProperty('defaultBranch')
     },
   },
   {
@@ -447,7 +448,6 @@ const routeCases: ApiRouteCase[] = [
           provider: 'github',
           name: 'foreign-repository',
           url: 'https://github.com/asdp/foreign-repository.git',
-          defaultBranch: 'main',
         },
       })
       const foreignVersion = await harness.request<RequirementVersion>(`/api/projects/${foreignProjectId}/requirement-versions`, {

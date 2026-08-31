@@ -49,7 +49,7 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 
 ### Asset Management
 
-- Create, edit, and remove repository assets with hosting provider (GitLab or GitHub), name, note, URL, and default branch.
+- Create, edit, and remove repository assets with hosting provider (GitLab or GitHub), name, note, and URL; query provider-owned default-branch metadata when needed instead of persisting it.
 - Add project members by selecting global users, edit their project roles, and remove their memberships.
 - Create, edit, and remove development, testing, and production environments with an HTTP(S) address, an optional note, and multiple account-and-password pairs.
 - Create, edit, and remove knowledge assets with a title and Markdown body.

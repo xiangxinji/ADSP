@@ -75,7 +75,7 @@ const requirementForm = reactive({
   repositoryIds: [] as string[],
   memberIds: [] as string[],
 })
-const repositoryForm = reactive({ provider: 'gitlab' as RepositoryProvider, externalId: null as string | null, name: '', note: '', url: '', defaultBranch: 'main' })
+const repositoryForm = reactive({ provider: 'gitlab' as RepositoryProvider, externalId: null as string | null, name: '', note: '', url: '' })
 const gitlabRepositories = ref<GitLabRepository[]>([])
 const gitlabRepositorySearch = ref('')
 const gitlabRepositoriesLoading = ref(false)
@@ -239,8 +239,8 @@ const editRequirementVersion = (version: ProjectWorkspace['requirementVersions']
 const openRepository = (repository?: RepositoryAsset) => {
   editingId.value = repository?.id || null
   Object.assign(repositoryForm, repository ? {
-    provider: repository.provider, externalId: repository.externalId, name: repository.name, note: repository.note, url: repository.url, defaultBranch: repository.defaultBranch,
-  } : { provider: 'gitlab', externalId: null, name: '', note: '', url: '', defaultBranch: 'main' })
+    provider: repository.provider, externalId: repository.externalId, name: repository.name, note: repository.note, url: repository.url,
+  } : { provider: 'gitlab', externalId: null, name: '', note: '', url: '' })
   gitlabRepositories.value = []
   gitlabRepositorySearch.value = ''
   gitlabRepositoryError.value = ''
@@ -365,7 +365,6 @@ const selectGitLabRepository = (repository: GitLabRepository) => {
     externalId: String(repository.id),
     name: repository.name,
     url: repository.webUrl,
-    defaultBranch: repository.defaultBranch,
   })
 }
 
@@ -608,7 +607,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
           <div class="asset-module-grid">
             <NuxtLink class="panel asset-module-card" :to="`${assetsPath}/repositories`">
               <span class="asset-module-icon repository-icon"><AppIcon name="repository" :size="22" /></span>
-              <span class="asset-module-copy"><strong>代码仓库</strong><small>管理 GitLab、GitHub 仓库连接与默认分支</small></span>
+              <span class="asset-module-copy"><strong>代码仓库</strong><small>管理 GitLab、GitHub 仓库连接</small></span>
               <span class="asset-module-meta"><strong>{{ workspace.repositories.length }}</strong><small>个仓库</small></span>
               <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
             </NuxtLink>
@@ -643,12 +642,12 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
 
         <template v-else-if="activeAssetModule === 'repositories'">
           <div class="asset-detail-heading">
-            <div class="section-heading"><div><p class="overline">REPOSITORY ASSETS</p><h2>代码仓库</h2><p>管理项目引用的源代码仓库和默认分支。</p></div><button class="button primary" type="button" @click="openRepository()">添加仓库</button></div>
+            <div class="section-heading"><div><p class="overline">REPOSITORY ASSETS</p><h2>代码仓库</h2><p>管理项目引用的源代码仓库。</p></div><button class="button primary" type="button" @click="openRepository()">添加仓库</button></div>
           </div>
           <div v-if="workspace.repositories.length" class="asset-record-list">
             <article v-for="repository in workspace.repositories" :id="`asset-${repository.id}`" :key="repository.id" class="panel asset-card asset-record-card">
               <div class="asset-icon repository-icon"><AppIcon name="repository" :size="18" /></div>
-              <div class="asset-copy"><strong>{{ repository.name }} <span class="provider-badge">{{ repositoryProviderLabel(repository.provider) }}</span></strong><a :href="repository.url" target="_blank" rel="noreferrer">{{ repository.url }}</a><span v-if="repository.note" class="asset-note">备注：{{ repository.note }}</span><small>默认分支：{{ repository.defaultBranch }} · 被 {{ repository.referenceCount }} 条需求引用</small></div>
+              <div class="asset-copy"><strong>{{ repository.name }} <span class="provider-badge">{{ repositoryProviderLabel(repository.provider) }}</span></strong><a :href="repository.url" target="_blank" rel="noreferrer">{{ repository.url }}</a><span v-if="repository.note" class="asset-note">备注：{{ repository.note }}</span><small>被 {{ repository.referenceCount }} 条需求引用</small></div>
               <div class="asset-actions"><button class="text-button" type="button" @click="openRepository(repository)">编辑</button><button class="text-button danger" type="button" @click="removeRecord('repository', repository.id, repository.name, repository.referenceCount)">删除</button></div>
             </article>
           </div>
@@ -721,7 +720,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
           <div class="field span-two"><label for="requirement-acceptance">验收标准</label><textarea id="requirement-acceptance" v-model="requirementForm.acceptanceCriteria" rows="3" placeholder="说明怎样才算完成" /></div>
         </div>
         <div class="reference-picker"><div><h3>关联版本</h3><p>可以选择多个大版本</p></div><div v-if="workspace?.requirementVersions.length" class="check-list"><label v-for="version in workspace.requirementVersions" :key="version.id"><input v-model="requirementForm.versionIds" type="checkbox" :value="version.id" /><span><strong>{{ version.name }} <em v-if="version.isLatest" class="latest-label">latest</em></strong><small>{{ version.requirementCount }} 条需求已关联</small></span></label></div><p v-else class="picker-empty">请先在版本管理中添加大版本。</p></div>
-        <div class="reference-picker"><div><h3>引用代码仓库</h3><p>可以选择多个仓库</p></div><div v-if="workspace?.repositories.length" class="check-list"><label v-for="repository in workspace.repositories" :key="repository.id"><input v-model="requirementForm.repositoryIds" type="checkbox" :value="repository.id" /><span><strong>{{ repository.name }}</strong><small>{{ repositoryProviderLabel(repository.provider) }} · {{ repository.defaultBranch }}<template v-if="repository.note"> · {{ repository.note }}</template></small></span></label></div><p v-else class="picker-empty">请先在资产模块添加代码仓库。</p></div>
+        <div class="reference-picker"><div><h3>引用代码仓库</h3><p>可以选择多个仓库</p></div><div v-if="workspace?.repositories.length" class="check-list"><label v-for="repository in workspace.repositories" :key="repository.id"><input v-model="requirementForm.repositoryIds" type="checkbox" :value="repository.id" /><span><strong>{{ repository.name }}</strong><small>{{ repositoryProviderLabel(repository.provider) }}<template v-if="repository.note"> · {{ repository.note }}</template></small></span></label></div><p v-else class="picker-empty">请先在资产模块添加代码仓库。</p></div>
         <div class="reference-picker"><div><h3>引用项目成员</h3><p>可以选择多位参与者</p></div><div v-if="workspace?.members.length" class="check-list"><label v-for="member in workspace.members" :key="member.id"><input v-model="requirementForm.memberIds" type="checkbox" :value="member.id" /><span><strong>{{ member.user.name }}</strong><small>{{ member.role || member.user.email }}</small></span></label></div><p v-else class="picker-empty">请先在资产模块添加成员。</p></div>
         <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
       </form>
@@ -777,7 +776,6 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
         <div class="field"><label for="repository-name">仓库名称</label><input id="repository-name" v-model="repositoryForm.name" required placeholder="例如：forgepilot-web" /></div>
         <div class="field"><label for="repository-note">备注</label><textarea id="repository-note" v-model="repositoryForm.note" maxlength="500" placeholder="例如：前端主仓库，负责 ForgePilot 控制台"></textarea><small>可填写仓库用途、维护范围或其他说明。</small></div>
         <div class="field"><label for="repository-url">{{ repositoryProviderLabel(repositoryForm.provider) }} 仓库地址</label><input id="repository-url" v-model="repositoryForm.url" required type="url" :placeholder="repositoryUrlPlaceholder" @input="repositoryForm.externalId = null" /></div>
-        <div class="field"><label for="repository-branch">默认分支</label><input id="repository-branch" v-model="repositoryForm.defaultBranch" required placeholder="main" /></div>
         <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
       </form>
       <template #actions><button class="button secondary" type="button" :disabled="saving" @click="requestDialogClose">取消</button><button class="button primary" type="submit" form="repository-form" :disabled="saving">{{ saving ? '保存中…' : '保存仓库' }}</button></template>

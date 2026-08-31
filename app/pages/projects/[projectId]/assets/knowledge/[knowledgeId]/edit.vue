@@ -34,7 +34,7 @@ const referenceOptions = computed<KnowledgeAssetReferenceOption[]>(() => [
     targetType: 'repository' as const,
     recordId: repository.id,
     label: repository.name,
-    detail: `${repository.provider === 'gitlab' ? 'GitLab' : 'GitHub'} · ${repository.defaultBranch}`,
+    detail: repository.provider === 'gitlab' ? 'GitLab' : 'GitHub',
   })),
   ...(workspace.value?.members || []).map(member => ({
     assetType: '项目成员',

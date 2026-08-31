@@ -29,7 +29,6 @@ export const createRepository = (projectId: string, input: CreateRepositoryInput
     name: input.name,
     note: input.note || '',
     url: input.url,
-    defaultBranch: input.defaultBranch,
     referenceCount: 0,
     createdAt: timestamp,
     updatedAt: timestamp,
@@ -51,7 +50,6 @@ export const updateRepository = (id: string, input: UpdateRepositoryInput) => {
     name: input.name ?? current.name,
     note: input.note ?? current.note,
     url: input.url ?? current.url,
-    defaultBranch: input.defaultBranch ?? current.defaultBranch,
     updatedAt: new Date().toISOString(),
   }
   try {

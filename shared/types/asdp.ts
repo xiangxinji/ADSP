@@ -43,7 +43,6 @@ export type RepositoryAsset = {
   name: string
   note: string
   url: string
-  defaultBranch: string
   referenceCount: number
   createdAt: string
   updatedAt: string
@@ -186,7 +185,7 @@ export type ProjectWorkspace = {
 export type CreateProjectInput = Pick<Project, 'name' | 'description'>
 export type UpdateProjectInput = Partial<CreateProjectInput>
 export type CreateUserInput = Pick<UserAccount, 'name' | 'email' | 'role'>
-export type CreateRepositoryInput = Pick<RepositoryAsset, 'provider' | 'name' | 'url' | 'defaultBranch'> & {
+export type CreateRepositoryInput = Pick<RepositoryAsset, 'provider' | 'name' | 'url'> & {
   externalId?: string | null
   note?: string
 }

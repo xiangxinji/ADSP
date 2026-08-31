@@ -128,7 +128,6 @@ const createDatabase = async () => {
       name TEXT NOT NULL,
       note TEXT NOT NULL DEFAULT '',
       url TEXT NOT NULL,
-      default_branch TEXT NOT NULL DEFAULT 'main',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       UNIQUE(project_id, url)
@@ -320,6 +319,9 @@ const createDatabase = async () => {
   }
   if (!repositoryColumns.some(column => column.name === 'note')) {
     persistentDatabase.exec("ALTER TABLE repository_assets ADD COLUMN note TEXT NOT NULL DEFAULT ''")
+  }
+  if (repositoryColumns.some(column => column.name === 'default_branch')) {
+    persistentDatabase.exec('ALTER TABLE repository_assets DROP COLUMN default_branch')
   }
   persistentDatabase.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS idx_repositories_external

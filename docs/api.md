@@ -96,12 +96,13 @@ requirements or designate another initial status first.
 | `PATCH` | `/api/repositories/:id` | Update repository metadata |
 | `DELETE` | `/api/repositories/:id` | Remove it and cascade requirement references |
 
-Body: `{ "provider": "gitlab" | "github", "externalId"?: string | null, "name": string, "note"?: string, "url": string, "defaultBranch": string }`.
+Body: `{ "provider": "gitlab" | "github", "externalId"?: string | null, "name": string, "note"?: string, "url": string }`.
 
 `note` is optional user-authored context for the repository and defaults to an empty string.
 `externalId` is null when a repository is registered manually rather than selected from GitLab discovery.
 
 Existing repository records default to `gitlab` during migration.
+The repository asset does not persist a default branch; integrations query provider-owned branch metadata when needed.
 
 ## Global GitLab Settings
 

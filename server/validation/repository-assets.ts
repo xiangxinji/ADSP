@@ -19,8 +19,5 @@ export const repositoryPayload = (
     name: partial && body.name === undefined ? undefined : requiredText(body.name, 'name'),
     note: partial && body.note === undefined ? undefined : optionalText(body.note),
     url: partial && body.url === undefined ? undefined : requiredText(body.url, 'url'),
-    defaultBranch: partial && body.defaultBranch === undefined
-      ? undefined
-      : optionalText(body.defaultBranch, 'main') || 'main',
   }
 }
