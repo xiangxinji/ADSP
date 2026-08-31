@@ -15,6 +15,12 @@ import type {
   RequirementStatus,
   UserAccount,
 } from '#shared/types/asdp'
+import type { KnowledgeAssetReferenceOption } from '~/editor/knowledge-asset-reference'
+
+type KnowledgeMarkdownEditorHandle = {
+  getMarkdown: () => string
+  insertReference: (assetType: string, recordId: string) => Promise<void>
+}
 
 const route = useRoute()
 const routeSegments = computed(() => Array.isArray(route.params.slug)
@@ -85,6 +91,7 @@ const environmentForm = reactive({
   accounts: [''] as string[],
 })
 const knowledgeForm = reactive({ title: '', content: '' })
+const knowledgeEditor = ref<KnowledgeMarkdownEditorHandle | null>(null)
 const requirementStatusForm = reactive({
   key: '',
   name: '',
@@ -124,13 +131,37 @@ const selectableUsers = computed(() => {
   const editingUserId = editingId.value ? memberForm.userId : ''
   return (users.value || []).filter(user => user.id === editingUserId || !assignedUserIds.has(user.id))
 })
-const knowledgeReferenceOptions = computed(() => [
-  ...(workspace.value?.repositories || []).map(repository => ({ assetType: '代码仓库', recordId: repository.id, label: repository.name })),
-  ...(workspace.value?.members || []).map(member => ({ assetType: '项目成员', recordId: member.id, label: member.user.name })),
-  ...(workspace.value?.environments || []).map(environment => ({ assetType: '环境', recordId: environment.id, label: environment.address })),
+const knowledgeReferenceOptions = computed<KnowledgeAssetReferenceOption[]>(() => [
+  ...(workspace.value?.repositories || []).map(repository => ({
+    assetType: '代码仓库',
+    targetType: 'repository' as const,
+    recordId: repository.id,
+    label: repository.name,
+    detail: `${repositoryProviderLabel(repository.provider)} · ${repository.defaultBranch}`,
+  })),
+  ...(workspace.value?.members || []).map(member => ({
+    assetType: '项目成员',
+    targetType: 'member' as const,
+    recordId: member.id,
+    label: member.user.name,
+    detail: `${member.role} · ${member.user.email}`,
+  })),
+  ...(workspace.value?.environments || []).map(environment => ({
+    assetType: '环境',
+    targetType: 'environment' as const,
+    recordId: environment.id,
+    label: environment.address,
+    detail: `${environmentTypeLabel(environment.type)} · ${environment.accounts.join('、')}`,
+  })),
   ...(workspace.value?.knowledge || [])
     .filter(knowledge => knowledge.id !== editingId.value)
-    .map(knowledge => ({ assetType: '知识', recordId: knowledge.id, label: knowledge.title })),
+    .map(knowledge => ({
+      assetType: '知识',
+      targetType: 'knowledge' as const,
+      recordId: knowledge.id,
+      label: knowledge.title,
+      detail: 'Markdown 知识',
+    })),
 ])
 
 const openRequirement = (requirement?: Requirement) => {
@@ -234,6 +265,10 @@ const openKnowledge = (knowledge?: KnowledgeAsset) => {
 }
 
 const insertKnowledgeReference = (assetType: string, recordId: string) => {
+  if (knowledgeEditor.value) {
+    void knowledgeEditor.value.insertReference(assetType, recordId)
+    return
+  }
   const separator = knowledgeForm.content && !knowledgeForm.content.endsWith('\n') ? '\n' : ''
   knowledgeForm.content += `${separator}[[${assetType}：${recordId}]]`
 }
@@ -396,6 +431,11 @@ const saveEnvironment = async () => {
 }
 
 const saveKnowledge = async () => {
+  knowledgeForm.content = knowledgeEditor.value?.getMarkdown() ?? knowledgeForm.content
+  if (!knowledgeForm.content.trim()) {
+    actionError.value = '请输入 Markdown 内容'
+    return
+  }
   saving.value = true
   actionError.value = ''
   try {
@@ -641,8 +681,8 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
           <div class="dialog-heading"><div><p class="overline">KNOWLEDGE ASSET</p><h2>{{ editingId ? '编辑知识' : '添加知识' }}</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
           <p class="dialog-intro">正文以 Markdown 原文保存。使用 <code>[[资产类型：记录id]]</code> 引用当前项目内的代码仓库、项目成员、环境或其他知识。</p>
           <div class="field"><label>标题</label><input v-model="knowledgeForm.title" required placeholder="例如：项目架构约定" /></div>
-          <div class="field"><label>Markdown 内容</label><textarea v-model="knowledgeForm.content" class="knowledge-editor" required rows="16" placeholder="# 项目架构约定&#10;&#10;相关仓库：[[代码仓库：记录id]]" /><small>Markdown 内容会保持原文存入数据库；无法解析的资产引用会在列表中明确标记。</small></div>
-          <div v-if="knowledgeReferenceOptions.length" class="knowledge-reference-picker"><strong>插入资产引用</strong><small>选择后会把引用语法追加到正文。</small><div><button v-for="option in knowledgeReferenceOptions" :key="`${option.assetType}:${option.recordId}`" type="button" @click="insertKnowledgeReference(option.assetType, option.recordId)"><span>{{ option.assetType }}</span>{{ option.label }}</button></div></div>
+          <div class="field"><label>Markdown 内容</label><KnowledgeMarkdownEditor ref="knowledgeEditor" v-model="knowledgeForm.content" :references="knowledgeReferenceOptions" /><small>编辑内容会实时渲染；资产引用以控件显示，仍会按原始语法存入数据库。</small></div>
+          <div v-if="knowledgeReferenceOptions.length" class="knowledge-reference-picker"><strong>插入资产引用</strong><small>选择后会在当前光标处插入资产控件。</small><div><button v-for="option in knowledgeReferenceOptions" :key="`${option.assetType}:${option.recordId}`" type="button" @click="insertKnowledgeReference(option.assetType, option.recordId)"><span>{{ option.assetType }}</span>{{ option.label }}</button></div></div>
           <p v-if="actionError" class="form-error">{{ actionError }}</p><div class="dialog-actions"><button class="button secondary" type="button" @click="closeDialog">取消</button><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存知识' }}</button></div>
         </form>
 
