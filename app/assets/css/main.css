@@ -54,6 +54,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(37,99,235,.32); 
 .button.secondary:hover { background: #f9fafb; }
 .button.danger-outline { color: var(--danger); border-color: #f4baba; background: #fff; }
 .button.danger-outline:hover:not(:disabled) { background: #fff5f5; }
+.app-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.app-button > .app-icon { flex: none; }
 .text-button { min-height: 32px; padding: 4px 6px; border: 0; color: var(--blue); background: transparent; font-size: 12px; cursor: pointer; }
 .text-button:hover { text-decoration: underline; }
 .text-button.danger { color: var(--danger); }
@@ -391,8 +393,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(37,99,235,.32); 
   .form-grid.two, .check-list { grid-template-columns: 1fr; }
   .span-two { grid-column: auto; }
   .reference-picker { grid-template-columns: 1fr; }
-  .heading-actions { width: 100%; }
-  .heading-actions .button { flex: 1; }
+  .module-section > .section-heading { flex-direction: column; }
+  .heading-actions { width: 100%; flex-wrap: wrap; }
+  .heading-actions .button { min-width: 0; flex: 1 1 100px; }
   .status-manager { grid-template-columns: 1fr; }
   .settings-layout, .remote-repository-grid { grid-template-columns: 1fr; }
   .settings-section-heading, .repository-browser .section-heading { align-items: flex-start; flex-direction: column; }

@@ -116,13 +116,16 @@ onMounted(() => {
           <div class="settings-section-heading"><div><p class="overline">SOURCE CONTROL</p><h2>GitLab</h2><p>用于验证身份、读取可访问仓库，并为项目登记仓库资产。</p></div><span class="connection-state" :class="{ connected: settings?.configured }">{{ settings?.configured ? '已连接' : '未配置' }}</span></div>
 
           <form class="panel integration-form" @submit.prevent="saveSettings">
-            <div class="field"><label for="gitlab-url">GitLab 地址</label><input id="gitlab-url" v-model="form.baseUrl" required type="url" placeholder="https://gitlab.com" /><small>支持 GitLab.com 和企业自托管地址。</small></div>
-            <div class="field"><label for="gitlab-token">Access Token</label><div class="secret-input"><input id="gitlab-token" v-model="form.token" :required="!settings?.configured" :type="showToken ? 'text' : 'password'" autocomplete="new-password" spellcheck="false" :placeholder="settings?.configured ? `已保存 ${settings.tokenHint}，留空则保持不变` : '输入 GitLab Personal Access Token'" /><button type="button" @click="showToken = !showToken">{{ showToken ? '隐藏' : '显示' }}</button></div><small>Token 只发送到 ForgePilot 服务端，并以加密形式保存。仓库读取至少需要 <code>read_api</code> 权限。</small></div>
+            <AppFormField field-id="gitlab-url" label="GitLab 地址" hint="支持 GitLab.com 和企业自托管地址。"><AppInput id="gitlab-url" v-model="form.baseUrl" required type="url" placeholder="https://gitlab.com" /></AppFormField>
+            <AppFormField field-id="gitlab-token" label="Access Token">
+              <div class="secret-input"><AppInput id="gitlab-token" v-model="form.token" :required="!settings?.configured" :type="showToken ? 'text' : 'password'" autocomplete="new-password" spellcheck="false" :placeholder="settings?.configured ? `已保存 ${settings.tokenHint}，留空则保持不变` : '输入 GitLab Personal Access Token'" /><AppButton variant="plain" :icon="showToken ? 'eye-off' : 'eye'" :icon-size="14" @click="showToken = !showToken">{{ showToken ? '隐藏' : '显示' }}</AppButton></div>
+              <template #hint>Token 只发送到 ForgePilot 服务端，并以加密形式保存。仓库读取至少需要 <code>read_api</code> 权限。</template>
+            </AppFormField>
 
             <div v-if="settings?.configured" class="connection-summary"><div><span>连接身份</span><strong>{{ settings.connectedUser?.name || 'GitLab 用户' }} <small v-if="settings.connectedUser">@{{ settings.connectedUser.username }}</small></strong></div><div><span>上次验证</span><strong>{{ formatDate(settings.verifiedAt) }}</strong></div></div>
             <p v-if="successMessage" class="form-success" role="status">{{ successMessage }}</p>
             <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
-            <div class="settings-actions"><button v-if="settings?.configured" class="button danger-outline" type="button" :disabled="removing" @click="showRemoveConfirm = true">{{ removing ? '移除中…' : '移除配置' }}</button><span /><button class="button secondary" type="button" :disabled="testing || saving" @click="testConnection">{{ testing ? '测试中…' : '测试连接' }}</button><button class="button primary" type="submit" :disabled="saving || testing">{{ saving ? '保存中…' : '保存并验证' }}</button></div>
+            <div class="settings-actions"><AppButton v-if="settings?.configured" variant="danger-outline" icon="delete" :busy="removing" busy-label="移除中…" @click="showRemoveConfirm = true">移除配置</AppButton><span /><AppButton variant="secondary" icon="refresh" :busy="testing" busy-label="测试中…" :disabled="saving" @click="testConnection">测试连接</AppButton><AppButton type="submit" icon="save" :busy="saving" busy-label="保存中…" :disabled="testing">保存并验证</AppButton></div>
           </form>
         </section>
 
@@ -130,7 +133,7 @@ onMounted(() => {
       </div>
 
       <section v-if="settings?.configured" class="repository-browser">
-        <div class="section-heading"><div><h2>可访问仓库</h2><p>验证当前 Token 能够读取的 GitLab 项目；登记操作请进入具体 ForgePilot 项目的资产模块。</p></div><div class="repository-search"><label class="sr-only" for="repository-search">搜索仓库</label><input id="repository-search" v-model="repositorySearch" placeholder="搜索仓库" @keydown.enter.prevent="loadRepositories" /><button class="button secondary" type="button" :disabled="repositoriesLoading" @click="loadRepositories">{{ repositoriesLoading ? '读取中…' : '查询' }}</button></div></div>
+        <div class="section-heading"><div><h2>可访问仓库</h2><p>验证当前 Token 能够读取的 GitLab 项目；登记操作请进入具体 ForgePilot 项目的资产模块。</p></div><div class="repository-search"><label class="sr-only" for="repository-search">搜索仓库</label><AppInput id="repository-search" v-model="repositorySearch" placeholder="搜索仓库" @keydown.enter.prevent="loadRepositories" /><AppButton variant="secondary" icon="search" :busy="repositoriesLoading" busy-label="读取中…" @click="loadRepositories">查询</AppButton></div></div>
         <p v-if="repositoryError" class="alert error-state" role="alert">{{ repositoryError }}</p>
         <div v-if="repositories?.items.length" class="remote-repository-grid">
           <a v-for="repository in repositories.items" :key="repository.id" class="panel remote-repository-card" :href="repository.webUrl" target="_blank" rel="noreferrer"><div><strong>{{ repository.name }}</strong><span>{{ repository.nameWithNamespace }}</span></div><small>{{ repository.visibility }} · {{ repository.defaultBranch }}</small></a>

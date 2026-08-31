@@ -37,13 +37,13 @@ const createProject = async () => {
           <h1>项目</h1>
           <p>从项目进入需求、代码仓库、成员和环境上下文。</p>
         </div>
-        <button class="button primary" type="button" @click="showCreateForm = !showCreateForm">{{ showCreateForm ? '取消' : '新建项目' }}</button>
+        <AppButton :icon="showCreateForm ? 'close' : 'add'" @click="showCreateForm = !showCreateForm">{{ showCreateForm ? '取消' : '新建项目' }}</AppButton>
       </section>
 
       <form v-if="showCreateForm" class="panel create-project" @submit.prevent="createProject">
-        <div class="field"><label for="project-name">项目名称</label><input id="project-name" v-model="form.name" required placeholder="例如：ForgePilot Platform" /></div>
-        <div class="field grow"><label for="project-description">项目说明</label><input id="project-description" v-model="form.description" placeholder="描述这个项目交付什么" /></div>
-        <button class="button primary" type="submit" :disabled="saving">{{ saving ? '创建中…' : '创建并进入' }}</button>
+        <AppFormField field-id="project-name" label="项目名称"><AppInput id="project-name" v-model="form.name" required placeholder="例如：ForgePilot Platform" /></AppFormField>
+        <AppFormField class="grow" field-id="project-description" label="项目说明"><AppInput id="project-description" v-model="form.description" placeholder="描述这个项目交付什么" /></AppFormField>
+        <AppButton type="submit" icon="add" :busy="saving" busy-label="创建中…">创建并进入</AppButton>
         <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
       </form>
 

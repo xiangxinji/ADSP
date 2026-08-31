@@ -92,15 +92,15 @@ onBeforeRouteLeave(() => {
   <main id="main-content" class="knowledge-editor-page">
     <template v-if="workspace && knowledge">
       <header class="knowledge-editor-header">
-        <NuxtLink class="knowledge-editor-back" :to="knowledgePath" aria-label="返回知识列表"><span aria-hidden="true">←</span></NuxtLink>
+        <AppButton variant="plain" class="knowledge-editor-back" icon="arrow-left" :to="knowledgePath" aria-label="返回知识列表" />
         <div class="knowledge-editor-title">
           <span>{{ workspace.project.name }} · Markdown</span>
           <strong>{{ knowledge.title }}</strong>
         </div>
         <div class="knowledge-editor-actions">
           <span class="knowledge-save-state" :class="{ saved: !hasUnsavedChanges }">{{ hasUnsavedChanges ? '有未保存修改' : '已保存' }}</span>
-          <NuxtLink class="button secondary" :to="infoPath">基本信息</NuxtLink>
-          <button class="button primary" type="button" :disabled="saving" @click="saveKnowledge">{{ saving ? '保存中…' : '保存正文' }}</button>
+          <AppButton variant="secondary" icon="settings" :to="infoPath">基本信息</AppButton>
+          <AppButton icon="save" :busy="saving" busy-label="保存中…" @click="saveKnowledge">保存正文</AppButton>
         </div>
       </header>
 
@@ -116,7 +116,7 @@ onBeforeRouteLeave(() => {
         <span class="async-error-icon"><AppIcon name="alert" :size="20" /></span>
         <strong>知识不存在</strong>
         <span>这篇知识可能已被删除，或不属于当前项目。</span>
-        <NuxtLink class="button secondary" :to="knowledgePath">返回知识列表</NuxtLink>
+        <AppButton variant="secondary" icon="arrow-left" :to="knowledgePath">返回知识列表</AppButton>
       </div>
     </section>
   </main>

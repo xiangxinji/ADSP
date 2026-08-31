@@ -52,19 +52,17 @@ const updateKnowledge = async () => {
 
       <section class="knowledge-info-heading">
         <div><p class="overline">KNOWLEDGE ASSET</p><h1>知识基本信息</h1><p>这里只维护知识标题，Markdown 正文在独立的全屏页面中编写。</p></div>
-        <NuxtLink class="button secondary" :to="editorPath">编写正文</NuxtLink>
+        <AppButton variant="secondary" icon="edit" :to="editorPath">编写正文</AppButton>
       </section>
 
       <form class="panel knowledge-info-form" @submit.prevent="updateKnowledge">
-        <div class="field">
-          <label for="knowledge-title">知识标题</label>
-          <input id="knowledge-title" v-model="title" required autofocus placeholder="例如：项目架构约定" />
-          <small>使用清晰、可检索的标题说明这篇知识的主题。</small>
-        </div>
+        <AppFormField field-id="knowledge-title" label="知识标题" hint="使用清晰、可检索的标题说明这篇知识的主题。">
+          <AppInput id="knowledge-title" v-model="title" required autofocus placeholder="例如：项目架构约定" />
+        </AppFormField>
         <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
         <div class="knowledge-info-actions">
-          <NuxtLink class="button secondary" :to="knowledgePath">取消</NuxtLink>
-          <button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存基本信息' }}</button>
+          <AppButton variant="secondary" :to="knowledgePath">取消</AppButton>
+          <AppButton type="submit" icon="save" :busy="saving" busy-label="保存中…">保存基本信息</AppButton>
         </div>
       </form>
     </main>
@@ -75,7 +73,7 @@ const updateKnowledge = async () => {
         <span class="async-error-icon"><AppIcon name="alert" :size="20" /></span>
         <strong>知识不存在</strong>
         <span>这篇知识可能已被删除，或不属于当前项目。</span>
-        <NuxtLink class="button secondary" :to="knowledgePath">返回知识列表</NuxtLink>
+        <AppButton variant="secondary" icon="arrow-left" :to="knowledgePath">返回知识列表</AppButton>
       </section>
     </main>
   </div>

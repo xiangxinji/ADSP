@@ -23,7 +23,7 @@ defineEmits<{
       <span class="async-error-icon"><AppIcon name="alert" :size="20" /></span>
       <strong>暂时无法读取数据</strong>
       <span>{{ errorMessage || '请求失败，请稍后重试。' }}</span>
-      <button class="button secondary" type="button" @click="$emit('retry')">重新加载</button>
+      <AppButton variant="secondary" icon="refresh" @click="$emit('retry')">重新加载</AppButton>
     </template>
   </section>
 </template>

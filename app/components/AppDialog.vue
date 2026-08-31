@@ -1,5 +1,5 @@
 <script setup lang="ts">
-type AppIconName = 'alert' | 'check' | 'close' | 'environment' | 'knowledge' | 'members' | 'repository' | 'shield-check'
+import type { AppIconName } from '~/types/ui'
 
 defineOptions({ inheritAttrs: false })
 
@@ -125,9 +125,7 @@ onBeforeUnmount(() => {
               <h2 :id="titleId">{{ title }}</h2>
             </div>
           </div>
-          <button type="button" class="close-button" :aria-label="closeLabel" :disabled="busy" @click="emit('requestClose', 'button')">
-            <AppIcon name="close" :size="18" />
-          </button>
+          <AppButton variant="plain" class="close-button" icon="close" :icon-size="18" :aria-label="closeLabel" :disabled="busy" @click="emit('requestClose', 'button')" />
         </header>
         <div class="dialog-body">
           <slot />

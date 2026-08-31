@@ -78,7 +78,7 @@ const createUser = async () => {
           <h1>用户管理</h1>
           <p>管理 ForgePilot 平台用户。用户是全局身份，不归属于任何项目。</p>
         </div>
-        <button class="button primary" type="button" @click="openCreateDialog">新增用户</button>
+        <AppButton icon="add" @click="openCreateDialog">新增用户</AppButton>
       </section>
 
       <AppAsyncState v-if="status === 'pending' || error" :pending="status === 'pending'" :error-message="error?.statusMessage" @retry="refresh" />
@@ -97,18 +97,18 @@ const createUser = async () => {
           <time :datetime="user.createdAt">{{ formatDate(user.createdAt) }}</time>
         </article>
       </section>
-      <div v-else class="panel empty-state"><strong>还没有用户</strong><span>新增第一位平台用户，建立 ForgePilot 的全局身份目录。</span><button class="button primary" type="button" @click="openCreateDialog">新增用户</button></div>
+      <div v-else class="panel empty-state"><strong>还没有用户</strong><span>新增第一位平台用户，建立 ForgePilot 的全局身份目录。</span><AppButton icon="add" @click="openCreateDialog">新增用户</AppButton></div>
     </main>
 
     <AppDialog :open="showCreateDialog" title="新增用户" overline="NEW USER" @request-close="requestCloseCreateDialog">
         <form id="create-user-form" @submit.prevent="createUser">
           <p class="dialog-intro">创建全局平台身份。项目成员关系将在项目授权中单独配置。</p>
-          <div class="field"><label for="user-name">姓名</label><input id="user-name" v-model="form.name" required autofocus placeholder="例如：陈嘉" /></div>
-          <div class="field"><label for="user-email">邮箱</label><input id="user-email" v-model="form.email" required type="email" autocomplete="email" placeholder="name@example.com" /></div>
-          <div class="field"><label for="user-role">平台角色</label><select id="user-role" v-model="form.role" required><option v-for="option in roleOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select><small>角色用于标识平台职责，不会自动授予任何项目权限。</small></div>
+          <AppFormField field-id="user-name" label="姓名"><AppInput id="user-name" v-model="form.name" required autofocus placeholder="例如：陈嘉" /></AppFormField>
+          <AppFormField field-id="user-email" label="邮箱"><AppInput id="user-email" v-model="form.email" required type="email" autocomplete="email" placeholder="name@example.com" /></AppFormField>
+          <AppFormField field-id="user-role" label="平台角色" hint="角色用于标识平台职责，不会自动授予任何项目权限。"><AppSelect id="user-role" v-model="form.role" required><option v-for="option in roleOptions" :key="option.value" :value="option.value">{{ option.label }}</option></AppSelect></AppFormField>
           <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
         </form>
-        <template #actions><button class="button secondary" type="button" :disabled="saving" @click="requestCloseCreateDialog">取消</button><button class="button primary" type="submit" form="create-user-form" :disabled="saving">{{ saving ? '新增中…' : '确认新增' }}</button></template>
+        <template #actions><AppButton variant="secondary" :disabled="saving" @click="requestCloseCreateDialog">取消</AppButton><AppButton type="submit" form="create-user-form" icon="add" :busy="saving" busy-label="新增中…">确认新增</AppButton></template>
     </AppDialog>
     <AppConfirmDialog :open="showDiscardConfirm" title="放弃新增用户？" description="当前填写的用户信息尚未保存，放弃后无法恢复。" confirm-label="放弃修改" danger @cancel="showDiscardConfirm = false" @confirm="discardCreateDialog" />
   </div>

@@ -48,15 +48,13 @@ const createKnowledge = async () => {
       </section>
 
       <form class="panel knowledge-info-form" @submit.prevent="createKnowledge">
-        <div class="field">
-          <label for="knowledge-title">知识标题</label>
-          <input id="knowledge-title" v-model="title" required autofocus placeholder="例如：项目架构约定" />
-          <small>使用清晰、可检索的标题说明这篇知识的主题。</small>
-        </div>
+        <AppFormField field-id="knowledge-title" label="知识标题" hint="使用清晰、可检索的标题说明这篇知识的主题。">
+          <AppInput id="knowledge-title" v-model="title" required autofocus placeholder="例如：项目架构约定" />
+        </AppFormField>
         <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
         <div class="knowledge-info-actions">
-          <NuxtLink class="button secondary" :to="knowledgePath">取消</NuxtLink>
-          <button class="button primary" type="submit" :disabled="saving">{{ saving ? '创建中…' : '下一步：编写正文' }}</button>
+          <AppButton variant="secondary" :to="knowledgePath">取消</AppButton>
+          <AppButton type="submit" icon="add" :busy="saving" busy-label="创建中…">下一步：编写正文</AppButton>
         </div>
       </form>
     </main>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-type AppIconName = 'alert' | 'check' | 'close' | 'environment' | 'knowledge' | 'members' | 'repository' | 'shield-check'
+import type { AppIconName } from '~/types/ui'
 
 withDefaults(defineProps<{
   name: AppIconName
@@ -23,7 +23,49 @@ withDefaults(defineProps<{
     aria-hidden="true"
     focusable="false"
   >
-    <template v-if="name === 'repository'">
+    <template v-if="name === 'add'">
+      <path d="M12 5v14M5 12h14" />
+    </template>
+    <template v-else-if="name === 'arrow-left'">
+      <path d="M19 12H5m7 7-7-7 7-7" />
+    </template>
+    <template v-else-if="name === 'delete'">
+      <path d="M3 6h18M8 6V4h8v2m3 0-1 14H6L5 6m5 5v5m4-5v5" />
+    </template>
+    <template v-else-if="name === 'edit'">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4z" />
+    </template>
+    <template v-else-if="name === 'eye' || name === 'eye-off'">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+      <path v-if="name === 'eye-off'" d="M3 3l18 18" />
+    </template>
+    <template v-else-if="name === 'refresh'">
+      <path d="M20 11a8 8 0 1 0 2 5M20 4v7h-7" />
+    </template>
+    <template v-else-if="name === 'save'">
+      <path d="M5 3h12l2 2v16H5z" />
+      <path d="M8 3v6h8V3M8 21v-7h8v7" />
+    </template>
+    <template v-else-if="name === 'search'">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-4-4" />
+    </template>
+    <template v-else-if="name === 'settings'">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.12 2.12-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.04 1.56V20.3h-3v-.08a1.7 1.7 0 0 0-1.04-1.56 1.7 1.7 0 0 0-1.88.34l-.06.06-2.12-2.12.06-.06A1.7 1.7 0 0 0 7 15a1.7 1.7 0 0 0-1.56-1.04H5.3v-3h.14A1.7 1.7 0 0 0 7 9.92a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.12-2.12.06.06a1.7 1.7 0 0 0 1.88.34A1.7 1.7 0 0 0 11.7 4.7V4.6h3v.1a1.7 1.7 0 0 0 1.04 1.56 1.7 1.7 0 0 0 1.88-.34l.06-.06 2.12 2.12-.06.06a1.7 1.7 0 0 0-.34 1.88 1.7 1.7 0 0 0 1.56 1.04h.14v3h-.14A1.7 1.7 0 0 0 19.4 15z" />
+    </template>
+    <template v-else-if="name === 'status'">
+      <path d="M4 6h10M18 6h2M4 12h3m4 0h9M4 18h8m4 0h4" />
+      <circle cx="16" cy="6" r="2" />
+      <circle cx="9" cy="12" r="2" />
+      <circle cx="14" cy="18" r="2" />
+    </template>
+    <template v-else-if="name === 'versions'">
+      <path d="m12 2 9 5-9 5-9-5zM3 12l9 5 9-5M3 17l9 5 9-5" />
+    </template>
+    <template v-else-if="name === 'repository'">
       <circle cx="6" cy="5" r="2" />
       <circle cx="6" cy="19" r="2" />
       <circle cx="18" cy="12" r="2" />

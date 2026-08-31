@@ -14,7 +14,7 @@ const { toast, dismiss } = useAppToast()
       >
         <span class="app-toast-icon"><AppIcon :name="toast.tone === 'error' ? 'alert' : 'check'" :size="18" /></span>
         <span>{{ toast.message }}</span>
-        <button type="button" aria-label="关闭提示" @click="dismiss"><AppIcon name="close" :size="16" /></button>
+        <AppButton variant="plain" icon="close" aria-label="关闭提示" @click="dismiss" />
       </aside>
     </Transition>
   </Teleport>

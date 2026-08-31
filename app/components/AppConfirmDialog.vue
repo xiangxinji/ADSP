@@ -35,10 +35,8 @@ const descriptionId = useId()
   >
     <p :id="descriptionId" class="confirm-description">{{ description }}</p>
     <template #actions>
-      <button class="button secondary" type="button" :disabled="busy" @click="emit('cancel')">{{ cancelLabel }}</button>
-      <button class="button" :class="danger ? 'danger' : 'primary'" type="button" :disabled="busy" @click="emit('confirm')">
-        {{ busy ? '处理中…' : confirmLabel }}
-      </button>
+      <AppButton variant="secondary" :disabled="busy" @click="emit('cancel')">{{ cancelLabel }}</AppButton>
+      <AppButton :variant="danger ? 'danger' : 'primary'" :busy="busy" busy-label="处理中…" :icon="danger ? 'delete' : 'check'" @click="emit('confirm')">{{ confirmLabel }}</AppButton>
     </template>
   </AppDialog>
 </template>
