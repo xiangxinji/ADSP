@@ -10,6 +10,7 @@ export type RequirementRecord = {
   statusKey: string
   statusId: string
   priority: Requirement['priority']
+  versionIds: string[]
   createdAt: string
   updatedAt: string
 }
@@ -23,6 +24,7 @@ type RequirementRow = {
   status: string
   status_id: string
   priority: Requirement['priority']
+  version_ids: string
   created_at: string
   updated_at: string
 }
@@ -36,6 +38,7 @@ const requirementFromRow = (row: RequirementRow): RequirementRecord => ({
   statusKey: row.status,
   statusId: row.status_id,
   priority: row.priority,
+  versionIds: row.version_ids ? row.version_ids.split(',').filter(Boolean) : [],
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 })
@@ -52,8 +55,8 @@ export const listProjectRequirementRecords = (projectId: string) => (useDatabase
 export const insertRequirementRecord = (requirement: RequirementRecord) => {
   useDatabase().prepare(`
     INSERT INTO requirements
-      (id, project_id, title, description, acceptance_criteria, status, status_id, priority, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, project_id, title, description, acceptance_criteria, status, status_id, priority, version_ids, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     requirement.id,
     requirement.projectId,
@@ -63,6 +66,7 @@ export const insertRequirementRecord = (requirement: RequirementRecord) => {
     requirement.statusKey,
     requirement.statusId,
     requirement.priority,
+    requirement.versionIds.join(','),
     requirement.createdAt,
     requirement.updatedAt,
   )
@@ -71,7 +75,7 @@ export const insertRequirementRecord = (requirement: RequirementRecord) => {
 export const updateRequirementRecord = (requirement: RequirementRecord) => {
   useDatabase().prepare(`
     UPDATE requirements
-    SET title = ?, description = ?, acceptance_criteria = ?, status = ?, status_id = ?, priority = ?, updated_at = ?
+    SET title = ?, description = ?, acceptance_criteria = ?, status = ?, status_id = ?, priority = ?, version_ids = ?, updated_at = ?
     WHERE id = ?
   `).run(
     requirement.title,
@@ -80,6 +84,7 @@ export const updateRequirementRecord = (requirement: RequirementRecord) => {
     requirement.statusKey,
     requirement.statusId,
     requirement.priority,
+    requirement.versionIds.join(','),
     requirement.updatedAt,
     requirement.id,
   )

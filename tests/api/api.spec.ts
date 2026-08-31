@@ -14,6 +14,7 @@ import type {
   RepositoryAsset,
   Requirement,
   RequirementStatus,
+  RequirementVersion,
   UserAccount,
 } from '../../shared/types/asdp'
 import { startApiTestHarness, type ApiTestHarness } from '../support/api-test-harness'
@@ -58,6 +59,8 @@ let environmentId = ''
 let knowledgeId = ''
 let knowledgeContent = ''
 let customStatusId = ''
+let version2Id = ''
+let version3Id = ''
 let requirementId = ''
 let userId = ''
 
@@ -91,6 +94,7 @@ const routeCases: ApiRouteCase[] = [
       expect(response.status).toBe(200)
       expect(response.data.project.id).toBe(projectId)
       expect(response.data.knowledge).toEqual([])
+      expect(response.data.requirementVersions).toEqual([])
       expect(response.data.requirementStatuses).toHaveLength(6)
       const initialStatuses = response.data.requirementStatuses.filter(status => status.isInitial)
       expect(initialStatuses).toHaveLength(1)
@@ -354,6 +358,51 @@ const routeCases: ApiRouteCase[] = [
     },
   },
   {
+    route: 'POST /api/projects/:id/requirement-versions',
+    run: async () => {
+      const rejected = await harness.request(`/api/projects/${projectId}/requirement-versions`, {
+        method: 'POST',
+        body: { major: 1.5 },
+      })
+      expect(rejected.status).toBe(400)
+
+      const version2 = await harness.request<RequirementVersion>(`/api/projects/${projectId}/requirement-versions`, {
+        method: 'POST',
+        body: { major: 2 },
+      })
+      expect(version2.status).toBe(201)
+      expect(version2.data).toMatchObject({ projectId, name: 'v2.x', isLatest: true, requirementCount: 0 })
+      version2Id = version2.data.id
+
+      const version3 = await harness.request<RequirementVersion>(`/api/projects/${projectId}/requirement-versions`, {
+        method: 'POST',
+        body: { major: 3 },
+      })
+      expect(version3.status).toBe(201)
+      expect(version3.data).toMatchObject({ projectId, name: 'v3.x', isLatest: true })
+      version3Id = version3.data.id
+
+      const workspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
+      expect(workspace.data.requirementVersions.map(version => ({ name: version.name, latest: version.isLatest })))
+        .toEqual([{ name: 'v3.x', latest: true }, { name: 'v2.x', latest: false }])
+    },
+  },
+  {
+    route: 'PATCH /api/requirement-versions/:id',
+    run: async () => {
+      const response = await harness.request<RequirementVersion>(`/api/requirement-versions/${version3Id}`, {
+        method: 'PATCH',
+        body: { major: 1 },
+      })
+      expect(response.status).toBe(200)
+      expect(response.data).toMatchObject({ id: version3Id, name: 'v1.x', isLatest: false })
+
+      const workspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
+      expect(workspace.data.requirementVersions.map(version => ({ name: version.name, latest: version.isLatest })))
+        .toEqual([{ name: 'v2.x', latest: true }, { name: 'v1.x', latest: false }])
+    },
+  },
+  {
     route: 'POST /api/projects/:id/requirements',
     run: async () => {
       const foreignProject = await harness.request<Project>('/api/projects', {
@@ -370,6 +419,10 @@ const routeCases: ApiRouteCase[] = [
           defaultBranch: 'main',
         },
       })
+      const foreignVersion = await harness.request<RequirementVersion>(`/api/projects/${foreignProjectId}/requirement-versions`, {
+        method: 'POST',
+        body: { major: 9 },
+      })
       const rejected = await harness.request(`/api/projects/${projectId}/requirements`, {
         method: 'POST',
         body: {
@@ -378,6 +431,7 @@ const routeCases: ApiRouteCase[] = [
           acceptanceCriteria: '',
           statusId: initialStatusId,
           priority: 'medium',
+          versionIds: [foreignVersion.data.id],
           repositoryIds: [foreignRepository.data.id],
           memberIds: [memberId],
         },
@@ -392,11 +446,14 @@ const routeCases: ApiRouteCase[] = [
           acceptanceCriteria: '所有接口返回符合契约',
           statusId: initialStatusId,
           priority: 'high',
+          versionIds: [version2Id, version3Id],
           repositoryIds: [repositoryId],
           memberIds: [memberId],
         },
       })
       expect(response.status).toBe(201)
+      expect(response.data.versionIds).toEqual([version2Id, version3Id])
+      expect(response.data.versions.map(version => version.name)).toEqual(['v2.x', 'v1.x'])
       expect(response.data.repositoryIds).toEqual([repositoryId])
       expect(response.data.memberIds).toEqual([memberId])
       requirementId = response.data.id
@@ -405,9 +462,17 @@ const routeCases: ApiRouteCase[] = [
   {
     route: 'PATCH /api/requirements/:id',
     run: async () => {
+      const rejectedDelete = await harness.request(`/api/requirement-versions/${version3Id}`, { method: 'DELETE' })
+      expect(rejectedDelete.status).toBe(409)
+
       const response = await harness.request<Requirement>(`/api/requirements/${requirementId}`, {
         method: 'PATCH',
-        body: { title: '验证全部接口（已更新）', statusId: customStatusId, priority: 'urgent' },
+        body: {
+          title: '验证全部接口（已更新）',
+          statusId: customStatusId,
+          priority: 'urgent',
+          versionIds: [version2Id],
+        },
       })
       expect(response.status).toBe(200)
       expect(response.data).toMatchObject({
@@ -418,6 +483,8 @@ const routeCases: ApiRouteCase[] = [
       })
       expect(response.data.repositories[0].id).toBe(repositoryId)
       expect(response.data.members[0].id).toBe(memberId)
+      expect(response.data.versionIds).toEqual([version2Id])
+      expect(response.data.versions[0]).toMatchObject({ id: version2Id, isLatest: true })
     },
   },
   {
@@ -480,6 +547,17 @@ const routeCases: ApiRouteCase[] = [
       expect(response.status).toBe(204)
       const workspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
       expect(workspace.data.requirements).toEqual([])
+    },
+  },
+  {
+    route: 'DELETE /api/requirement-versions/:id',
+    run: async () => {
+      const version2 = await harness.request<null>(`/api/requirement-versions/${version2Id}`, { method: 'DELETE' })
+      const version1 = await harness.request<null>(`/api/requirement-versions/${version3Id}`, { method: 'DELETE' })
+      expect(version2.status).toBe(204)
+      expect(version1.status).toBe(204)
+      const workspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
+      expect(workspace.data.requirementVersions).toEqual([])
     },
   },
   {

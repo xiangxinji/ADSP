@@ -73,6 +73,7 @@ Organization 1─* Project
 Project      *─* User through ProjectMember
 Project      1─* RepositoryConnection
 Project      1─* Requirement
+Project      1─* RequirementVersion
 Requirement  1─* WorkflowRun
 WorkflowRun  1─* AgentTask
 WorkflowRun  1─* Artifact
@@ -91,18 +92,22 @@ A workflow run is the central auditable unit. It links the original intent to ev
 ```text
 Project 1─* Requirement
 Project 1─* RequirementStatus
+Project 1─* RequirementVersion
 Project 1─* RepositoryAsset
 Project 1─* ProjectMember *─1 User
 Project 1─* EnvironmentAsset 1─* EnvironmentAccount
 Project 1─* KnowledgeAsset
 
 Requirement *─1 RequirementStatus
+Requirement *─* RequirementVersion through Requirement.version_ids
 Requirement *─* RepositoryAsset through RequirementRepository
 Requirement *─* ProjectMember through RequirementParticipant
 Requirement 1─* WorkflowRun
 ```
 
 `RequirementRepository` records how a repository participates, such as primary target, dependency, or read-only reference, together with branch or write-scope constraints. `RequirementParticipant` records responsibility such as requester, owner, contributor, reviewer, or approver.
+
+Each `RequirementVersion` is a project-owned major-version line. The user stores only a non-negative integer major and ForgePilot renders it as `v{major}.x`. The project-local maximum major is derived as `latest`; no mutable latest flag is persisted. A requirement can target multiple versions. To keep this bounded model lightweight, its selected stable version IDs are stored in `Requirement.version_ids` as a comma-separated list rather than a join table. Services validate every ID against the owning project before writing, and referenced versions cannot be deleted.
 
 Each `RepositoryAsset` stores a provider discriminator (`gitlab` or `github`) alongside its URL and default branch. Existing records migrate to `gitlab`. Provider-specific synchronization and delivery behavior stays behind source-control and delivery adapters.
 

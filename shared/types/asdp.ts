@@ -136,6 +136,17 @@ export type RequirementStatus = {
   updatedAt: string
 }
 
+export type RequirementVersion = {
+  id: string
+  projectId: string
+  major: number
+  name: string
+  isLatest: boolean
+  requirementCount: number
+  createdAt: string
+  updatedAt: string
+}
+
 export type Requirement = {
   id: string
   projectId: string
@@ -145,8 +156,10 @@ export type Requirement = {
   statusId: string
   status: RequirementStatus
   priority: RequirementPriority
+  versionIds: string[]
   repositoryIds: string[]
   memberIds: string[]
+  versions: RequirementVersion[]
   repositories: RepositoryAsset[]
   members: ProjectMember[]
   createdAt: string
@@ -157,6 +170,7 @@ export type ProjectWorkspace = {
   project: Project
   requirements: Requirement[]
   requirementStatuses: RequirementStatus[]
+  requirementVersions: RequirementVersion[]
   repositories: RepositoryAsset[]
   members: ProjectMember[]
   environments: EnvironmentAsset[]
@@ -179,7 +193,9 @@ export type CreateProjectMemberInput = Pick<ProjectMember, 'userId' | 'role'>
 export type UpdateProjectMemberInput = Pick<ProjectMember, 'role'>
 export type CreateRequirementStatusInput = Pick<RequirementStatus, 'key' | 'name' | 'color' | 'sortOrder' | 'isInitial' | 'isTerminal'>
 export type UpdateRequirementStatusInput = Partial<CreateRequirementStatusInput>
-export type CreateRequirementInput = Pick<Requirement, 'title' | 'description' | 'acceptanceCriteria' | 'priority' | 'repositoryIds' | 'memberIds'> & {
+export type CreateRequirementVersionInput = Pick<RequirementVersion, 'major'>
+export type UpdateRequirementVersionInput = Partial<CreateRequirementVersionInput>
+export type CreateRequirementInput = Pick<Requirement, 'title' | 'description' | 'acceptanceCriteria' | 'priority' | 'versionIds' | 'repositoryIds' | 'memberIds'> & {
   statusId?: string
 }
 export type UpdateRequirementInput = Partial<CreateRequirementInput>

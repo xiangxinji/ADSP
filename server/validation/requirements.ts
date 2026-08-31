@@ -23,6 +23,9 @@ export const requirementPayload = (
     priority: partial && body.priority === undefined
       ? undefined
       : enumValue(body.priority, requirementPriorities, 'medium'),
+    versionIds: partial && body.versionIds === undefined
+      ? undefined
+      : optionalStringArray(body.versionIds),
     repositoryIds: partial && body.repositoryIds === undefined
       ? undefined
       : optionalStringArray(body.repositoryIds),

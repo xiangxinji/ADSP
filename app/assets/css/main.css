@@ -135,6 +135,8 @@ a { color: inherit; text-decoration: none; }
 .chip { padding: 4px 7px; border-radius: 5px; font-size: 9px; }
 .repo-chip { color: #175cd3; background: #eff8ff; }
 .member-chip { color: #475467; background: #f2f4f7; }
+.version-chip { display: inline-flex; align-items: center; gap: 5px; color: #5925dc; background: #f4f3ff; }
+.version-chip em, .latest-label { padding: 1px 4px; border-radius: 4px; color: #067647; background: #ecfdf3; font-size: 7px; font-style: normal; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
 .unbound { color: #98a2b3; font-size: 10px; }
 .requirement-meta { min-width: 145px; display: flex; flex-direction: column; align-items: flex-end; justify-content: space-between; color: #98a2b3; font-size: 9px; }
 .requirement-meta > div { display: flex; gap: 8px; }
@@ -261,6 +263,7 @@ a { color: inherit; text-decoration: none; }
 .status-records { display: flex; flex-direction: column; gap: 7px; }
 .status-record { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; }
 .status-record.selected { border-color: #84adff; background: var(--blue-soft); }
+.version-record { grid-template-columns: minmax(0, 1fr) auto; }
 .status-color { width: 10px; height: 34px; border-radius: 5px; }
 .status-record strong, .status-record small { display: block; }
 .status-record strong { margin-bottom: 4px; font-size: 11px; }

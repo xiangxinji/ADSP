@@ -208,6 +208,15 @@ const createDatabase = async () => {
       UNIQUE(project_id, key)
     );
 
+    CREATE TABLE IF NOT EXISTS requirement_versions (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      major INTEGER NOT NULL CHECK(major >= 0),
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(project_id, major)
+    );
+
     CREATE TABLE IF NOT EXISTS requirements (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
@@ -216,6 +225,7 @@ const createDatabase = async () => {
       acceptance_criteria TEXT NOT NULL DEFAULT '',
       status TEXT NOT NULL DEFAULT 'draft',
       priority TEXT NOT NULL DEFAULT 'medium',
+      version_ids TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -247,6 +257,7 @@ const createDatabase = async () => {
     CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id);
     CREATE INDEX IF NOT EXISTS idx_users_updated ON users(updated_at);
     CREATE INDEX IF NOT EXISTS idx_requirement_statuses_project ON requirement_statuses(project_id, sort_order);
+    CREATE INDEX IF NOT EXISTS idx_requirement_versions_project ON requirement_versions(project_id);
     CREATE UNIQUE INDEX IF NOT EXISTS idx_requirement_statuses_initial
       ON requirement_statuses(project_id) WHERE is_initial = 1;
   `)
@@ -316,6 +327,9 @@ const createDatabase = async () => {
   const requirementColumns = persistentDatabase.prepare('PRAGMA table_info(requirements)').all() as { name: string }[]
   if (!requirementColumns.some(column => column.name === 'status_id')) {
     persistentDatabase.exec('ALTER TABLE requirements ADD COLUMN status_id TEXT REFERENCES requirement_statuses(id) ON DELETE RESTRICT')
+  }
+  if (!requirementColumns.some(column => column.name === 'version_ids')) {
+    persistentDatabase.exec("ALTER TABLE requirements ADD COLUMN version_ids TEXT NOT NULL DEFAULT ''")
   }
 
   const projectCount = persistentDatabase.prepare('SELECT COUNT(*) AS count FROM projects').get() as { count: number }

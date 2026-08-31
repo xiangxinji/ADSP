@@ -13,6 +13,7 @@ import {
   findInitialRequirementStatus,
   findRequirementStatus,
 } from '../repositories/requirement-statuses'
+import { countProjectRequirementVersions } from '../repositories/requirement-versions'
 import {
   findRequirementRecord,
   insertRequirementRecord,
@@ -25,6 +26,7 @@ import {
 import { runInTransaction } from '../repositories/unit-of-work'
 import { badRequest, requireEntity } from './errors'
 import { getProject } from './projects'
+import { listVersionsForRequirement } from './requirement-versions'
 
 const resolveStatus = (projectId: string, statusId?: string) => {
   const status = statusId
@@ -36,16 +38,25 @@ const resolveStatus = (projectId: string, statusId?: string) => {
   return status
 }
 
-const validateReferences = (projectId: string, repositoryIds: string[], memberIds: string[]) => {
+const validateReferences = (
+  projectId: string,
+  versionIds: string[],
+  repositoryIds: string[],
+  memberIds: string[],
+) => {
+  const versionCount = countProjectRequirementVersions(projectId, versionIds)
   const repositoryCount = countProjectRepositoryAssets(projectId, repositoryIds)
   const memberCount = countProjectMembers(projectId, memberIds)
-  if (repositoryCount !== repositoryIds.length || memberCount !== memberIds.length) {
-    throw badRequest('One or more referenced assets do not belong to this project')
+  if (versionCount !== versionIds.length
+    || repositoryCount !== repositoryIds.length
+    || memberCount !== memberIds.length) {
+    throw badRequest('One or more referenced records do not belong to this project')
   }
 }
 
 const hydrateRequirement = (record: RequirementRecord): Requirement => {
   const status = requireEntity(findRequirementStatus(record.statusId), 'Requirement status not found')
+  const versions = listVersionsForRequirement(record.versionIds, record.projectId)
   const repositories = listRequirementRepositories(record.id)
   const members = listRequirementMembers(record.id)
   return {
@@ -57,8 +68,10 @@ const hydrateRequirement = (record: RequirementRecord): Requirement => {
     statusId: record.statusId,
     status,
     priority: record.priority,
+    versionIds: versions.map(version => version.id),
     repositoryIds: repositories.map(repository => repository.id),
     memberIds: members.map(member => member.id),
+    versions,
     repositories,
     members,
     createdAt: record.createdAt,
@@ -79,7 +92,7 @@ export const listRequirementsForProject = (projectId: string) => listProjectRequ
 export const createRequirement = (projectId: string, input: CreateRequirementInput) => {
   getProject(projectId)
   const status = resolveStatus(projectId, input.statusId)
-  validateReferences(projectId, input.repositoryIds, input.memberIds)
+  validateReferences(projectId, input.versionIds, input.repositoryIds, input.memberIds)
   const timestamp = new Date().toISOString()
   const record: RequirementRecord = {
     id: randomUUID(),
@@ -90,6 +103,7 @@ export const createRequirement = (projectId: string, input: CreateRequirementInp
     statusKey: status.key,
     statusId: status.id,
     priority: input.priority,
+    versionIds: input.versionIds,
     createdAt: timestamp,
     updatedAt: timestamp,
   }
@@ -103,9 +117,10 @@ export const createRequirement = (projectId: string, input: CreateRequirementInp
 export const updateRequirement = (id: string, input: UpdateRequirementInput) => {
   const current = getRequirement(id)
   const status = resolveStatus(current.projectId, input.statusId ?? current.statusId)
+  const versionIds = input.versionIds ?? current.versionIds
   const repositoryIds = input.repositoryIds ?? current.repositoryIds
   const memberIds = input.memberIds ?? current.memberIds
-  validateReferences(current.projectId, repositoryIds, memberIds)
+  validateReferences(current.projectId, versionIds, repositoryIds, memberIds)
   const record: RequirementRecord = {
     id: current.id,
     projectId: current.projectId,
@@ -115,6 +130,7 @@ export const updateRequirement = (id: string, input: UpdateRequirementInput) => 
     statusKey: status.key,
     statusId: status.id,
     priority: input.priority ?? current.priority,
+    versionIds,
     createdAt: current.createdAt,
     updatedAt: new Date().toISOString(),
   }

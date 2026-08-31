@@ -15,6 +15,8 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 - An environment has one HTTP(S) address, one lifecycle type (`development`, `testing`, or `production`), and one or more account identifiers.
 - Environment accounts contain names only. Passwords, tokens, private keys, and other credentials are not accepted or stored.
 - A requirement may reference zero or more repositories and project members.
+- A project owns major requirement versions, and a requirement may reference zero or more versions.
+- Users enter only a non-negative major number; the display is always `v{major}.x` and the greatest major is `latest`.
 - A project owns its requirement-status records; every requirement references one status.
 - Status keys are project-local and unique. Exactly one status is designated as the initial status.
 - Referenced statuses cannot be deleted until their requirements are reassigned.
@@ -40,6 +42,8 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 - Assign a lifecycle status maintained by the current project.
 - Create and edit statuses with a key, name, color, order, and initial/terminal flags.
 - Delete only unused, non-initial statuses.
+- Create, edit, and delete unused major versions from requirement management.
+- Reference multiple versions and display the derived `latest` label.
 - Reference multiple repositories and multiple project members.
 - Display referenced assets on the requirement list and editor.
 
@@ -78,3 +82,6 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 22. `[[asset type：record id]]` tokens resolve only to supported assets in the same project.
 23. Deleting a referenced asset preserves the authored Markdown and marks that reference as unresolved.
 24. The knowledge editor can insert valid reference tokens without requiring users to copy record IDs manually.
+25. A requirement can reference multiple project-local major versions stored as comma-separated stable IDs.
+26. Version names always render as `v{major}.x`, and exactly the greatest configured major is marked `latest`.
+27. API validation rejects version IDs from another project and prevents deletion while referenced.

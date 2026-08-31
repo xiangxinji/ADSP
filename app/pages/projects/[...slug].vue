@@ -65,7 +65,7 @@ const assetModuleLabel = computed(() => ({
   environments: '环境管理',
   knowledge: '知识',
 })[activeAssetModule.value || 'repositories'])
-const dialog = ref<'requirement' | 'statuses' | 'repository' | 'member' | 'environment' | 'knowledge' | null>(null)
+const dialog = ref<'requirement' | 'statuses' | 'versions' | 'repository' | 'member' | 'environment' | 'knowledge' | null>(null)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
 const actionError = ref('')
@@ -76,6 +76,7 @@ const requirementForm = reactive({
   acceptanceCriteria: '',
   statusId: '',
   priority: 'medium' as RequirementPriority,
+  versionIds: [] as string[],
   repositoryIds: [] as string[],
   memberIds: [] as string[],
 })
@@ -100,6 +101,7 @@ const requirementStatusForm = reactive({
   isInitial: false,
   isTerminal: false,
 })
+const requirementVersionForm = reactive({ major: 1 })
 
 const priorityOptions: { value: RequirementPriority, label: string }[] = [
   { value: 'low', label: '低' },
@@ -172,6 +174,7 @@ const openRequirement = (requirement?: Requirement) => {
     acceptanceCriteria: requirement.acceptanceCriteria,
     statusId: requirement.statusId,
     priority: requirement.priority,
+    versionIds: [...requirement.versionIds],
     repositoryIds: [...requirement.repositoryIds],
     memberIds: [...requirement.memberIds],
   } : {
@@ -180,6 +183,7 @@ const openRequirement = (requirement?: Requirement) => {
     acceptanceCriteria: '',
     statusId: workspace.value?.requirementStatuses.find(status => status.isInitial)?.id || workspace.value?.requirementStatuses[0]?.id || '',
     priority: 'medium',
+    versionIds: [],
     repositoryIds: [],
     memberIds: [],
   })
@@ -215,6 +219,23 @@ const editRequirementStatus = (requirementStatus: RequirementStatus) => {
     isInitial: requirementStatus.isInitial,
     isTerminal: requirementStatus.isTerminal,
   })
+  actionError.value = ''
+}
+
+const resetRequirementVersionForm = () => {
+  editingId.value = null
+  requirementVersionForm.major = (workspace.value?.requirementVersions[0]?.major ?? 0) + 1
+  actionError.value = ''
+}
+
+const openVersionManager = () => {
+  resetRequirementVersionForm()
+  dialog.value = 'versions'
+}
+
+const editRequirementVersion = (version: ProjectWorkspace['requirementVersions'][number]) => {
+  editingId.value = version.id
+  requirementVersionForm.major = version.major
   actionError.value = ''
 }
 
@@ -430,6 +451,35 @@ const saveEnvironment = async () => {
   }
 }
 
+const saveRequirementVersion = async () => {
+  saving.value = true
+  actionError.value = ''
+  try {
+    await $fetch(editingId.value ? `/api/requirement-versions/${editingId.value}` : `/api/projects/${projectId.value}/requirement-versions`, {
+      method: editingId.value ? 'PATCH' : 'POST',
+      body: requirementVersionForm,
+    })
+    await refresh()
+    resetRequirementVersionForm()
+  } catch (requestError) {
+    actionError.value = errorMessage(requestError)
+  } finally {
+    saving.value = false
+  }
+}
+
+const removeRequirementVersion = async (version: ProjectWorkspace['requirementVersions'][number]) => {
+  if (!window.confirm(`确定删除版本“${version.name}”吗？`)) return
+  actionError.value = ''
+  try {
+    await $fetch(`/api/requirement-versions/${version.id}`, { method: 'DELETE' })
+    await refresh()
+    if (editingId.value === version.id) resetRequirementVersionForm()
+  } catch (requestError) {
+    actionError.value = errorMessage(requestError)
+  }
+}
+
 const saveKnowledge = async () => {
   knowledgeForm.content = knowledgeEditor.value?.getMarkdown() ?? knowledgeForm.content
   if (!knowledgeForm.content.trim()) {
@@ -493,7 +543,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
 
       <section class="workspace-heading">
         <div><p class="overline">PROJECT WORKSPACE</p><h1>{{ workspace.project.name }}</h1><p>{{ workspace.project.description || '暂无项目说明' }}</p></div>
-        <div class="workspace-stats"><span><strong>{{ workspace.requirements.length }}</strong>需求</span><span><strong>{{ workspace.repositories.length }}</strong>仓库</span><span><strong>{{ workspace.members.length }}</strong>成员</span><span><strong>{{ workspace.environments.length }}</strong>环境</span><span><strong>{{ workspace.knowledge.length }}</strong>知识</span></div>
+        <div class="workspace-stats"><span><strong>{{ workspace.requirements.length }}</strong>需求</span><span><strong>{{ workspace.requirementVersions.length }}</strong>版本</span><span><strong>{{ workspace.repositories.length }}</strong>仓库</span><span><strong>{{ workspace.members.length }}</strong>成员</span><span><strong>{{ workspace.environments.length }}</strong>环境</span><span><strong>{{ workspace.knowledge.length }}</strong>知识</span></div>
       </section>
 
       <nav class="tabs" aria-label="项目模块">
@@ -506,7 +556,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
       <section v-if="activeTab === 'requirements'" class="module-section">
         <div class="section-heading">
           <div><h2>需求管理</h2><p>需求引用项目资产，并作为后续工作流运行的业务入口。</p></div>
-          <div class="heading-actions"><button class="button secondary" type="button" @click="openStatusManager">状态管理</button><button class="button primary" type="button" @click="openRequirement()">新建需求</button></div>
+          <div class="heading-actions"><button class="button secondary" type="button" @click="openVersionManager">版本管理</button><button class="button secondary" type="button" @click="openStatusManager">状态管理</button><button class="button primary" type="button" @click="openRequirement()">新建需求</button></div>
         </div>
         <div v-if="workspace.requirements.length" class="requirement-list">
           <article v-for="requirement in workspace.requirements" :key="requirement.id" class="panel requirement-card">
@@ -514,9 +564,10 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
               <div class="requirement-title-line"><h3>{{ requirement.title }}</h3><span class="status" :style="{ color: requirement.status.color, backgroundColor: `${requirement.status.color}18` }">{{ requirement.status.name }}</span><span class="priority" :data-priority="requirement.priority">{{ priorityLabel(requirement.priority) }}</span></div>
               <p>{{ requirement.description || '暂无需求说明' }}</p>
               <div class="asset-references">
+                <span v-for="version in requirement.versions" :key="version.id" class="chip version-chip">{{ version.name }}<em v-if="version.isLatest">latest</em></span>
                 <span v-for="repository in requirement.repositories" :key="repository.id" class="chip repo-chip">⌘ {{ repository.name }}</span>
                 <span v-for="member in requirement.members" :key="member.id" class="chip member-chip">{{ member.user.name }}</span>
-                <span v-if="!requirement.repositories.length && !requirement.members.length" class="unbound">尚未引用资产</span>
+                <span v-if="!requirement.versions.length && !requirement.repositories.length && !requirement.members.length" class="unbound">尚未关联版本或资产</span>
               </div>
             </div>
             <div class="requirement-meta"><span>更新于 {{ formatDate(requirement.updatedAt) }}</span><div><button class="text-button" type="button" @click="openRequirement(requirement)">编辑</button><button class="text-button danger" type="button" @click="removeRecord('requirement', requirement.id, requirement.title)">删除</button></div></div>
@@ -642,6 +693,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
         <form v-if="dialog === 'requirement'" class="dialog large" @submit.prevent="saveRequirement">
           <div class="dialog-heading"><div><p class="overline">REQUIREMENT</p><h2>{{ editingId ? '编辑需求' : '新建需求' }}</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
           <div class="form-grid two"><div class="field span-two"><label>标题</label><input v-model="requirementForm.title" required placeholder="描述要交付的功能" /></div><div class="field"><label>状态</label><select v-model="requirementForm.statusId" required><option v-for="requirementStatus in workspace?.requirementStatuses" :key="requirementStatus.id" :value="requirementStatus.id">{{ requirementStatus.name }}</option></select></div><div class="field"><label>优先级</label><select v-model="requirementForm.priority"><option v-for="option in priorityOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div><div class="field span-two"><label>需求说明</label><textarea v-model="requirementForm.description" rows="3" placeholder="说明背景、目标和范围" /></div><div class="field span-two"><label>验收标准</label><textarea v-model="requirementForm.acceptanceCriteria" rows="3" placeholder="说明怎样才算完成" /></div></div>
+          <div class="reference-picker"><div><h3>关联版本</h3><p>可以选择多个大版本</p></div><div v-if="workspace?.requirementVersions.length" class="check-list"><label v-for="version in workspace.requirementVersions" :key="version.id"><input v-model="requirementForm.versionIds" type="checkbox" :value="version.id" /><span><strong>{{ version.name }} <em v-if="version.isLatest" class="latest-label">latest</em></strong><small>{{ version.requirementCount }} 条需求已关联</small></span></label></div><p v-else class="picker-empty">请先在版本管理中添加大版本。</p></div>
           <div class="reference-picker"><div><h3>引用代码仓库</h3><p>可以选择多个仓库</p></div><div v-if="workspace?.repositories.length" class="check-list"><label v-for="repository in workspace.repositories" :key="repository.id"><input v-model="requirementForm.repositoryIds" type="checkbox" :value="repository.id" /><span><strong>{{ repository.name }}</strong><small>{{ repositoryProviderLabel(repository.provider) }} · {{ repository.defaultBranch }}<template v-if="repository.note"> · {{ repository.note }}</template></small></span></label></div><p v-else class="picker-empty">请先在资产模块添加代码仓库。</p></div>
           <div class="reference-picker"><div><h3>引用项目成员</h3><p>可以选择多位参与者</p></div><div v-if="workspace?.members.length" class="check-list"><label v-for="member in workspace.members" :key="member.id"><input v-model="requirementForm.memberIds" type="checkbox" :value="member.id" /><span><strong>{{ member.user.name }}</strong><small>{{ member.role || member.user.email }}</small></span></label></div><p v-else class="picker-empty">请先在资产模块添加成员。</p></div>
           <p v-if="actionError" class="form-error">{{ actionError }}</p>
@@ -666,6 +718,26 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
               <label class="toggle-field"><input v-model="requirementStatusForm.isTerminal" type="checkbox" /><span><strong>终态</strong><small>表示需求生命周期已经结束</small></span></label>
               <p v-if="actionError" class="form-error">{{ actionError }}</p>
               <div class="dialog-actions"><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : editingId ? '保存修改' : '新增状态' }}</button></div>
+            </form>
+          </div>
+        </div>
+
+        <div v-else-if="dialog === 'versions'" class="dialog large status-dialog">
+          <div class="dialog-heading"><div><p class="overline">REQUIREMENT VERSION</p><h2>需求版本管理</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
+          <p class="dialog-intro">只维护大版本号，系统固定展示为 v${大版本号}.x；数值最大的版本自动标记为 latest。</p>
+          <div class="status-manager">
+            <div class="status-records">
+              <article v-for="version in workspace?.requirementVersions" :key="version.id" class="status-record version-record" :class="{ selected: editingId === version.id }">
+                <div><strong>{{ version.name }} <em v-if="version.isLatest" class="latest-label">latest</em></strong><small>大版本号 {{ version.major }} · {{ version.requirementCount }} 条需求</small></div>
+                <div class="status-actions"><button class="text-button" type="button" @click="editRequirementVersion(version)">编辑</button><button class="text-button danger" type="button" @click="removeRequirementVersion(version)">删除</button></div>
+              </article>
+              <p v-if="!workspace?.requirementVersions.length" class="picker-empty">还没有版本，请先添加一个大版本。</p>
+            </div>
+            <form class="status-editor" @submit.prevent="saveRequirementVersion">
+              <div class="status-editor-heading"><h3>{{ editingId ? '编辑版本' : '新增版本' }}</h3><button v-if="editingId" class="text-button" type="button" @click="resetRequirementVersionForm">新增版本</button></div>
+              <div class="field"><label>大版本号</label><input v-model.number="requirementVersionForm.major" required type="number" min="0" step="1" placeholder="例如：3" /><small>将显示为 v{{ requirementVersionForm.major }}.x</small></div>
+              <p v-if="actionError" class="form-error">{{ actionError }}</p>
+              <div class="dialog-actions"><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : editingId ? '保存修改' : '新增版本' }}</button></div>
             </form>
           </div>
         </div>

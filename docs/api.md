@@ -38,6 +38,7 @@ Requirement body:
   "acceptanceCriteria": "Users can sign in and sign out.",
   "statusId": "status-uuid",
   "priority": "high",
+  "versionIds": ["version-uuid"],
   "repositoryIds": ["repository-uuid"],
   "memberIds": ["member-uuid"]
 }
@@ -46,6 +47,20 @@ Requirement body:
 `statusId` must reference a status from the same project. If omitted when creating a
 requirement, the project's initial status is used. Priorities are `low`, `medium`,
 `high`, and `urgent`.
+
+## Requirement Versions
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/projects/:id/requirement-versions` | Create a project major-version line |
+| `PATCH` | `/api/requirement-versions/:id` | Change its major number |
+| `DELETE` | `/api/requirement-versions/:id` | Delete an unused version |
+
+Create body: `{ "major": 3 }`. Patch requests use the same field. `major` must be a
+non-negative integer and is unique within a project. Responses render the version name
+as `v{major}.x`; the greatest configured major has `isLatest: true`. Requirements may
+reference multiple project-local versions through `versionIds`. A referenced version
+cannot be deleted until it is removed from those requirements.
 
 ## Requirement Statuses
 
@@ -172,6 +187,7 @@ rewrites the Markdown when a target is deleted.
   "project": {},
   "requirements": [],
   "requirementStatuses": [],
+  "requirementVersions": [],
   "repositories": [],
   "members": [],
   "environments": [],
@@ -179,8 +195,8 @@ rewrites the Markdown when a target is deleted.
 }
 ```
 
-Each requirement contains `statusId`, expanded `status`, `repositoryIds`, `memberIds`,
-and expanded `repositories` and `members` arrays for direct display. Every member
+Each requirement contains `statusId`, expanded `status`, `versionIds`, `repositoryIds`,
+`memberIds`, and expanded `versions`, `repositories`, and `members` arrays for direct display. Every member
 contains its project role and an expanded global `user`.
 Each knowledge record contains its stored Markdown and resolved reference metadata.
 
