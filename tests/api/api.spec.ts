@@ -283,7 +283,7 @@ const routeCases: ApiRouteCase[] = [
     run: async () => {
       const rejected = await harness.request(`/api/projects/${projectId}/knowledge`, {
         method: 'POST',
-        body: { title: '空知识', content: '   ' },
+        body: { title: '无效知识', content: null },
       })
       expect(rejected.status).toBe(400)
 
@@ -296,15 +296,11 @@ const routeCases: ApiRouteCase[] = [
       ].join('\n')
       const response = await harness.request<KnowledgeAsset>(`/api/projects/${projectId}/knowledge`, {
         method: 'POST',
-        body: { title: 'API 测试知识', content: knowledgeContent },
+        body: { title: 'API 测试知识', content: '' },
       })
       expect(response.status).toBe(201)
-      expect(response.data).toMatchObject({ projectId, title: 'API 测试知识', content: knowledgeContent })
-      expect(response.data.references).toEqual(expect.arrayContaining([
-        expect.objectContaining({ targetType: 'repository', recordId: repositoryId, resolved: true }),
-        expect.objectContaining({ targetType: 'member', recordId: memberId, resolved: true }),
-        expect.objectContaining({ targetType: 'environment', recordId: environmentId, resolved: true }),
-      ]))
+      expect(response.data).toMatchObject({ projectId, title: 'API 测试知识', content: '' })
+      expect(response.data.references).toEqual([])
       knowledgeId = response.data.id
 
       const projects = await harness.request<ProjectSummary[]>('/api/projects')
@@ -322,6 +318,9 @@ const routeCases: ApiRouteCase[] = [
       expect(response.status).toBe(200)
       expect(response.data).toMatchObject({ id: knowledgeId, title: 'API 测试知识（已更新）', content })
       expect(response.data.references).toEqual(expect.arrayContaining([
+        expect.objectContaining({ targetType: 'repository', recordId: repositoryId, resolved: true }),
+        expect.objectContaining({ targetType: 'member', recordId: memberId, resolved: true }),
+        expect.objectContaining({ targetType: 'environment', recordId: environmentId, resolved: true }),
         expect.objectContaining({ targetType: 'knowledge', recordId: knowledgeId, resolved: true }),
         expect.objectContaining({ assetType: '未知资产', targetType: null, recordId: 'missing-id', resolved: false }),
       ]))

@@ -4,7 +4,6 @@ import type {
   EnvironmentType,
   GitLabRepository,
   GitLabRepositoryPage,
-  KnowledgeAsset,
   KnowledgeReference,
   ProjectWorkspace,
   ProjectMember,
@@ -15,11 +14,6 @@ import type {
   RequirementStatus,
   UserAccount,
 } from '#shared/types/asdp'
-import type { KnowledgeAssetReferenceOption } from '~/editor/knowledge-asset-reference'
-
-type KnowledgeMarkdownEditorHandle = {
-  getMarkdown: () => string
-}
 
 const route = useRoute()
 const routeSegments = computed(() => Array.isArray(route.params.slug)
@@ -64,7 +58,7 @@ const assetModuleLabel = computed(() => ({
   environments: '环境管理',
   knowledge: '知识',
 })[activeAssetModule.value || 'repositories'])
-const dialog = ref<'requirement' | 'statuses' | 'versions' | 'repository' | 'member' | 'environment' | 'knowledge' | null>(null)
+const dialog = ref<'requirement' | 'statuses' | 'versions' | 'repository' | 'member' | 'environment' | null>(null)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
 const actionError = ref('')
@@ -91,8 +85,6 @@ const environmentForm = reactive({
   type: 'development' as EnvironmentType,
   accounts: [''] as string[],
 })
-const knowledgeForm = reactive({ title: '', content: '' })
-const knowledgeEditor = ref<KnowledgeMarkdownEditorHandle | null>(null)
 const requirementStatusForm = reactive({
   key: '',
   name: '',
@@ -122,7 +114,6 @@ const currentDialogState = () => {
     case 'repository': return { ...repositoryForm }
     case 'member': return { ...memberForm }
     case 'environment': return { ...environmentForm, accounts: [...environmentForm.accounts] }
-    case 'knowledge': return { ...knowledgeForm }
     default: return null
   }
 }
@@ -163,39 +154,6 @@ const selectableUsers = computed(() => {
   const editingUserId = editingId.value ? memberForm.userId : ''
   return (users.value || []).filter(user => user.id === editingUserId || !assignedUserIds.has(user.id))
 })
-const knowledgeReferenceOptions = computed<KnowledgeAssetReferenceOption[]>(() => [
-  ...(workspace.value?.repositories || []).map(repository => ({
-    assetType: '代码仓库',
-    targetType: 'repository' as const,
-    recordId: repository.id,
-    label: repository.name,
-    detail: `${repositoryProviderLabel(repository.provider)} · ${repository.defaultBranch}`,
-  })),
-  ...(workspace.value?.members || []).map(member => ({
-    assetType: '项目成员',
-    targetType: 'member' as const,
-    recordId: member.id,
-    label: member.user.name,
-    detail: `${member.role} · ${member.user.email}`,
-  })),
-  ...(workspace.value?.environments || []).map(environment => ({
-    assetType: '环境',
-    targetType: 'environment' as const,
-    recordId: environment.id,
-    label: environment.address,
-    detail: `${environmentTypeLabel(environment.type)} · ${environment.accounts.join('、')}`,
-  })),
-  ...(workspace.value?.knowledge || [])
-    .filter(knowledge => knowledge.id !== editingId.value)
-    .map(knowledge => ({
-      assetType: '知识',
-      targetType: 'knowledge' as const,
-      recordId: knowledge.id,
-      label: knowledge.title,
-      detail: 'Markdown 知识',
-    })),
-])
-
 const openRequirement = (requirement?: Requirement) => {
   editingId.value = requirement?.id || null
   Object.assign(requirementForm, requirement ? {
@@ -313,16 +271,6 @@ const openEnvironment = (environment?: EnvironmentAsset) => {
   })
   actionError.value = ''
   dialog.value = 'environment'
-  captureDialogSnapshot()
-}
-
-const openKnowledge = (knowledge?: KnowledgeAsset) => {
-  editingId.value = knowledge?.id || null
-  Object.assign(knowledgeForm, knowledge
-    ? { title: knowledge.title, content: knowledge.content }
-    : { title: '', content: '' })
-  actionError.value = ''
-  dialog.value = 'knowledge'
   captureDialogSnapshot()
 }
 
@@ -566,29 +514,6 @@ const removeRequirementVersion = (version: ProjectWorkspace['requirementVersions
   })
 }
 
-const saveKnowledge = async () => {
-  knowledgeForm.content = knowledgeEditor.value?.getMarkdown() ?? knowledgeForm.content
-  if (!knowledgeForm.content.trim()) {
-    actionError.value = '请输入 Markdown 内容'
-    return
-  }
-  saving.value = true
-  actionError.value = ''
-  try {
-    await $fetch(editingId.value ? `/api/knowledge/${editingId.value}` : `/api/projects/${projectId.value}/knowledge`, {
-      method: editingId.value ? 'PATCH' : 'POST',
-      body: knowledgeForm,
-    })
-    await refresh()
-    closeDialog()
-    success('知识文档已保存')
-  } catch (requestError) {
-    actionError.value = errorMessage(requestError)
-  } finally {
-    saving.value = false
-  }
-}
-
 const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environment' | 'knowledge', id: string, label: string, referenceCount = 0) => {
   const referenceNote = referenceCount ? `，并从 ${referenceCount} 条需求中移除引用` : ''
   requestConfirmation({
@@ -753,7 +678,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
 
         <template v-else>
           <div class="asset-detail-heading">
-            <div class="section-heading"><div><p class="overline">KNOWLEDGE ASSETS</p><h2>知识</h2><p>使用 Markdown 沉淀项目上下文，并通过稳定记录 ID 引用其他资产。</p></div><button class="button primary" type="button" @click="openKnowledge()">添加知识</button></div>
+            <div class="section-heading"><div><p class="overline">KNOWLEDGE ASSETS</p><h2>知识</h2><p>先维护知识基本信息，再进入全屏 Markdown 页面编写正文。</p></div><NuxtLink class="button primary" :to="`${assetsPath}/knowledge/new`">添加知识</NuxtLink></div>
           </div>
           <div v-if="workspace.knowledge.length" class="asset-record-list knowledge-record-list">
             <article v-for="knowledge in workspace.knowledge" :id="`asset-${knowledge.id}`" :key="knowledge.id" class="panel asset-card asset-record-card knowledge-card">
@@ -769,10 +694,10 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
                 </div>
                 <small>Markdown · {{ knowledge.references.length }} 个资产引用 · 更新于 {{ formatDate(knowledge.updatedAt) }}</small>
               </div>
-              <div class="asset-actions"><button class="text-button" type="button" @click="openKnowledge(knowledge)">编辑</button><button class="text-button danger" type="button" @click="removeRecord('knowledge', knowledge.id, knowledge.title)">删除</button></div>
+              <div class="asset-actions"><NuxtLink class="text-button" :to="`${assetsPath}/knowledge/${knowledge.id}/info`">基本信息</NuxtLink><NuxtLink class="text-button" :to="`${assetsPath}/knowledge/${knowledge.id}/edit`">编写正文</NuxtLink><button class="text-button danger" type="button" @click="removeRecord('knowledge', knowledge.id, knowledge.title)">删除</button></div>
             </article>
           </div>
-          <div v-else class="panel empty-state"><strong>还没有项目知识</strong><span>添加 Markdown 文档，把架构、约定和决策与项目资产关联起来。</span><button class="button primary" type="button" @click="openKnowledge()">添加第一篇知识</button></div>
+          <div v-else class="panel empty-state"><strong>还没有项目知识</strong><span>先添加基本信息，再用全屏编辑器编写 Markdown 正文。</span><NuxtLink class="button primary" :to="`${assetsPath}/knowledge/new`">添加第一篇知识</NuxtLink></div>
         </template>
       </section>
     </main>
@@ -849,16 +774,6 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
         <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
       </form>
       <template #actions><button class="button secondary" type="button" :disabled="saving" @click="requestDialogClose">取消</button><button class="button primary" type="submit" form="repository-form" :disabled="saving">{{ saving ? '保存中…' : '保存仓库' }}</button></template>
-    </AppDialog>
-
-    <AppDialog :open="dialog === 'knowledge'" :title="editingId ? '编辑知识' : '添加知识'" overline="KNOWLEDGE ASSET" class="large knowledge-dialog" :busy="saving" @request-close="requestDialogClose">
-      <form id="knowledge-form" @submit.prevent="saveKnowledge">
-        <p class="dialog-intro">正文以 Markdown 原文保存。在编辑器中输入 <code>/</code>，可从命令面板选择并引用当前项目的其他知识。</p>
-        <div class="field"><label for="knowledge-title">标题</label><input id="knowledge-title" v-model="knowledgeForm.title" required autofocus placeholder="例如：项目架构约定" /></div>
-        <div class="field"><span id="knowledge-content-label" class="field-label">Markdown 内容</span><KnowledgeMarkdownEditor ref="knowledgeEditor" v-model="knowledgeForm.content" :references="knowledgeReferenceOptions" role="group" aria-labelledby="knowledge-content-label" /><small>输入 <code>/</code> 打开命令面板；知识引用会显示为控件，并按稳定引用语法存入数据库。</small></div>
-        <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
-      </form>
-      <template #actions><button class="button secondary" type="button" :disabled="saving" @click="requestDialogClose">取消</button><button class="button primary" type="submit" form="knowledge-form" :disabled="saving">{{ saving ? '保存中…' : '保存知识' }}</button></template>
     </AppDialog>
 
     <AppDialog :open="dialog === 'environment'" :title="editingId ? '编辑环境' : '添加环境'" overline="ENVIRONMENT ASSET" :busy="saving" @request-close="requestDialogClose">

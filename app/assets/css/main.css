@@ -191,6 +191,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(37,99,235,.32); 
 .asset-copy .asset-note { color: #475467; }
 .asset-copy a:hover { color: var(--blue); }
 .asset-copy small { color: #98a2b3; font-size: 8px; }
+.asset-copy .environment-account { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
 .asset-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
 .knowledge-record-list { width: min(920px, 100%); }
 .knowledge-card { align-items: flex-start; scroll-margin-top: 18px; }
@@ -200,7 +201,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(37,99,235,.32); 
 .asset-copy .knowledge-reference.unresolved { color: #b42318; background: #fef3f2; }
 
 .account-list { display: flex; flex-direction: column; gap: 7px; }
-.account-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 7px; }
+.account-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; align-items: center; gap: 7px; }
 .account-list .add-account { width: fit-content; margin-top: 2px; }
 .account-list .add-account:disabled { opacity: .45; cursor: not-allowed; text-decoration: none; }
 
@@ -237,7 +238,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(37,99,235,.32); 
 
 .dialog-intro { margin: 0 0 20px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 .repository-dialog { width: min(580px, 100%); }
-.knowledge-dialog code { padding: 2px 4px; border-radius: 4px; color: #344054; background: #f2f4f7; font-family: "Cascadia Code", Consolas, monospace; font-size: 9px; }
 .knowledge-markdown-editor { min-height: 350px; overflow: hidden; border: 1px solid #d0d5dd; border-radius: 8px; background: #fff; }
 .knowledge-markdown-editor:focus-within { border-color: #84adff; box-shadow: 0 0 0 3px rgba(37,99,235,.08); }
 .knowledge-markdown-editor .milkdown { min-height: 350px; }
@@ -252,6 +252,33 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(37,99,235,.32); 
 .knowledge-asset-control-content strong, .knowledge-asset-control-content small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .knowledge-asset-control-content strong { font-size: 10px; }
 .knowledge-asset-control-content small { max-width: 150px; color: #667085; font-size: 8px; }
+
+.knowledge-info-page { display: flex; flex-direction: column; }
+.knowledge-info-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+.knowledge-info-heading h1 { margin: 4px 0 8px; font-size: 30px; letter-spacing: -.03em; }
+.knowledge-info-heading p:last-child { margin: 0; color: var(--muted); font-size: 13px; }
+.knowledge-info-form { width: min(680px, 100%); padding: 24px; }
+.knowledge-info-form .field { margin-bottom: 18px; }
+.knowledge-info-actions { display: flex; justify-content: flex-end; gap: 10px; padding-top: 20px; border-top: 1px solid var(--line); }
+
+.knowledge-editor-page { height: 100dvh; min-height: 560px; display: flex; flex-direction: column; overflow: hidden; background: var(--canvas); }
+.knowledge-editor-header { min-height: 72px; flex: none; display: flex; align-items: center; gap: 14px; padding: 12px max(20px, calc((100vw - 1440px) / 2)); border-bottom: 1px solid var(--line); background: #fff; }
+.knowledge-editor-back { width: 44px; height: 44px; flex: none; display: grid; place-items: center; border: 1px solid var(--line); border-radius: 8px; color: #344054; font-size: 19px; }
+.knowledge-editor-back:hover { color: var(--blue); border-color: #b2ccff; background: var(--blue-soft); }
+.knowledge-editor-title { min-width: 0; flex: 1; }
+.knowledge-editor-title span, .knowledge-editor-title strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.knowledge-editor-title span { margin-bottom: 4px; color: #98a2b3; font-size: 10px; }
+.knowledge-editor-title strong { font-size: 15px; }
+.knowledge-editor-actions { display: flex; align-items: center; gap: 9px; }
+.knowledge-save-state { color: #b54708; font-size: 10px; white-space: nowrap; }
+.knowledge-save-state.saved { color: #067647; }
+.knowledge-editor-error { flex: none; margin: 10px 20px 0; padding: 10px 12px; border: 1px solid #f2c5c5; border-radius: 7px; color: var(--danger); background: #fff5f5; font-size: 11px; }
+.knowledge-editor-body { min-height: 0; flex: 1; padding: 16px 20px 20px; overflow: hidden; }
+.knowledge-editor-body .knowledge-markdown-editor { height: 100%; min-height: 0; border-color: var(--line); box-shadow: 0 1px 3px rgba(16,24,40,.05); }
+.knowledge-editor-body .knowledge-markdown-editor > div, .knowledge-editor-body .milkdown { height: 100%; min-height: 0; }
+.knowledge-editor-body .milkdown { overflow-y: auto; }
+.knowledge-editor-body .knowledge-markdown-editor .milkdown .ProseMirror { width: min(900px, 100%); min-height: calc(100% - 44px); margin: 0 auto; padding: 42px 56px 100px; font-size: 15px; line-height: 1.75; }
+.knowledge-editor-loading { width: min(720px, calc(100% - 40px)); margin: auto; }
 .gitlab-picker { margin: -6px 0 19px; padding: 14px; border: 1px solid #bfdbfe; border-radius: 9px; background: #f8fbff; }
 .gitlab-picker-heading, .gitlab-picker-search { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .gitlab-picker-heading { margin-bottom: 10px; }
@@ -370,6 +397,8 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(37,99,235,.32); 
   .settings-layout, .remote-repository-grid { grid-template-columns: 1fr; }
   .settings-section-heading, .repository-browser .section-heading { align-items: flex-start; flex-direction: column; }
   .settings-actions { grid-template-columns: 1fr 1fr; }
+  .account-row { grid-template-columns: 1fr auto; }
+  .account-row input:first-child { grid-column: 1 / -1; }
   .settings-actions > span { display: none; }
   .repository-search { width: 100%; }
   .repository-search input { min-width: 0; flex: 1; }
@@ -381,6 +410,17 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(37,99,235,.32); 
   .asset-module-link { grid-column: auto; }
   .asset-detail-heading .section-heading { align-items: stretch; flex-direction: column; }
   .asset-detail-heading .button { width: 100%; }
+  .knowledge-info-heading { align-items: stretch; flex-direction: column; }
+  .knowledge-info-heading .button { width: 100%; }
+  .knowledge-info-form { padding: 20px 16px; }
+  .knowledge-info-actions .button { flex: 1; }
+  .knowledge-editor-page { min-height: 100dvh; }
+  .knowledge-editor-header { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; padding: 10px 12px; }
+  .knowledge-editor-actions { grid-column: 1 / -1; }
+  .knowledge-editor-actions .knowledge-save-state { margin-right: auto; }
+  .knowledge-editor-actions .button { min-width: 0; flex: 1; padding: 0 12px; }
+  .knowledge-editor-body { padding: 8px; }
+  .knowledge-editor-body .knowledge-markdown-editor .milkdown .ProseMirror { padding: 28px 22px 80px; font-size: 14px; }
   .text-button { min-height: 44px; }
   .dialog-backdrop { place-items: end center; padding: 0; }
   .dialog, .dialog.large, .repository-dialog, .status-dialog { width: 100%; max-height: 100dvh; border-radius: 14px 14px 0 0; }
