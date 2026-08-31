@@ -29,6 +29,10 @@ export type ApiTestHarness = {
   stop: () => Promise<void>
 }
 
+type ApiTestHarnessOptions = {
+  prepareDatabase?: (databasePath: string) => Promise<void>
+}
+
 const delay = (milliseconds: number) => new Promise(resolve => setTimeout(resolve, milliseconds))
 
 const closeServer = (server: Server) => new Promise<void>((resolve, reject) => {
@@ -131,13 +135,15 @@ const stopProcess = async (process: ChildProcess) => {
   }
 }
 
-export const startApiTestHarness = async (): Promise<ApiTestHarness> => {
+export const startApiTestHarness = async (options: ApiTestHarnessOptions = {}): Promise<ApiTestHarness> => {
   const testDirectory = await mkdtemp(join(tmpdir(), 'forgepilot-api-test-'))
+  const databasePath = join(testDirectory, 'asdp.sqlite')
   let gitLab: Awaited<ReturnType<typeof startGitLabMock>> | undefined
   let child: ChildProcess | undefined
   const serverOutput: string[] = []
 
   try {
+    await options.prepareDatabase?.(databasePath)
     gitLab = await startGitLabMock()
     const port = await availablePort()
     const baseUrl = `http://127.0.0.1:${port}`
@@ -146,7 +152,7 @@ export const startApiTestHarness = async (): Promise<ApiTestHarness> => {
       env: {
         ...process.env,
         ASDP_CREDENTIAL_ENCRYPTION_KEY: 'asdp-api-test-key',
-        ASDP_DB_PATH: join(testDirectory, 'asdp.sqlite'),
+        ASDP_DB_PATH: databasePath,
         HOST: '127.0.0.1',
         NODE_ENV: 'test',
         PORT: String(port),

@@ -324,6 +324,60 @@ const createDatabase = async () => {
       ON repository_assets(project_id, provider, external_id) WHERE external_id IS NOT NULL
   `)
 
+  const versionColumns = persistentDatabase.prepare('PRAGMA table_info(requirement_versions)').all() as { name: string }[]
+  if (versionColumns.some(column => column.name === 'name')) {
+    const legacyVersions = persistentDatabase.prepare(`
+      SELECT id, project_id, name, created_at, updated_at FROM requirement_versions
+    `).all() as {
+      id: string
+      project_id: string
+      name: string
+      created_at: string
+      updated_at: string
+    }[]
+    const migratedVersions = legacyVersions.map((version) => {
+      const match = /^v(\d+)\.x$/i.exec(version.name)
+      if (!match) {
+        throw new Error(`Cannot migrate requirement version name: ${version.name}`)
+      }
+      return { ...version, major: Number(match[1]) }
+    })
+    const uniqueMajors = new Set(migratedVersions.map(version => `${version.project_id}:${version.major}`))
+    if (uniqueMajors.size !== migratedVersions.length) {
+      throw new Error('Cannot migrate duplicate requirement version majors in one project')
+    }
+
+    persistentDatabase.transaction(() => {
+      persistentDatabase.exec('ALTER TABLE requirement_versions RENAME TO requirement_versions_legacy')
+      persistentDatabase.exec(`
+        CREATE TABLE requirement_versions_next (
+          id TEXT PRIMARY KEY,
+          project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+          major INTEGER NOT NULL CHECK(major >= 0),
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(project_id, major)
+        )
+      `)
+      const insertVersion = persistentDatabase.prepare(`
+        INSERT INTO requirement_versions_next (id, project_id, major, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?)
+      `)
+      migratedVersions.forEach(version => insertVersion.run(
+        version.id,
+        version.project_id,
+        version.major,
+        version.created_at,
+        version.updated_at,
+      ))
+      persistentDatabase.exec('DROP TABLE requirement_versions_legacy')
+      persistentDatabase.exec('ALTER TABLE requirement_versions_next RENAME TO requirement_versions')
+      persistentDatabase.exec(`
+        CREATE INDEX idx_requirement_versions_project ON requirement_versions(project_id)
+      `)
+    })()
+  }
+
   const requirementColumns = persistentDatabase.prepare('PRAGMA table_info(requirements)').all() as { name: string }[]
   if (!requirementColumns.some(column => column.name === 'status_id')) {
     persistentDatabase.exec('ALTER TABLE requirements ADD COLUMN status_id TEXT REFERENCES requirement_statuses(id) ON DELETE RESTRICT')

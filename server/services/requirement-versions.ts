@@ -15,6 +15,9 @@ import {
 import { conflict, requireEntity } from './errors'
 import { getProject } from './projects'
 
+const isDuplicateMajorError = (error: unknown) => error instanceof Error
+  && error.message.includes('UNIQUE constraint failed: requirement_versions.project_id, requirement_versions.major')
+
 const decorateVersions = (versions: RequirementVersionRecord[]): RequirementVersion[] => versions
   .sort((left, right) => right.major - left.major)
   .map((version, index) => ({ ...version, isLatest: index === 0 }))
@@ -51,7 +54,10 @@ export const createRequirementVersion = (projectId: string, input: CreateRequire
   try {
     insertRequirementVersion(version)
   } catch (error) {
-    throw conflict('This requirement version already exists in the project', error)
+    if (isDuplicateMajorError(error)) {
+      throw conflict('This requirement version already exists in the project', error)
+    }
+    throw error
   }
   return getRequirementVersion(version.id)
 }
@@ -67,7 +73,10 @@ export const updateRequirementVersion = (id: string, input: UpdateRequirementVer
   try {
     updateRequirementVersionRecord(version)
   } catch (error) {
-    throw conflict('This requirement version already exists in the project', error)
+    if (isDuplicateMajorError(error)) {
+      throw conflict('This requirement version already exists in the project', error)
+    }
+    throw error
   }
   return getRequirementVersion(id)
 }
