@@ -3,10 +3,12 @@ import type { UserAccount, UserRole } from '#shared/types/asdp'
 
 const { data: users, status, error, refresh } = await useFetch<UserAccount[]>('/api/users')
 const showCreateDialog = ref(false)
+const showDiscardConfirm = ref(false)
 const saving = ref(false)
 const actionError = ref('')
-const actionSuccess = ref('')
 const form = reactive({ name: '', email: '', role: 'member' as UserRole })
+const initialForm = ref('')
+const { success } = useAppToast()
 
 const roleOptions: { value: UserRole, label: string }[] = [
   { value: 'administrator', label: '平台管理员' },
@@ -23,6 +25,7 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('zh-CN', {
 const openCreateDialog = () => {
   Object.assign(form, { name: '', email: '', role: 'member' })
   actionError.value = ''
+  initialForm.value = JSON.stringify(form)
   showCreateDialog.value = true
 }
 
@@ -31,10 +34,23 @@ const closeCreateDialog = () => {
   actionError.value = ''
 }
 
+const requestCloseCreateDialog = () => {
+  if (saving.value) return
+  if (JSON.stringify(form) !== initialForm.value) {
+    showDiscardConfirm.value = true
+    return
+  }
+  closeCreateDialog()
+}
+
+const discardCreateDialog = () => {
+  showDiscardConfirm.value = false
+  closeCreateDialog()
+}
+
 const createUser = async () => {
   saving.value = true
   actionError.value = ''
-  actionSuccess.value = ''
   try {
     const user = await $fetch<UserAccount>('/api/users', {
       method: 'POST',
@@ -42,7 +58,7 @@ const createUser = async () => {
     })
     await refresh()
     closeCreateDialog()
-    actionSuccess.value = `用户“${user.name}”已新增`
+    success(`用户“${user.name}”已新增`)
   } catch (requestError: any) {
     actionError.value = requestError?.data?.statusMessage || requestError?.message || '新增用户失败'
   } finally {
@@ -53,13 +69,9 @@ const createUser = async () => {
 
 <template>
   <div class="app-frame">
-    <header class="site-header">
-      <NuxtLink to="/" class="brand"><span>ForgePilot</span><small>铸航 · Autonomous Software Delivery</small></NuxtLink>
-      <nav class="header-nav" aria-label="全局导航"><NuxtLink to="/">项目</NuxtLink><NuxtLink to="/users" class="active">用户管理</NuxtLink><NuxtLink to="/settings">全局设置</NuxtLink></nav>
-      <span class="header-badge">Architecture Preview</span>
-    </header>
+    <AppHeader badge="Architecture Preview" />
 
-    <main class="page users-page">
+    <main id="main-content" class="page users-page">
       <section class="page-title-row">
         <div>
           <p class="overline">IDENTITY</p>
@@ -69,9 +81,7 @@ const createUser = async () => {
         <button class="button primary" type="button" @click="openCreateDialog">新增用户</button>
       </section>
 
-      <p v-if="actionSuccess" class="alert success-alert" role="status">{{ actionSuccess }}</p>
-      <div v-if="status === 'pending'" class="panel empty-state">正在读取用户…</div>
-      <div v-else-if="error" class="panel empty-state error-state">无法读取用户：{{ error.statusMessage }}</div>
+      <AppAsyncState v-if="status === 'pending' || error" :pending="status === 'pending'" :error-message="error?.statusMessage" @retry="refresh" />
       <section v-else-if="users?.length" class="panel user-list" aria-label="用户列表">
         <div class="user-list-heading">
           <div><strong>全部用户</strong><span>共 {{ users.length }} 位</span></div>
@@ -90,18 +100,16 @@ const createUser = async () => {
       <div v-else class="panel empty-state"><strong>还没有用户</strong><span>新增第一位平台用户，建立 ForgePilot 的全局身份目录。</span><button class="button primary" type="button" @click="openCreateDialog">新增用户</button></div>
     </main>
 
-    <Teleport to="body">
-      <div v-if="showCreateDialog" class="dialog-backdrop" @click.self="closeCreateDialog">
-        <form class="dialog" @submit.prevent="createUser">
-          <div class="dialog-heading"><div><p class="overline">NEW USER</p><h2>新增用户</h2></div><button type="button" class="close-button" aria-label="关闭" @click="closeCreateDialog">×</button></div>
+    <AppDialog :open="showCreateDialog" title="新增用户" overline="NEW USER" @request-close="requestCloseCreateDialog">
+        <form id="create-user-form" @submit.prevent="createUser">
           <p class="dialog-intro">创建全局平台身份。项目成员关系将在项目授权中单独配置。</p>
           <div class="field"><label for="user-name">姓名</label><input id="user-name" v-model="form.name" required autofocus placeholder="例如：陈嘉" /></div>
           <div class="field"><label for="user-email">邮箱</label><input id="user-email" v-model="form.email" required type="email" autocomplete="email" placeholder="name@example.com" /></div>
           <div class="field"><label for="user-role">平台角色</label><select id="user-role" v-model="form.role" required><option v-for="option in roleOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select><small>角色用于标识平台职责，不会自动授予任何项目权限。</small></div>
           <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
-          <div class="dialog-actions"><button class="button secondary" type="button" @click="closeCreateDialog">取消</button><button class="button primary" type="submit" :disabled="saving">{{ saving ? '新增中…' : '确认新增' }}</button></div>
         </form>
-      </div>
-    </Teleport>
+        <template #actions><button class="button secondary" type="button" :disabled="saving" @click="requestCloseCreateDialog">取消</button><button class="button primary" type="submit" form="create-user-form" :disabled="saving">{{ saving ? '新增中…' : '确认新增' }}</button></template>
+    </AppDialog>
+    <AppConfirmDialog :open="showDiscardConfirm" title="放弃新增用户？" description="当前填写的用户信息尚未保存，放弃后无法恢复。" confirm-label="放弃修改" danger @cancel="showDiscardConfirm = false" @confirm="discardCreateDialog" />
   </div>
 </template>

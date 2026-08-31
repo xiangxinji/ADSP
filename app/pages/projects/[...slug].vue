@@ -69,6 +69,7 @@ const dialog = ref<'requirement' | 'statuses' | 'versions' | 'repository' | 'mem
 const editingId = ref<string | null>(null)
 const saving = ref(false)
 const actionError = ref('')
+const { success } = useAppToast()
 
 const requirementForm = reactive({
   title: '',
@@ -102,6 +103,36 @@ const requirementStatusForm = reactive({
   isTerminal: false,
 })
 const requirementVersionForm = reactive({ major: 1 })
+
+type ConfirmationRequest = {
+  title: string
+  description: string
+  confirmLabel: string
+  action: () => Promise<void> | void
+}
+
+const confirmation = shallowRef<ConfirmationRequest | null>(null)
+const confirmationBusy = ref(false)
+const dialogSnapshot = ref('')
+
+const currentDialogState = () => {
+  switch (dialog.value) {
+    case 'requirement': return { ...requirementForm }
+    case 'statuses': return { editingId: editingId.value, ...requirementStatusForm }
+    case 'versions': return { editingId: editingId.value, ...requirementVersionForm }
+    case 'repository': return { ...repositoryForm }
+    case 'member': return { ...memberForm }
+    case 'environment': return { ...environmentForm, accounts: [...environmentForm.accounts] }
+    case 'knowledge': return { ...knowledgeForm }
+    default: return null
+  }
+}
+
+const captureDialogSnapshot = () => {
+  dialogSnapshot.value = JSON.stringify(currentDialogState())
+}
+
+const dialogHasChanges = () => Boolean(dialog.value) && JSON.stringify(currentDialogState()) !== dialogSnapshot.value
 
 const priorityOptions: { value: RequirementPriority, label: string }[] = [
   { value: 'low', label: '低' },
@@ -189,6 +220,7 @@ const openRequirement = (requirement?: Requirement) => {
   })
   actionError.value = ''
   dialog.value = 'requirement'
+  captureDialogSnapshot()
 }
 
 const resetRequirementStatusForm = () => {
@@ -202,11 +234,13 @@ const resetRequirementStatusForm = () => {
     isTerminal: false,
   })
   actionError.value = ''
+  if (dialog.value === 'statuses') captureDialogSnapshot()
 }
 
 const openStatusManager = () => {
   resetRequirementStatusForm()
   dialog.value = 'statuses'
+  captureDialogSnapshot()
 }
 
 const editRequirementStatus = (requirementStatus: RequirementStatus) => {
@@ -220,23 +254,27 @@ const editRequirementStatus = (requirementStatus: RequirementStatus) => {
     isTerminal: requirementStatus.isTerminal,
   })
   actionError.value = ''
+  captureDialogSnapshot()
 }
 
 const resetRequirementVersionForm = () => {
   editingId.value = null
   requirementVersionForm.major = (workspace.value?.requirementVersions[0]?.major ?? 0) + 1
   actionError.value = ''
+  if (dialog.value === 'versions') captureDialogSnapshot()
 }
 
 const openVersionManager = () => {
   resetRequirementVersionForm()
   dialog.value = 'versions'
+  captureDialogSnapshot()
 }
 
 const editRequirementVersion = (version: ProjectWorkspace['requirementVersions'][number]) => {
   editingId.value = version.id
   requirementVersionForm.major = version.major
   actionError.value = ''
+  captureDialogSnapshot()
 }
 
 const openRepository = (repository?: RepositoryAsset) => {
@@ -249,6 +287,7 @@ const openRepository = (repository?: RepositoryAsset) => {
   gitlabRepositoryError.value = ''
   actionError.value = ''
   dialog.value = 'repository'
+  captureDialogSnapshot()
   if (!repository) void loadGitLabRepositories()
 }
 
@@ -259,6 +298,7 @@ const openMember = (member?: ProjectMember) => {
     : { userId: selectableUsers.value[0]?.id || '', role: '项目成员' })
   actionError.value = ''
   dialog.value = 'member'
+  captureDialogSnapshot()
 }
 
 const openEnvironment = (environment?: EnvironmentAsset) => {
@@ -274,6 +314,7 @@ const openEnvironment = (environment?: EnvironmentAsset) => {
   })
   actionError.value = ''
   dialog.value = 'environment'
+  captureDialogSnapshot()
 }
 
 const openKnowledge = (knowledge?: KnowledgeAsset) => {
@@ -283,6 +324,7 @@ const openKnowledge = (knowledge?: KnowledgeAsset) => {
     : { title: '', content: '' })
   actionError.value = ''
   dialog.value = 'knowledge'
+  captureDialogSnapshot()
 }
 
 const insertKnowledgeReference = (assetType: string, recordId: string) => {
@@ -322,9 +364,43 @@ const closeDialog = () => {
   dialog.value = null
   editingId.value = null
   actionError.value = ''
+  dialogSnapshot.value = ''
 }
 
 const errorMessage = (requestError: any) => requestError?.data?.statusMessage || requestError?.message || '操作失败'
+
+const requestConfirmation = (request: ConfirmationRequest) => {
+  confirmation.value = request
+}
+
+const cancelConfirmation = () => {
+  if (!confirmationBusy.value) confirmation.value = null
+}
+
+const runConfirmation = async () => {
+  if (!confirmation.value) return
+  confirmationBusy.value = true
+  try {
+    await confirmation.value.action()
+    confirmation.value = null
+  } finally {
+    confirmationBusy.value = false
+  }
+}
+
+const requestDialogClose = () => {
+  if (saving.value) return
+  if (!dialogHasChanges()) {
+    closeDialog()
+    return
+  }
+  requestConfirmation({
+    title: '放弃未保存的修改？',
+    description: '当前弹框中的修改尚未保存，放弃后无法恢复。',
+    confirmLabel: '放弃修改',
+    action: closeDialog,
+  })
+}
 
 const loadGitLabRepositories = async () => {
   gitlabRepositoriesLoading.value = true
@@ -361,6 +437,7 @@ const saveRequirement = async () => {
     })
     await refresh()
     closeDialog()
+    success('需求已保存')
   } catch (requestError) {
     actionError.value = errorMessage(requestError)
   } finally {
@@ -378,6 +455,7 @@ const saveRequirementStatus = async () => {
     })
     await refresh()
     resetRequirementStatusForm()
+    success('需求状态已保存')
   } catch (requestError) {
     actionError.value = errorMessage(requestError)
   } finally {
@@ -385,16 +463,23 @@ const saveRequirementStatus = async () => {
   }
 }
 
-const removeRequirementStatus = async (requirementStatus: RequirementStatus) => {
-  if (!window.confirm(`确定删除状态“${requirementStatus.name}”吗？`)) return
-  actionError.value = ''
-  try {
-    await $fetch(`/api/requirement-statuses/${requirementStatus.id}`, { method: 'DELETE' })
-    await refresh()
-    if (editingId.value === requirementStatus.id) resetRequirementStatusForm()
-  } catch (requestError) {
-    actionError.value = errorMessage(requestError)
-  }
+const removeRequirementStatus = (requirementStatus: RequirementStatus) => {
+  requestConfirmation({
+    title: `删除状态“${requirementStatus.name}”？`,
+    description: '删除后无法恢复。正在被需求引用的状态不会被系统删除。',
+    confirmLabel: '删除状态',
+    action: async () => {
+      actionError.value = ''
+      try {
+        await $fetch(`/api/requirement-statuses/${requirementStatus.id}`, { method: 'DELETE' })
+        await refresh()
+        if (editingId.value === requirementStatus.id) resetRequirementStatusForm()
+        success(`状态“${requirementStatus.name}”已删除`)
+      } catch (requestError) {
+        actionError.value = errorMessage(requestError)
+      }
+    },
+  })
 }
 
 const saveRepository = async () => {
@@ -407,6 +492,7 @@ const saveRepository = async () => {
     })
     await refresh()
     closeDialog()
+    success('代码仓库已保存')
   } catch (requestError) {
     actionError.value = errorMessage(requestError)
   } finally {
@@ -424,6 +510,7 @@ const saveMember = async () => {
     })
     await refresh()
     closeDialog()
+    success('项目成员已保存')
   } catch (requestError) {
     actionError.value = errorMessage(requestError)
   } finally {
@@ -444,6 +531,7 @@ const saveEnvironment = async () => {
     })
     await refresh()
     closeDialog()
+    success('项目环境已保存')
   } catch (requestError) {
     actionError.value = errorMessage(requestError)
   } finally {
@@ -461,6 +549,7 @@ const saveRequirementVersion = async () => {
     })
     await refresh()
     resetRequirementVersionForm()
+    success('需求版本已保存')
   } catch (requestError) {
     actionError.value = errorMessage(requestError)
   } finally {
@@ -468,16 +557,23 @@ const saveRequirementVersion = async () => {
   }
 }
 
-const removeRequirementVersion = async (version: ProjectWorkspace['requirementVersions'][number]) => {
-  if (!window.confirm(`确定删除版本“${version.name}”吗？`)) return
-  actionError.value = ''
-  try {
-    await $fetch(`/api/requirement-versions/${version.id}`, { method: 'DELETE' })
-    await refresh()
-    if (editingId.value === version.id) resetRequirementVersionForm()
-  } catch (requestError) {
-    actionError.value = errorMessage(requestError)
-  }
+const removeRequirementVersion = (version: ProjectWorkspace['requirementVersions'][number]) => {
+  requestConfirmation({
+    title: `删除版本“${version.name}”？`,
+    description: '删除后无法恢复。正在被需求引用的版本不会被系统删除。',
+    confirmLabel: '删除版本',
+    action: async () => {
+      actionError.value = ''
+      try {
+        await $fetch(`/api/requirement-versions/${version.id}`, { method: 'DELETE' })
+        await refresh()
+        if (editingId.value === version.id) resetRequirementVersionForm()
+        success(`版本“${version.name}”已删除`)
+      } catch (requestError) {
+        actionError.value = errorMessage(requestError)
+      }
+    },
+  })
 }
 
 const saveKnowledge = async () => {
@@ -495,6 +591,7 @@ const saveKnowledge = async () => {
     })
     await refresh()
     closeDialog()
+    success('知识文档已保存')
   } catch (requestError) {
     actionError.value = errorMessage(requestError)
   } finally {
@@ -502,34 +599,38 @@ const saveKnowledge = async () => {
   }
 }
 
-const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'environment' | 'knowledge', id: string, label: string, referenceCount = 0) => {
+const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environment' | 'knowledge', id: string, label: string, referenceCount = 0) => {
   const referenceNote = referenceCount ? `，并从 ${referenceCount} 条需求中移除引用` : ''
-  if (!window.confirm(`确定删除“${label}”${referenceNote}吗？`)) return
-  actionError.value = ''
-  try {
-    const apiPath = {
-      requirement: 'requirements',
-      repository: 'repositories',
-      member: 'members',
-      environment: 'environments',
-      knowledge: 'knowledge',
-    }[kind]
-    await $fetch(`/api/${apiPath}/${id}`, { method: 'DELETE' })
-    await refresh()
-  } catch (requestError) {
-    actionError.value = errorMessage(requestError)
-  }
+  requestConfirmation({
+    title: `删除“${label}”？`,
+    description: `删除后无法恢复${referenceNote}。`,
+    confirmLabel: kind === 'member' ? '移除成员' : '确认删除',
+    action: async () => {
+      actionError.value = ''
+      try {
+        const apiPath = {
+          requirement: 'requirements',
+          repository: 'repositories',
+          member: 'members',
+          environment: 'environments',
+          knowledge: 'knowledge',
+        }[kind]
+        await $fetch(`/api/${apiPath}/${id}`, { method: 'DELETE' })
+        await refresh()
+        success(`“${label}”已${kind === 'member' ? '移除' : '删除'}`)
+      } catch (requestError) {
+        actionError.value = errorMessage(requestError)
+      }
+    },
+  })
 }
 </script>
 
 <template>
   <div class="app-frame">
-    <header class="site-header">
-      <NuxtLink to="/" class="brand"><span>ForgePilot</span><small>铸航 · Autonomous Software Delivery</small></NuxtLink>
-      <nav class="header-nav" aria-label="全局导航"><NuxtLink to="/" class="active">项目</NuxtLink><NuxtLink to="/users">用户管理</NuxtLink><NuxtLink to="/settings">全局设置</NuxtLink></nav>
-    </header>
+    <AppHeader />
 
-    <main v-if="workspace" class="page workspace-page">
+    <main v-if="workspace" id="main-content" class="page workspace-page">
       <nav class="breadcrumbs" aria-label="当前位置">
         <NuxtLink to="/">项目</NuxtLink><span aria-hidden="true">/</span>
         <NuxtLink :to="projectPath">{{ workspace.project.name }}</NuxtLink><span aria-hidden="true">/</span>
@@ -551,7 +652,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
         <NuxtLink :to="assetsPath" :class="{ active: activeTab === 'assets' }" :aria-current="activeTab === 'assets' ? 'page' : undefined">资产</NuxtLink>
       </nav>
 
-      <p v-if="actionError && !dialog" class="alert error-state">{{ actionError }}</p>
+      <p v-if="actionError && !dialog" class="alert error-state" role="alert">{{ actionError }}</p>
 
       <section v-if="activeTab === 'requirements'" class="module-section">
         <div class="section-heading">
@@ -565,7 +666,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
               <p>{{ requirement.description || '暂无需求说明' }}</p>
               <div class="asset-references">
                 <span v-for="version in requirement.versions" :key="version.id" class="chip version-chip">{{ version.name }}<em v-if="version.isLatest">latest</em></span>
-                <span v-for="repository in requirement.repositories" :key="repository.id" class="chip repo-chip">⌘ {{ repository.name }}</span>
+                <span v-for="repository in requirement.repositories" :key="repository.id" class="chip repo-chip"><AppIcon name="repository" :size="13" />{{ repository.name }}</span>
                 <span v-for="member in requirement.members" :key="member.id" class="chip member-chip">{{ member.user.name }}</span>
                 <span v-if="!requirement.versions.length && !requirement.repositories.length && !requirement.members.length" class="unbound">尚未关联版本或资产</span>
               </div>
@@ -584,28 +685,28 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
 
           <div class="asset-module-grid">
             <NuxtLink class="panel asset-module-card" :to="`${assetsPath}/repositories`">
-              <span class="asset-module-icon repository-icon" aria-hidden="true">⌘</span>
+              <span class="asset-module-icon repository-icon"><AppIcon name="repository" :size="22" /></span>
               <span class="asset-module-copy"><strong>代码仓库</strong><small>管理 GitLab、GitHub 仓库连接与默认分支</small></span>
               <span class="asset-module-meta"><strong>{{ workspace.repositories.length }}</strong><small>个仓库</small></span>
               <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
             </NuxtLink>
 
             <NuxtLink class="panel asset-module-card" :to="`${assetsPath}/members`">
-              <span class="asset-module-icon member-icon" aria-hidden="true">人</span>
+              <span class="asset-module-icon member-icon"><AppIcon name="members" :size="22" /></span>
               <span class="asset-module-copy"><strong>项目成员</strong><small>从全局用户中选择成员并设置项目角色</small></span>
               <span class="asset-module-meta"><strong>{{ workspace.members.length }}</strong><small>位成员</small></span>
               <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
             </NuxtLink>
 
             <NuxtLink class="panel asset-module-card" :to="`${assetsPath}/environments`">
-              <span class="asset-module-icon environment-icon" aria-hidden="true">◎</span>
+              <span class="asset-module-icon environment-icon"><AppIcon name="environment" :size="22" /></span>
               <span class="asset-module-copy"><strong>环境管理</strong><small>维护开发、测试和生产环境的访问入口</small></span>
               <span class="asset-module-meta"><strong>{{ workspace.environments.length }}</strong><small>个环境</small></span>
               <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
             </NuxtLink>
 
             <NuxtLink class="panel asset-module-card" :to="`${assetsPath}/knowledge`">
-              <span class="asset-module-icon knowledge-icon" aria-hidden="true">文</span>
+              <span class="asset-module-icon knowledge-icon"><AppIcon name="knowledge" :size="22" /></span>
               <span class="asset-module-copy"><strong>知识</strong><small>用 Markdown 沉淀项目知识，并引用项目内其他资产</small></span>
               <span class="asset-module-meta"><strong>{{ workspace.knowledge.length }}</strong><small>篇文档</small></span>
               <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
@@ -613,7 +714,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
           </div>
 
           <aside class="asset-security-note">
-            <span aria-hidden="true">✓</span>
+            <span><AppIcon name="shield-check" :size="16" /></span>
             <p><strong>凭据始终由交付系统保管</strong>ForgePilot 只记录资产标识与访问地址，不保存密码、Token 或私钥。</p>
           </aside>
         </template>
@@ -624,7 +725,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
           </div>
           <div v-if="workspace.repositories.length" class="asset-record-list">
             <article v-for="repository in workspace.repositories" :id="`asset-${repository.id}`" :key="repository.id" class="panel asset-card asset-record-card">
-              <div class="asset-icon repository-icon">⌘</div>
+              <div class="asset-icon repository-icon"><AppIcon name="repository" :size="18" /></div>
               <div class="asset-copy"><strong>{{ repository.name }} <span class="provider-badge">{{ repositoryProviderLabel(repository.provider) }}</span></strong><a :href="repository.url" target="_blank" rel="noreferrer">{{ repository.url }}</a><span v-if="repository.note" class="asset-note">备注：{{ repository.note }}</span><small>默认分支：{{ repository.defaultBranch }} · 被 {{ repository.referenceCount }} 条需求引用</small></div>
               <div class="asset-actions"><button class="text-button" type="button" @click="openRepository(repository)">编辑</button><button class="text-button danger" type="button" @click="removeRecord('repository', repository.id, repository.name, repository.referenceCount)">删除</button></div>
             </article>
@@ -652,7 +753,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
           </div>
           <div v-if="workspace.environments.length" class="asset-record-list">
             <article v-for="environment in workspace.environments" :id="`asset-${environment.id}`" :key="environment.id" class="panel asset-card asset-record-card">
-              <div class="asset-icon environment-icon">◎</div>
+              <div class="asset-icon environment-icon"><AppIcon name="environment" :size="18" /></div>
               <div class="asset-copy"><strong>项目环境 <span class="provider-badge environment-badge" :data-environment="environment.type">{{ environmentTypeLabel(environment.type) }}</span></strong><a :href="environment.address" target="_blank" rel="noreferrer">{{ environment.address }}</a><small>账号：{{ environment.accounts.join('、') }}</small></div>
               <div class="asset-actions"><button class="text-button" type="button" @click="openEnvironment(environment)">编辑</button><button class="text-button danger" type="button" @click="removeRecord('environment', environment.id, environment.address)">删除</button></div>
             </article>
@@ -666,7 +767,7 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
           </div>
           <div v-if="workspace.knowledge.length" class="asset-record-list knowledge-record-list">
             <article v-for="knowledge in workspace.knowledge" :id="`asset-${knowledge.id}`" :key="knowledge.id" class="panel asset-card asset-record-card knowledge-card">
-              <div class="asset-icon knowledge-icon">文</div>
+              <div class="asset-icon knowledge-icon"><AppIcon name="knowledge" :size="18" /></div>
               <div class="asset-copy knowledge-copy">
                 <strong>{{ knowledge.title }}</strong>
                 <pre>{{ knowledge.content }}</pre>
@@ -686,95 +787,112 @@ const removeRecord = async (kind: 'requirement' | 'repository' | 'member' | 'env
       </section>
     </main>
 
-    <main v-else class="page"><div v-if="status === 'pending'" class="panel empty-state">正在读取项目…</div><div v-else class="panel empty-state error-state">{{ error?.statusMessage || '项目不存在' }}</div></main>
+    <main v-else id="main-content" class="page"><AppAsyncState :pending="status === 'pending'" :error-message="error?.statusMessage || '项目不存在'" @retry="refresh" /></main>
 
-    <Teleport to="body">
-      <div v-if="dialog" class="dialog-backdrop" @click.self="closeDialog">
-        <form v-if="dialog === 'requirement'" class="dialog large" @submit.prevent="saveRequirement">
-          <div class="dialog-heading"><div><p class="overline">REQUIREMENT</p><h2>{{ editingId ? '编辑需求' : '新建需求' }}</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
-          <div class="form-grid two"><div class="field span-two"><label>标题</label><input v-model="requirementForm.title" required placeholder="描述要交付的功能" /></div><div class="field"><label>状态</label><select v-model="requirementForm.statusId" required><option v-for="requirementStatus in workspace?.requirementStatuses" :key="requirementStatus.id" :value="requirementStatus.id">{{ requirementStatus.name }}</option></select></div><div class="field"><label>优先级</label><select v-model="requirementForm.priority"><option v-for="option in priorityOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div><div class="field span-two"><label>需求说明</label><textarea v-model="requirementForm.description" rows="3" placeholder="说明背景、目标和范围" /></div><div class="field span-two"><label>验收标准</label><textarea v-model="requirementForm.acceptanceCriteria" rows="3" placeholder="说明怎样才算完成" /></div></div>
-          <div class="reference-picker"><div><h3>关联版本</h3><p>可以选择多个大版本</p></div><div v-if="workspace?.requirementVersions.length" class="check-list"><label v-for="version in workspace.requirementVersions" :key="version.id"><input v-model="requirementForm.versionIds" type="checkbox" :value="version.id" /><span><strong>{{ version.name }} <em v-if="version.isLatest" class="latest-label">latest</em></strong><small>{{ version.requirementCount }} 条需求已关联</small></span></label></div><p v-else class="picker-empty">请先在版本管理中添加大版本。</p></div>
-          <div class="reference-picker"><div><h3>引用代码仓库</h3><p>可以选择多个仓库</p></div><div v-if="workspace?.repositories.length" class="check-list"><label v-for="repository in workspace.repositories" :key="repository.id"><input v-model="requirementForm.repositoryIds" type="checkbox" :value="repository.id" /><span><strong>{{ repository.name }}</strong><small>{{ repositoryProviderLabel(repository.provider) }} · {{ repository.defaultBranch }}<template v-if="repository.note"> · {{ repository.note }}</template></small></span></label></div><p v-else class="picker-empty">请先在资产模块添加代码仓库。</p></div>
-          <div class="reference-picker"><div><h3>引用项目成员</h3><p>可以选择多位参与者</p></div><div v-if="workspace?.members.length" class="check-list"><label v-for="member in workspace.members" :key="member.id"><input v-model="requirementForm.memberIds" type="checkbox" :value="member.id" /><span><strong>{{ member.user.name }}</strong><small>{{ member.role || member.user.email }}</small></span></label></div><p v-else class="picker-empty">请先在资产模块添加成员。</p></div>
-          <p v-if="actionError" class="form-error">{{ actionError }}</p>
-          <div class="dialog-actions"><button class="button secondary" type="button" @click="closeDialog">取消</button><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存需求' }}</button></div>
-        </form>
-
-        <div v-else-if="dialog === 'statuses'" class="dialog large status-dialog">
-          <div class="dialog-heading"><div><p class="overline">REQUIREMENT STATUS</p><h2>需求状态管理</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
-          <p class="dialog-intro">状态是当前项目的独立数据。需求引用状态记录，正在使用的状态不能直接删除。</p>
-          <div class="status-manager">
-            <div class="status-records">
-              <article v-for="requirementStatus in workspace?.requirementStatuses" :key="requirementStatus.id" class="status-record" :class="{ selected: editingId === requirementStatus.id }">
-                <span class="status-color" :style="{ backgroundColor: requirementStatus.color }" />
-                <div><strong>{{ requirementStatus.name }}</strong><small>{{ requirementStatus.key }} · 排序 {{ requirementStatus.sortOrder }} · {{ requirementStatus.requirementCount }} 条需求</small><div class="status-flags"><span v-if="requirementStatus.isInitial">初始状态</span><span v-if="requirementStatus.isTerminal">终态</span></div></div>
-                <div class="status-actions"><button class="text-button" type="button" @click="editRequirementStatus(requirementStatus)">编辑</button><button class="text-button danger" type="button" @click="removeRequirementStatus(requirementStatus)">删除</button></div>
-              </article>
-            </div>
-            <form class="status-editor" @submit.prevent="saveRequirementStatus">
-              <div class="status-editor-heading"><h3>{{ editingId ? '编辑状态' : '新增状态' }}</h3><button v-if="editingId" class="text-button" type="button" @click="resetRequirementStatusForm">新增状态</button></div>
-              <div class="form-grid two"><div class="field"><label>显示名称</label><input v-model="requirementStatusForm.name" required placeholder="例如：评审中" /></div><div class="field"><label>唯一标识</label><input v-model="requirementStatusForm.key" required pattern="[a-z][a-z0-9_]*" placeholder="reviewing" /></div><div class="field"><label>颜色</label><div class="color-input"><input v-model="requirementStatusForm.color" type="color" /><input v-model="requirementStatusForm.color" required pattern="#[0-9a-fA-F]{6}" /></div></div><div class="field"><label>排序</label><input v-model.number="requirementStatusForm.sortOrder" required type="number" min="0" step="1" /></div></div>
-              <label class="toggle-field"><input v-model="requirementStatusForm.isInitial" type="checkbox" :disabled="Boolean(editingId && requirementStatusForm.isInitial)" /><span><strong>初始状态</strong><small>新需求默认使用该状态</small></span></label>
-              <label class="toggle-field"><input v-model="requirementStatusForm.isTerminal" type="checkbox" /><span><strong>终态</strong><small>表示需求生命周期已经结束</small></span></label>
-              <p v-if="actionError" class="form-error">{{ actionError }}</p>
-              <div class="dialog-actions"><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : editingId ? '保存修改' : '新增状态' }}</button></div>
-            </form>
-          </div>
+    <AppDialog :open="dialog === 'requirement'" :title="editingId ? '编辑需求' : '新建需求'" overline="REQUIREMENT" class="large" :busy="saving" @request-close="requestDialogClose">
+      <form id="requirement-form" @submit.prevent="saveRequirement">
+        <div class="form-grid two">
+          <div class="field span-two"><label for="requirement-title">标题</label><input id="requirement-title" v-model="requirementForm.title" required autofocus placeholder="描述要交付的功能" /></div>
+          <div class="field"><label for="requirement-status">状态</label><select id="requirement-status" v-model="requirementForm.statusId" required><option v-for="requirementStatus in workspace?.requirementStatuses" :key="requirementStatus.id" :value="requirementStatus.id">{{ requirementStatus.name }}</option></select></div>
+          <div class="field"><label for="requirement-priority">优先级</label><select id="requirement-priority" v-model="requirementForm.priority"><option v-for="option in priorityOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>
+          <div class="field span-two"><label for="requirement-description">需求说明</label><textarea id="requirement-description" v-model="requirementForm.description" rows="3" placeholder="说明背景、目标和范围" /></div>
+          <div class="field span-two"><label for="requirement-acceptance">验收标准</label><textarea id="requirement-acceptance" v-model="requirementForm.acceptanceCriteria" rows="3" placeholder="说明怎样才算完成" /></div>
         </div>
+        <div class="reference-picker"><div><h3>关联版本</h3><p>可以选择多个大版本</p></div><div v-if="workspace?.requirementVersions.length" class="check-list"><label v-for="version in workspace.requirementVersions" :key="version.id"><input v-model="requirementForm.versionIds" type="checkbox" :value="version.id" /><span><strong>{{ version.name }} <em v-if="version.isLatest" class="latest-label">latest</em></strong><small>{{ version.requirementCount }} 条需求已关联</small></span></label></div><p v-else class="picker-empty">请先在版本管理中添加大版本。</p></div>
+        <div class="reference-picker"><div><h3>引用代码仓库</h3><p>可以选择多个仓库</p></div><div v-if="workspace?.repositories.length" class="check-list"><label v-for="repository in workspace.repositories" :key="repository.id"><input v-model="requirementForm.repositoryIds" type="checkbox" :value="repository.id" /><span><strong>{{ repository.name }}</strong><small>{{ repositoryProviderLabel(repository.provider) }} · {{ repository.defaultBranch }}<template v-if="repository.note"> · {{ repository.note }}</template></small></span></label></div><p v-else class="picker-empty">请先在资产模块添加代码仓库。</p></div>
+        <div class="reference-picker"><div><h3>引用项目成员</h3><p>可以选择多位参与者</p></div><div v-if="workspace?.members.length" class="check-list"><label v-for="member in workspace.members" :key="member.id"><input v-model="requirementForm.memberIds" type="checkbox" :value="member.id" /><span><strong>{{ member.user.name }}</strong><small>{{ member.role || member.user.email }}</small></span></label></div><p v-else class="picker-empty">请先在资产模块添加成员。</p></div>
+        <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
+      </form>
+      <template #actions><button class="button secondary" type="button" :disabled="saving" @click="requestDialogClose">取消</button><button class="button primary" type="submit" form="requirement-form" :disabled="saving">{{ saving ? '保存中…' : '保存需求' }}</button></template>
+    </AppDialog>
 
-        <div v-else-if="dialog === 'versions'" class="dialog large status-dialog">
-          <div class="dialog-heading"><div><p class="overline">REQUIREMENT VERSION</p><h2>需求版本管理</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
-          <p class="dialog-intro">只维护大版本号，系统固定展示为 v${大版本号}.x；数值最大的版本自动标记为 latest。</p>
-          <div class="status-manager">
-            <div class="status-records">
-              <article v-for="version in workspace?.requirementVersions" :key="version.id" class="status-record version-record" :class="{ selected: editingId === version.id }">
-                <div><strong>{{ version.name }} <em v-if="version.isLatest" class="latest-label">latest</em></strong><small>大版本号 {{ version.major }} · {{ version.requirementCount }} 条需求</small></div>
-                <div class="status-actions"><button class="text-button" type="button" @click="editRequirementVersion(version)">编辑</button><button class="text-button danger" type="button" @click="removeRequirementVersion(version)">删除</button></div>
-              </article>
-              <p v-if="!workspace?.requirementVersions.length" class="picker-empty">还没有版本，请先添加一个大版本。</p>
-            </div>
-            <form class="status-editor" @submit.prevent="saveRequirementVersion">
-              <div class="status-editor-heading"><h3>{{ editingId ? '编辑版本' : '新增版本' }}</h3><button v-if="editingId" class="text-button" type="button" @click="resetRequirementVersionForm">新增版本</button></div>
-              <div class="field"><label>大版本号</label><input v-model.number="requirementVersionForm.major" required type="number" min="0" step="1" placeholder="例如：3" /><small>将显示为 v{{ requirementVersionForm.major }}.x</small></div>
-              <p v-if="actionError" class="form-error">{{ actionError }}</p>
-              <div class="dialog-actions"><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : editingId ? '保存修改' : '新增版本' }}</button></div>
-            </form>
-          </div>
+    <AppDialog :open="dialog === 'statuses'" title="需求状态管理" overline="REQUIREMENT STATUS" class="large status-dialog" :busy="saving" @request-close="requestDialogClose">
+      <p class="dialog-intro">状态是当前项目的独立数据。需求引用状态记录，正在使用的状态不能直接删除。</p>
+      <div class="status-manager">
+        <div class="status-records">
+          <article v-for="requirementStatus in workspace?.requirementStatuses" :key="requirementStatus.id" class="status-record" :class="{ selected: editingId === requirementStatus.id }">
+            <span class="status-color" :style="{ backgroundColor: requirementStatus.color }" />
+            <div><strong>{{ requirementStatus.name }}</strong><small>{{ requirementStatus.key }} · 排序 {{ requirementStatus.sortOrder }} · {{ requirementStatus.requirementCount }} 条需求</small><div class="status-flags"><span v-if="requirementStatus.isInitial">初始状态</span><span v-if="requirementStatus.isTerminal">终态</span></div></div>
+            <div class="status-actions"><button class="text-button" type="button" @click="editRequirementStatus(requirementStatus)">编辑</button><button class="text-button danger" type="button" @click="removeRequirementStatus(requirementStatus)">删除</button></div>
+          </article>
         </div>
-
-        <form v-else-if="dialog === 'repository'" class="dialog repository-dialog" @submit.prevent="saveRepository">
-          <div class="dialog-heading"><div><p class="overline">REPOSITORY ASSET</p><h2>{{ editingId ? '编辑代码仓库' : '添加代码仓库' }}</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
-          <section v-if="!editingId && repositoryForm.provider === 'gitlab'" class="gitlab-picker"><div class="gitlab-picker-heading"><div><strong>从 GitLab 选择</strong><small>使用全局 Token 读取你有权访问的仓库</small></div><NuxtLink to="/settings" class="text-button">全局设置</NuxtLink></div><div class="gitlab-picker-search"><input v-model="gitlabRepositorySearch" placeholder="搜索 GitLab 仓库" @keydown.enter.prevent="loadGitLabRepositories" /><button class="button secondary" type="button" :disabled="gitlabRepositoriesLoading" @click="loadGitLabRepositories">{{ gitlabRepositoriesLoading ? '读取中…' : '查询' }}</button></div><p v-if="gitlabRepositoryError" class="picker-error">{{ gitlabRepositoryError }}</p><div v-if="gitlabRepositories.length" class="gitlab-results"><button v-for="repository in gitlabRepositories" :key="repository.id" type="button" :class="{ selected: repositoryForm.externalId === String(repository.id) }" @click="selectGitLabRepository(repository)"><span><strong>{{ repository.name }}</strong><small>{{ repository.nameWithNamespace }}</small></span><em>{{ repository.defaultBranch }}</em></button></div></section>
-          <div class="field"><label>代码托管平台</label><select v-model="repositoryForm.provider" required><option v-for="option in repositoryProviderOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div><div class="field"><label>仓库名称</label><input v-model="repositoryForm.name" required placeholder="例如：forgepilot-web" /></div><div class="field"><label>备注</label><textarea v-model="repositoryForm.note" maxlength="500" placeholder="例如：前端主仓库，负责 ForgePilot 控制台"></textarea><small>可填写仓库用途、维护范围或其他说明。</small></div><div class="field"><label>{{ repositoryProviderLabel(repositoryForm.provider) }} 仓库地址</label><input v-model="repositoryForm.url" required type="url" :placeholder="repositoryUrlPlaceholder" @input="repositoryForm.externalId = null" /></div><div class="field"><label>默认分支</label><input v-model="repositoryForm.defaultBranch" required placeholder="main" /></div>
-          <p v-if="actionError" class="form-error">{{ actionError }}</p><div class="dialog-actions"><button class="button secondary" type="button" @click="closeDialog">取消</button><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存仓库' }}</button></div>
-        </form>
-
-        <form v-else-if="dialog === 'knowledge'" class="dialog large knowledge-dialog" @submit.prevent="saveKnowledge">
-          <div class="dialog-heading"><div><p class="overline">KNOWLEDGE ASSET</p><h2>{{ editingId ? '编辑知识' : '添加知识' }}</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
-          <p class="dialog-intro">正文以 Markdown 原文保存。使用 <code>[[资产类型：记录id]]</code> 引用当前项目内的代码仓库、项目成员、环境或其他知识。</p>
-          <div class="field"><label>标题</label><input v-model="knowledgeForm.title" required placeholder="例如：项目架构约定" /></div>
-          <div class="field"><label>Markdown 内容</label><KnowledgeMarkdownEditor ref="knowledgeEditor" v-model="knowledgeForm.content" :references="knowledgeReferenceOptions" /><small>编辑内容会实时渲染；资产引用以控件显示，仍会按原始语法存入数据库。</small></div>
-          <div v-if="knowledgeReferenceOptions.length" class="knowledge-reference-picker"><strong>插入资产引用</strong><small>选择后会在当前光标处插入资产控件。</small><div><button v-for="option in knowledgeReferenceOptions" :key="`${option.assetType}:${option.recordId}`" type="button" @click="insertKnowledgeReference(option.assetType, option.recordId)"><span>{{ option.assetType }}</span>{{ option.label }}</button></div></div>
-          <p v-if="actionError" class="form-error">{{ actionError }}</p><div class="dialog-actions"><button class="button secondary" type="button" @click="closeDialog">取消</button><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存知识' }}</button></div>
-        </form>
-
-        <form v-else-if="dialog === 'environment'" class="dialog" @submit.prevent="saveEnvironment">
-          <div class="dialog-heading"><div><p class="overline">ENVIRONMENT ASSET</p><h2>{{ editingId ? '编辑环境' : '添加环境' }}</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
-          <p class="dialog-intro">登记可访问的环境地址和账号标识。密码、Token 与私钥仍由 CI/CD 或目标基础设施管理。</p>
-          <div class="field"><label>环境类型</label><select v-model="environmentForm.type" required><option v-for="option in environmentTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>
-          <div class="field"><label>环境地址</label><input v-model="environmentForm.address" required type="url" placeholder="https://dev.example.com" /><small>仅支持 HTTP 或 HTTPS 地址，地址中不能包含账号密码。</small></div>
-          <div class="field"><label>账号</label><div class="account-list"><div v-for="(_, index) in environmentForm.accounts" :key="index" class="account-row"><input v-model="environmentForm.accounts[index]" required maxlength="100" :placeholder="`账号 ${index + 1}`" /><button class="text-button danger" type="button" @click="removeEnvironmentAccount(index)">移除</button></div><button class="text-button add-account" type="button" :disabled="environmentForm.accounts.length >= 20" @click="addEnvironmentAccount">＋ 添加账号</button></div><small>最多 20 个账号；这里只保存账号名称，不保存任何登录凭据。</small></div>
-          <p v-if="actionError" class="form-error">{{ actionError }}</p><div class="dialog-actions"><button class="button secondary" type="button" @click="closeDialog">取消</button><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : '保存环境' }}</button></div>
-        </form>
-
-        <form v-else-if="dialog === 'member'" class="dialog" @submit.prevent="saveMember">
-          <div class="dialog-heading"><div><p class="overline">PROJECT MEMBER</p><h2>{{ editingId ? '编辑成员角色' : '添加项目成员' }}</h2></div><button type="button" class="close-button" @click="closeDialog">×</button></div>
-          <p class="dialog-intro">从全局用户中选择项目成员，并定义其在当前项目中的角色。</p>
-          <div class="field"><label>用户</label><select v-model="memberForm.userId" required :disabled="Boolean(editingId) || usersStatus === 'pending'"><option v-for="user in selectableUsers" :key="user.id" :value="user.id">{{ user.name }} · {{ user.email }}</option></select><small v-if="editingId">成员身份不可更换，只能修改项目角色。</small><small v-else-if="usersStatus === 'pending'">正在读取全局用户…</small><small v-else-if="usersError">全局用户读取失败，请稍后重试。</small><small v-else-if="!selectableUsers.length">没有可添加的用户，请先前往 <NuxtLink to="/users">用户管理</NuxtLink> 新增用户。</small></div>
-          <div class="field"><label>项目角色</label><input v-model="memberForm.role" required placeholder="例如：技术负责人" /><small>角色只在当前项目内生效。</small></div>
-          <p v-if="actionError" class="form-error">{{ actionError }}</p><div class="dialog-actions"><button class="button secondary" type="button" @click="closeDialog">取消</button><button class="button primary" type="submit" :disabled="saving || !memberForm.userId">{{ saving ? '保存中…' : editingId ? '保存角色' : '添加成员' }}</button></div>
+        <form class="status-editor" @submit.prevent="saveRequirementStatus">
+          <div class="status-editor-heading"><h3>{{ editingId ? '编辑状态' : '新增状态' }}</h3><button v-if="editingId" class="text-button" type="button" @click="resetRequirementStatusForm">新增状态</button></div>
+          <div class="form-grid two">
+            <div class="field"><label for="status-name">显示名称</label><input id="status-name" v-model="requirementStatusForm.name" required autofocus placeholder="例如：评审中" /></div>
+            <div class="field"><label for="status-key">唯一标识</label><input id="status-key" v-model="requirementStatusForm.key" required pattern="[a-z][a-z0-9_]*" placeholder="reviewing" /></div>
+            <div class="field"><label for="status-color">颜色</label><div class="color-input"><input aria-label="选择状态颜色" v-model="requirementStatusForm.color" type="color" /><input id="status-color" v-model="requirementStatusForm.color" required pattern="#[0-9a-fA-F]{6}" /></div></div>
+            <div class="field"><label for="status-sort">排序</label><input id="status-sort" v-model.number="requirementStatusForm.sortOrder" required type="number" min="0" step="1" /></div>
+          </div>
+          <label class="toggle-field"><input v-model="requirementStatusForm.isInitial" type="checkbox" :disabled="Boolean(editingId && requirementStatusForm.isInitial)" /><span><strong>初始状态</strong><small>新需求默认使用该状态</small></span></label>
+          <label class="toggle-field"><input v-model="requirementStatusForm.isTerminal" type="checkbox" /><span><strong>终态</strong><small>表示需求生命周期已经结束</small></span></label>
+          <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
+          <div class="dialog-actions"><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : editingId ? '保存修改' : '新增状态' }}</button></div>
         </form>
       </div>
-    </Teleport>
+    </AppDialog>
+
+    <AppDialog :open="dialog === 'versions'" title="需求版本管理" overline="REQUIREMENT VERSION" class="large status-dialog" :busy="saving" @request-close="requestDialogClose">
+      <p class="dialog-intro">只维护大版本号，系统固定展示为 v${大版本号}.x；数值最大的版本自动标记为 latest。</p>
+      <div class="status-manager">
+        <div class="status-records">
+          <article v-for="version in workspace?.requirementVersions" :key="version.id" class="status-record version-record" :class="{ selected: editingId === version.id }"><div><strong>{{ version.name }} <em v-if="version.isLatest" class="latest-label">latest</em></strong><small>大版本号 {{ version.major }} · {{ version.requirementCount }} 条需求</small></div><div class="status-actions"><button class="text-button" type="button" @click="editRequirementVersion(version)">编辑</button><button class="text-button danger" type="button" @click="removeRequirementVersion(version)">删除</button></div></article>
+          <p v-if="!workspace?.requirementVersions.length" class="picker-empty">还没有版本，请先添加一个大版本。</p>
+        </div>
+        <form class="status-editor" @submit.prevent="saveRequirementVersion">
+          <div class="status-editor-heading"><h3>{{ editingId ? '编辑版本' : '新增版本' }}</h3><button v-if="editingId" class="text-button" type="button" @click="resetRequirementVersionForm">新增版本</button></div>
+          <div class="field"><label for="version-major">大版本号</label><input id="version-major" v-model.number="requirementVersionForm.major" required autofocus type="number" min="0" step="1" placeholder="例如：3" /><small>将显示为 v{{ requirementVersionForm.major }}.x</small></div>
+          <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
+          <div class="dialog-actions"><button class="button primary" type="submit" :disabled="saving">{{ saving ? '保存中…' : editingId ? '保存修改' : '新增版本' }}</button></div>
+        </form>
+      </div>
+    </AppDialog>
+
+    <AppDialog :open="dialog === 'repository'" :title="editingId ? '编辑代码仓库' : '添加代码仓库'" overline="REPOSITORY ASSET" class="repository-dialog" :busy="saving" @request-close="requestDialogClose">
+      <form id="repository-form" @submit.prevent="saveRepository">
+        <section v-if="!editingId && repositoryForm.provider === 'gitlab'" class="gitlab-picker"><div class="gitlab-picker-heading"><div><strong>从 GitLab 选择</strong><small>使用全局 Token 读取你有权访问的仓库</small></div><NuxtLink to="/settings" class="text-button">全局设置</NuxtLink></div><div class="gitlab-picker-search"><label class="sr-only" for="gitlab-repository-search">搜索 GitLab 仓库</label><input id="gitlab-repository-search" v-model="gitlabRepositorySearch" placeholder="搜索 GitLab 仓库" @keydown.enter.prevent="loadGitLabRepositories" /><button class="button secondary" type="button" :disabled="gitlabRepositoriesLoading" @click="loadGitLabRepositories">{{ gitlabRepositoriesLoading ? '读取中…' : '查询' }}</button></div><p v-if="gitlabRepositoryError" class="picker-error" role="alert">{{ gitlabRepositoryError }}</p><div v-if="gitlabRepositories.length" class="gitlab-results"><button v-for="repository in gitlabRepositories" :key="repository.id" type="button" :class="{ selected: repositoryForm.externalId === String(repository.id) }" @click="selectGitLabRepository(repository)"><span><strong>{{ repository.name }}</strong><small>{{ repository.nameWithNamespace }}</small></span><em>{{ repository.defaultBranch }}</em></button></div></section>
+        <div class="field"><label for="repository-provider">代码托管平台</label><select id="repository-provider" v-model="repositoryForm.provider" required><option v-for="option in repositoryProviderOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>
+        <div class="field"><label for="repository-name">仓库名称</label><input id="repository-name" v-model="repositoryForm.name" required placeholder="例如：forgepilot-web" /></div>
+        <div class="field"><label for="repository-note">备注</label><textarea id="repository-note" v-model="repositoryForm.note" maxlength="500" placeholder="例如：前端主仓库，负责 ForgePilot 控制台"></textarea><small>可填写仓库用途、维护范围或其他说明。</small></div>
+        <div class="field"><label for="repository-url">{{ repositoryProviderLabel(repositoryForm.provider) }} 仓库地址</label><input id="repository-url" v-model="repositoryForm.url" required type="url" :placeholder="repositoryUrlPlaceholder" @input="repositoryForm.externalId = null" /></div>
+        <div class="field"><label for="repository-branch">默认分支</label><input id="repository-branch" v-model="repositoryForm.defaultBranch" required placeholder="main" /></div>
+        <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
+      </form>
+      <template #actions><button class="button secondary" type="button" :disabled="saving" @click="requestDialogClose">取消</button><button class="button primary" type="submit" form="repository-form" :disabled="saving">{{ saving ? '保存中…' : '保存仓库' }}</button></template>
+    </AppDialog>
+
+    <AppDialog :open="dialog === 'knowledge'" :title="editingId ? '编辑知识' : '添加知识'" overline="KNOWLEDGE ASSET" class="large knowledge-dialog" :busy="saving" @request-close="requestDialogClose">
+      <form id="knowledge-form" @submit.prevent="saveKnowledge">
+        <p class="dialog-intro">正文以 Markdown 原文保存。使用 <code>[[资产类型：记录id]]</code> 引用当前项目内的代码仓库、项目成员、环境或其他知识。</p>
+        <div class="field"><label for="knowledge-title">标题</label><input id="knowledge-title" v-model="knowledgeForm.title" required autofocus placeholder="例如：项目架构约定" /></div>
+        <div class="field"><span id="knowledge-content-label" class="field-label">Markdown 内容</span><KnowledgeMarkdownEditor ref="knowledgeEditor" v-model="knowledgeForm.content" :references="knowledgeReferenceOptions" role="group" aria-labelledby="knowledge-content-label" /><small>编辑内容会实时渲染；资产引用以控件显示，仍会按原始语法存入数据库。</small></div>
+        <div v-if="knowledgeReferenceOptions.length" class="knowledge-reference-picker"><strong>插入资产引用</strong><small>选择后会在当前光标处插入资产控件。</small><div><button v-for="option in knowledgeReferenceOptions" :key="`${option.assetType}:${option.recordId}`" type="button" @click="insertKnowledgeReference(option.assetType, option.recordId)"><span>{{ option.assetType }}</span>{{ option.label }}</button></div></div>
+        <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
+      </form>
+      <template #actions><button class="button secondary" type="button" :disabled="saving" @click="requestDialogClose">取消</button><button class="button primary" type="submit" form="knowledge-form" :disabled="saving">{{ saving ? '保存中…' : '保存知识' }}</button></template>
+    </AppDialog>
+
+    <AppDialog :open="dialog === 'environment'" :title="editingId ? '编辑环境' : '添加环境'" overline="ENVIRONMENT ASSET" :busy="saving" @request-close="requestDialogClose">
+      <form id="environment-form" @submit.prevent="saveEnvironment">
+        <p class="dialog-intro">登记可访问的环境地址和账号标识。密码、Token 与私钥仍由 CI/CD 或目标基础设施管理。</p>
+        <div class="field"><label for="environment-type">环境类型</label><select id="environment-type" v-model="environmentForm.type" required><option v-for="option in environmentTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option></select></div>
+        <div class="field"><label for="environment-address">环境地址</label><input id="environment-address" v-model="environmentForm.address" required autofocus type="url" placeholder="https://dev.example.com" /><small>仅支持 HTTP 或 HTTPS 地址，地址中不能包含账号密码。</small></div>
+        <div class="field"><span class="field-label">账号</span><div class="account-list"><div v-for="(_, index) in environmentForm.accounts" :key="index" class="account-row"><input v-model="environmentForm.accounts[index]" required maxlength="100" :aria-label="`账号 ${index + 1}`" :placeholder="`账号 ${index + 1}`" /><button class="text-button danger" type="button" @click="removeEnvironmentAccount(index)">移除</button></div><button class="text-button add-account" type="button" :disabled="environmentForm.accounts.length >= 20" @click="addEnvironmentAccount">＋ 添加账号</button></div><small>最多 20 个账号；这里只保存账号名称，不保存任何登录凭据。</small></div>
+        <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
+      </form>
+      <template #actions><button class="button secondary" type="button" :disabled="saving" @click="requestDialogClose">取消</button><button class="button primary" type="submit" form="environment-form" :disabled="saving">{{ saving ? '保存中…' : '保存环境' }}</button></template>
+    </AppDialog>
+
+    <AppDialog :open="dialog === 'member'" :title="editingId ? '编辑成员角色' : '添加项目成员'" overline="PROJECT MEMBER" :busy="saving" @request-close="requestDialogClose">
+      <form id="member-form" @submit.prevent="saveMember">
+        <p class="dialog-intro">从全局用户中选择项目成员，并定义其在当前项目中的角色。</p>
+        <div class="field"><label for="member-user">用户</label><select id="member-user" v-model="memberForm.userId" required autofocus :disabled="Boolean(editingId) || usersStatus === 'pending'"><option v-for="user in selectableUsers" :key="user.id" :value="user.id">{{ user.name }} · {{ user.email }}</option></select><small v-if="editingId">成员身份不可更换，只能修改项目角色。</small><small v-else-if="usersStatus === 'pending'">正在读取全局用户…</small><small v-else-if="usersError">全局用户读取失败，请稍后重试。</small><small v-else-if="!selectableUsers.length">没有可添加的用户，请先前往 <NuxtLink to="/users">用户管理</NuxtLink> 新增用户。</small></div>
+        <div class="field"><label for="member-role">项目角色</label><input id="member-role" v-model="memberForm.role" required placeholder="例如：技术负责人" /><small>角色只在当前项目内生效。</small></div>
+        <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
+      </form>
+      <template #actions><button class="button secondary" type="button" :disabled="saving" @click="requestDialogClose">取消</button><button class="button primary" type="submit" form="member-form" :disabled="saving || !memberForm.userId">{{ saving ? '保存中…' : editingId ? '保存角色' : '添加成员' }}</button></template>
+    </AppDialog>
+
+    <AppConfirmDialog :open="Boolean(confirmation)" :title="confirmation?.title || ''" :description="confirmation?.description || ''" :confirm-label="confirmation?.confirmLabel || '确认'" :busy="confirmationBusy" danger @cancel="cancelConfirmation" @confirm="runConfirmation" />
   </div>
 </template>

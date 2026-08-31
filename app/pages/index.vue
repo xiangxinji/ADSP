@@ -28,13 +28,9 @@ const createProject = async () => {
 
 <template>
   <div class="app-frame">
-    <header class="site-header">
-      <NuxtLink to="/" class="brand"><span>ForgePilot</span><small>铸航 · Autonomous Software Delivery</small></NuxtLink>
-      <nav class="header-nav" aria-label="全局导航"><NuxtLink to="/" class="active">项目</NuxtLink><NuxtLink to="/users">用户管理</NuxtLink><NuxtLink to="/settings">全局设置</NuxtLink></nav>
-      <span class="header-badge">Architecture Preview</span>
-    </header>
+    <AppHeader badge="Architecture Preview" />
 
-    <main class="page projects-page">
+    <main id="main-content" class="page projects-page">
       <section class="page-title-row">
         <div>
           <p class="overline">WORKSPACES</p>
@@ -48,11 +44,10 @@ const createProject = async () => {
         <div class="field"><label for="project-name">项目名称</label><input id="project-name" v-model="form.name" required placeholder="例如：ForgePilot Platform" /></div>
         <div class="field grow"><label for="project-description">项目说明</label><input id="project-description" v-model="form.description" placeholder="描述这个项目交付什么" /></div>
         <button class="button primary" type="submit" :disabled="saving">{{ saving ? '创建中…' : '创建并进入' }}</button>
-        <p v-if="actionError" class="form-error">{{ actionError }}</p>
+        <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
       </form>
 
-      <div v-if="status === 'pending'" class="panel empty-state">正在读取项目…</div>
-      <div v-else-if="error" class="panel empty-state error-state">无法读取项目：{{ error.statusMessage }}</div>
+      <AppAsyncState v-if="status === 'pending' || error" :pending="status === 'pending'" :error-message="error?.statusMessage" @retry="refresh" />
       <section v-else class="project-list">
         <NuxtLink v-for="project in projects" :key="project.id" :to="`/projects/${project.id}`" class="panel project-card">
           <div class="project-monogram">{{ project.name.slice(0, 2).toUpperCase() }}</div>

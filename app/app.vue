@@ -10,7 +10,9 @@ useHead({
 
 <template>
   <div>
+    <a class="skip-link" href="#main-content">跳转到主要内容</a>
     <NuxtRouteAnnouncer />
     <NuxtPage />
+    <AppToastHost />
   </div>
 </template>
