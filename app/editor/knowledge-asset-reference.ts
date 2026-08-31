@@ -7,6 +7,10 @@ import {
   createKnowledgeReferenceToken,
   transformKnowledgeReferenceTree,
 } from './knowledge-reference-syntax'
+import {
+  missingAssetReferenceLabel,
+  missingAssetReferenceMessage,
+} from '../utils/knowledge-reference-display'
 
 export type KnowledgeAssetReferenceOption = {
   targetType: 'repository' | 'member' | 'environment' | 'knowledge'
@@ -87,7 +91,8 @@ export const createKnowledgeAssetReferencePlugins = (options: KnowledgeAssetRefe
       root.contentEditable = 'false'
       root.title = option
         ? `${option.typeLabel} · ${option.label} · ${option.detail}`
-        : `未解析 · ${assetType}：${recordId}`
+        : missingAssetReferenceMessage(assetType, recordId)
+      if (!option) root.setAttribute('aria-label', root.title)
 
       const type = document.createElement('span')
       type.className = 'knowledge-asset-control-type'
@@ -95,7 +100,7 @@ export const createKnowledgeAssetReferencePlugins = (options: KnowledgeAssetRefe
       const content = document.createElement('span')
       content.className = 'knowledge-asset-control-content'
       const label = document.createElement('strong')
-      label.textContent = option?.label || '未解析资产'
+      label.textContent = option?.label || missingAssetReferenceLabel
       const detail = document.createElement('small')
       detail.textContent = option?.detail || recordId
       content.append(label, detail)

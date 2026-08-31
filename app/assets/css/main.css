@@ -209,7 +209,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(37,99,235,.32); 
 .knowledge-copy pre { max-height: 126px; margin: 7px 0 10px; padding: 11px 12px; overflow: hidden; border: 1px solid #e4e7ec; border-radius: 7px; color: #344054; background: #f9fafb; font-family: "Cascadia Code", Consolas, monospace; font-size: 9px; line-height: 1.55; white-space: pre-wrap; }
 .knowledge-references { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 8px; }
 .asset-copy .knowledge-reference { display: inline-block; margin: 0; color: #175cd3; background: #eff8ff; white-space: normal; }
-.asset-copy .knowledge-reference.unresolved { color: #b42318; background: #fef3f2; }
+.asset-copy .knowledge-reference.unresolved { color: var(--warning, #b54708); box-shadow: inset 0 0 0 1px var(--warning-border, #fedf89); background: var(--warning-soft, #fffaeb); cursor: help; }
 
 .account-list { display: flex; flex-direction: column; gap: 7px; }
 .account-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)) auto; align-items: center; gap: 7px; }
@@ -256,9 +256,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(37,99,235,.32); 
 .knowledge-markdown-editor .milkdown .ProseMirror > :first-child { margin-top: 0; }
 .knowledge-asset-control { max-width: min(360px, 100%); display: inline-flex; align-items: center; gap: 7px; margin: 0 3px; padding: 4px 8px 4px 5px; border: 1px solid #b2ccff; border-radius: 7px; color: #1849a9; background: #eff8ff; vertical-align: middle; cursor: default; user-select: all; }
 .knowledge-asset-control.ProseMirror-selectednode { border-color: #2e90fa; box-shadow: 0 0 0 2px rgba(46,144,250,.2); }
-.knowledge-asset-control.unresolved { color: #b42318; border-color: #fecdca; background: #fef3f2; }
+.knowledge-asset-control.unresolved { color: var(--warning, #b54708); border-color: var(--warning-border, #fedf89); background: var(--warning-soft, #fffaeb); cursor: help; }
 .knowledge-asset-control-type { flex: none; padding: 2px 5px; border-radius: 4px; color: #175cd3; background: #dbeafe; font-size: 8px; font-weight: 700; line-height: 1.4; }
-.knowledge-asset-control.unresolved .knowledge-asset-control-type { color: #b42318; background: #fee4e2; }
+.knowledge-asset-control.unresolved .knowledge-asset-control-type { color: var(--warning, #b54708); background: color-mix(in srgb, var(--warning-border, #fedf89) 42%, transparent); }
 .knowledge-asset-control-content { min-width: 0; display: inline-flex; align-items: baseline; gap: 6px; }
 .knowledge-asset-control-content strong, .knowledge-asset-control-content small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .knowledge-asset-control-content strong { font-size: 10px; }

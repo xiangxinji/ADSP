@@ -292,6 +292,9 @@ const knowledgeReferencePath = (reference: KnowledgeReference) => {
 const knowledgeReferenceLabel = (reference: KnowledgeReference) => reference.label
   || `${reference.assetType}：${reference.recordId}`
 
+const knowledgeReferenceWarning = (reference: KnowledgeReference) =>
+  missingAssetReferenceMessage(reference.assetType, reference.recordId)
+
 const addEnvironmentAccount = () => environmentForm.accounts.push({ account: '', password: '' })
 
 const removeEnvironmentAccount = (index: number) => {
@@ -691,7 +694,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
                 <div v-if="knowledge.references.length" class="knowledge-references">
                   <template v-for="reference in knowledge.references" :key="`${reference.assetType}:${reference.recordId}`">
                     <NuxtLink v-if="reference.resolved" class="chip knowledge-reference" :to="knowledgeReferencePath(reference)">{{ knowledgeReferenceLabel(reference) }}</NuxtLink>
-                    <span v-else class="chip knowledge-reference unresolved">未解析 · {{ knowledgeReferenceLabel(reference) }}</span>
+                    <span v-else class="chip knowledge-reference unresolved" :title="knowledgeReferenceWarning(reference)" :aria-label="knowledgeReferenceWarning(reference)">资产不存在 · {{ knowledgeReferenceLabel(reference) }}</span>
                   </template>
                 </div>
                 <small>Markdown · {{ knowledge.references.length }} 个资产引用 · 更新于 {{ formatDate(knowledge.updatedAt) }}</small>
