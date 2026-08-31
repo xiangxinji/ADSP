@@ -1,5 +1,9 @@
 # Repository Guidelines
 
+## Agent Skill Restrictions
+
+Do not invoke, load, or follow any skill whose name begins with `superpowers:` while working in this repository. Use the repository guidelines, normal development workflows, or relevant non-superpowers skills instead.
+
 ## Project Identity & Boundaries
 
 This repository is **ForgePilot · 铸航 — Autonomous Software Delivery Platform**（自主软件交付平台）. Display `ForgePilot` as the product name, `铸航` as its Chinese name, and use the `forgepilot-` prefix for new services. ForgePilot converts requirements into verified code changes and orchestrates delivery through external systems.
