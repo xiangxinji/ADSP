@@ -609,28 +609,24 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
               <span class="asset-module-icon repository-icon"><AppIcon name="repository" :size="22" /></span>
               <span class="asset-module-copy"><strong>代码仓库</strong><small>管理 GitLab、GitHub 仓库连接</small></span>
               <span class="asset-module-meta"><strong>{{ workspace.repositories.length }}</strong><small>个仓库</small></span>
-              <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
             </NuxtLink>
 
             <NuxtLink class="panel asset-module-card" :to="`${assetsPath}/members`">
               <span class="asset-module-icon member-icon"><AppIcon name="members" :size="22" /></span>
               <span class="asset-module-copy"><strong>项目成员</strong><small>从全局用户中选择成员并设置项目角色</small></span>
               <span class="asset-module-meta"><strong>{{ workspace.members.length }}</strong><small>位成员</small></span>
-              <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
             </NuxtLink>
 
             <NuxtLink class="panel asset-module-card" :to="`${assetsPath}/environments`">
               <span class="asset-module-icon environment-icon"><AppIcon name="environment" :size="22" /></span>
               <span class="asset-module-copy"><strong>环境管理</strong><small>维护开发、测试和生产环境的访问入口</small></span>
               <span class="asset-module-meta"><strong>{{ workspace.environments.length }}</strong><small>个环境</small></span>
-              <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
             </NuxtLink>
 
             <NuxtLink class="panel asset-module-card" :to="`${assetsPath}/knowledge`">
               <span class="asset-module-icon knowledge-icon"><AppIcon name="knowledge" :size="22" /></span>
               <span class="asset-module-copy"><strong>知识</strong><small>用 Markdown 沉淀项目知识，并引用项目内其他资产</small></span>
               <span class="asset-module-meta"><strong>{{ workspace.knowledge.length }}</strong><small>篇文档</small></span>
-              <span class="asset-module-link">进入管理 <span aria-hidden="true">→</span></span>
             </NuxtLink>
           </div>
 
