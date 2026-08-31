@@ -3,7 +3,10 @@ import type { Command } from '@milkdown/kit/prose/state'
 import { nodeRule } from '@milkdown/kit/prose'
 import { $inputRule, $nodeSchema, $remark, $useKeymap } from '@milkdown/kit/utils'
 import type { KnowledgeReferenceMarkdownNode } from './knowledge-reference-syntax'
-import { transformKnowledgeReferenceTree } from './knowledge-reference-syntax'
+import {
+  createKnowledgeReferenceToken,
+  transformKnowledgeReferenceTree,
+} from './knowledge-reference-syntax'
 
 export type KnowledgeAssetReferenceOption = {
   assetType: string
@@ -113,7 +116,10 @@ export const createKnowledgeAssetReferencePlugins = (options: KnowledgeAssetRefe
       match: node => node.type.name === assetReferenceId,
       runner: (state, node) => {
         const raw = String(node.attrs.raw)
-          || `[[${String(node.attrs.assetType)}：${String(node.attrs.recordId)}]]`
+          || createKnowledgeReferenceToken(
+            String(node.attrs.assetType),
+            String(node.attrs.recordId),
+          )
         state.addNode('html', undefined, raw)
       },
     },

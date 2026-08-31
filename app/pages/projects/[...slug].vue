@@ -19,7 +19,6 @@ import type { KnowledgeAssetReferenceOption } from '~/editor/knowledge-asset-ref
 
 type KnowledgeMarkdownEditorHandle = {
   getMarkdown: () => string
-  insertReference: (assetType: string, recordId: string) => Promise<void>
 }
 
 const route = useRoute()
@@ -325,15 +324,6 @@ const openKnowledge = (knowledge?: KnowledgeAsset) => {
   actionError.value = ''
   dialog.value = 'knowledge'
   captureDialogSnapshot()
-}
-
-const insertKnowledgeReference = (assetType: string, recordId: string) => {
-  if (knowledgeEditor.value) {
-    void knowledgeEditor.value.insertReference(assetType, recordId)
-    return
-  }
-  const separator = knowledgeForm.content && !knowledgeForm.content.endsWith('\n') ? '\n' : ''
-  knowledgeForm.content += `${separator}[[${assetType}：${recordId}]]`
 }
 
 const knowledgeReferencePath = (reference: KnowledgeReference) => {
@@ -863,10 +853,9 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
 
     <AppDialog :open="dialog === 'knowledge'" :title="editingId ? '编辑知识' : '添加知识'" overline="KNOWLEDGE ASSET" class="large knowledge-dialog" :busy="saving" @request-close="requestDialogClose">
       <form id="knowledge-form" @submit.prevent="saveKnowledge">
-        <p class="dialog-intro">正文以 Markdown 原文保存。使用 <code>[[资产类型：记录id]]</code> 引用当前项目内的代码仓库、项目成员、环境或其他知识。</p>
+        <p class="dialog-intro">正文以 Markdown 原文保存。在编辑器中输入 <code>/</code>，可从命令面板选择并引用当前项目的其他知识。</p>
         <div class="field"><label for="knowledge-title">标题</label><input id="knowledge-title" v-model="knowledgeForm.title" required autofocus placeholder="例如：项目架构约定" /></div>
-        <div class="field"><span id="knowledge-content-label" class="field-label">Markdown 内容</span><KnowledgeMarkdownEditor ref="knowledgeEditor" v-model="knowledgeForm.content" :references="knowledgeReferenceOptions" role="group" aria-labelledby="knowledge-content-label" /><small>编辑内容会实时渲染；资产引用以控件显示，仍会按原始语法存入数据库。</small></div>
-        <div v-if="knowledgeReferenceOptions.length" class="knowledge-reference-picker"><strong>插入资产引用</strong><small>选择后会在当前光标处插入资产控件。</small><div><button v-for="option in knowledgeReferenceOptions" :key="`${option.assetType}:${option.recordId}`" type="button" @click="insertKnowledgeReference(option.assetType, option.recordId)"><span>{{ option.assetType }}</span>{{ option.label }}</button></div></div>
+        <div class="field"><span id="knowledge-content-label" class="field-label">Markdown 内容</span><KnowledgeMarkdownEditor ref="knowledgeEditor" v-model="knowledgeForm.content" :references="knowledgeReferenceOptions" role="group" aria-labelledby="knowledge-content-label" /><small>输入 <code>/</code> 打开命令面板；知识引用会显示为控件，并按稳定引用语法存入数据库。</small></div>
         <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
       </form>
       <template #actions><button class="button secondary" type="button" :disabled="saving" @click="requestDialogClose">取消</button><button class="button primary" type="submit" form="knowledge-form" :disabled="saving">{{ saving ? '保存中…' : '保存知识' }}</button></template>

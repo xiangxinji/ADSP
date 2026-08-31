@@ -252,14 +252,6 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(37,99,235,.32); 
 .knowledge-asset-control-content strong, .knowledge-asset-control-content small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .knowledge-asset-control-content strong { font-size: 10px; }
 .knowledge-asset-control-content small { max-width: 150px; color: #667085; font-size: 8px; }
-.knowledge-reference-picker { margin-top: 16px; padding: 14px; border: 1px solid #fedf89; border-radius: 9px; background: #fffcf5; }
-.knowledge-reference-picker > strong, .knowledge-reference-picker > small { display: block; }
-.knowledge-reference-picker > strong { margin-bottom: 3px; font-size: 10px; }
-.knowledge-reference-picker > small { color: var(--muted); font-size: 8px; }
-.knowledge-reference-picker > div { max-height: 150px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 10px; overflow-y: auto; }
-.knowledge-reference-picker button { min-width: 0; padding: 8px 9px; overflow: hidden; border: 1px solid var(--line); border-radius: 6px; color: #344054; background: #fff; font-size: 9px; text-align: left; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
-.knowledge-reference-picker button:hover { border-color: #fdb022; background: #fffaeb; }
-.knowledge-reference-picker button span { margin-right: 5px; color: #b54708; font-size: 8px; font-weight: 700; }
 .gitlab-picker { margin: -6px 0 19px; padding: 14px; border: 1px solid #bfdbfe; border-radius: 9px; background: #f8fbff; }
 .gitlab-picker-heading, .gitlab-picker-search { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .gitlab-picker-heading { margin-bottom: 10px; }

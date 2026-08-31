@@ -10,6 +10,9 @@ export type KnowledgeReferenceMarkdownNode = {
 
 const referencePattern = /\[\[([^\[\]：:]+?)\s*[：:]\s*([^\[\]]+?)\]\]/g
 
+export const createKnowledgeReferenceToken = (assetType: string, recordId: string) =>
+  `[[${assetType}：${recordId}]]`
+
 export const splitKnowledgeReferenceText = (value: string): KnowledgeReferenceMarkdownNode[] => {
   const nodes: KnowledgeReferenceMarkdownNode[] = []
   let cursor = 0

@@ -1,10 +1,15 @@
 import { describe, expect, test } from 'vitest'
 import {
+  createKnowledgeReferenceToken,
   splitKnowledgeReferenceText,
   transformKnowledgeReferenceTree,
 } from '../app/editor/knowledge-reference-syntax'
 
 describe('knowledge asset reference syntax', () => {
+  test('creates the stable token inserted by the knowledge slash menu', () => {
+    expect(createKnowledgeReferenceToken('知识', 'knowledge-1')).toBe('[[知识：knowledge-1]]')
+  })
+
   test('splits references while preserving the authored token', () => {
     expect(splitKnowledgeReferenceText('前 [[代码仓库：repo-1]] 中 [[member: member-2]] 后')).toEqual([
       { type: 'text', value: '前 ' },
