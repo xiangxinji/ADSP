@@ -58,6 +58,10 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 - Create, edit, and remove knowledge assets with a title and Markdown body.
 - Insert and display knowledge references to repositories, project members, environments, and other knowledge.
 - Show where an asset is referenced before deletion.
+- Show the configured operations inside every asset submodule and drive record-level
+  action labels, icons, and behavior from the shared asset-operation registry.
+- Mark server commands that can be reused by workflow definitions with stable operation
+  IDs; keep client-only management actions out of workflow execution.
 
 ## Acceptance Criteria
 
@@ -91,3 +95,8 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 27. API validation rejects version IDs from another project and prevents deletion while referenced.
 28. Environments can be stored without test accounts; account passwords are optional and, when supplied, are stored and returned as clear text for self-service test use, while existing account-only records migrate with an empty password.
 29. An environment note can be recorded, edited, displayed in the asset list, and preserved after a server restart; existing environment rows migrate with an empty note.
+30. Every asset submodule displays its configured operation catalog, and record actions
+    use the same configuration rather than hard-coded labels and icons.
+31. `repository.clone` and `repository.update` execute through the generic asset-operation
+    service and are marked workflow-ready; client-only operations are rejected by the
+    server execution endpoint.

@@ -284,6 +284,20 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--focus-ring); ou
 .asset-detail-heading { padding-bottom: 2px; border-bottom: 1px solid var(--line); }
 .asset-detail-heading .section-heading { padding: 0 0 var(--space-4); }
 .asset-detail-heading .section-heading h2 { margin-top: 4px; }
+.asset-operation-catalog { width: min(920px, 100%); padding: 12px 0 14px; border-bottom: 1px solid var(--line); }
+.asset-operation-catalog-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 9px; }
+.asset-operation-catalog-heading > div { display: flex; align-items: baseline; gap: 8px; }
+.asset-operation-catalog-heading strong { color: var(--text-strong); font-size: 10px; }
+.asset-operation-catalog-heading span { color: var(--text-subtle); font-size: 8px; }
+.asset-operation-catalog-heading > small { padding: 3px 6px; border-radius: 4px; color: var(--success); background: var(--success-soft); font-size: 7px; font-weight: 700; }
+.asset-operation-catalog-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 12px; }
+.asset-operation-summary { min-width: 0; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.asset-operation-summary-icon { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 7px; color: var(--blue); background: var(--blue-soft); }
+.asset-operation-summary-copy { min-width: 0; }
+.asset-operation-summary-copy strong, .asset-operation-summary-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.asset-operation-summary-copy strong { color: var(--text-strong); font-size: 9px; }
+.asset-operation-summary-copy small { margin-top: 2px; color: var(--muted); font-size: 8px; }
+.asset-operation-summary > em { color: var(--success); font-size: 7px; font-style: normal; font-weight: 700; }
 .asset-record-list { width: min(820px, 100%); display: flex; flex-direction: column; gap: var(--space-2); }
 .asset-card { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 11px; margin-bottom: 9px; padding: 14px; }
 .asset-record-card { min-height: 72px; margin-bottom: 0; padding: var(--space-3) var(--space-4); }
@@ -570,6 +584,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--focus-ring); ou
   .asset-module-meta { grid-column: 2; grid-row: 1; }
   .asset-detail-heading .section-heading { align-items: stretch; flex-direction: column; }
   .asset-detail-heading .button { width: 100%; }
+  .asset-operation-catalog-heading { align-items: flex-start; }
+  .asset-operation-catalog-heading > div { align-items: flex-start; flex-direction: column; gap: 2px; }
+  .asset-operation-catalog-list { grid-template-columns: 1fr; }
   .knowledge-info-heading { align-items: stretch; flex-direction: column; }
   .knowledge-info-heading .button { width: 100%; }
   .knowledge-info-form { padding: 20px 16px; }

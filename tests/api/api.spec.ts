@@ -400,6 +400,29 @@ const routeCases: ApiRouteCase[] = [
     },
   },
   {
+    route: 'POST /api/assets/:assetType/:id/operations/:operationId',
+    run: async () => {
+      const response = await harness.request<RepositoryUpdateResult>(
+        `/api/assets/repository/${repositoryId}/operations/repository.update`,
+        { method: 'POST' },
+      )
+      expect(response.status).toBe(200)
+      expect(response.data).toEqual({ repositoryId, path: repositoryWorkingCopyPath })
+
+      const clientOnly = await harness.request(
+        `/api/assets/repository/${repositoryId}/operations/repository.edit`,
+        { method: 'POST' },
+      )
+      expect(clientOnly.status).toBe(404)
+
+      const unknownType = await harness.request(
+        `/api/assets/unknown/${repositoryId}/operations/repository.update`,
+        { method: 'POST' },
+      )
+      expect(unknownType.status).toBe(404)
+    },
+  },
+  {
     route: 'POST /api/projects/:id/members',
     run: async () => {
       const response = await harness.request<ProjectMember>(`/api/projects/${projectId}/members`, {

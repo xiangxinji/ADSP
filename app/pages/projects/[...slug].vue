@@ -1,4 +1,13 @@
 <script setup lang="ts">
+import {
+  assetOperationsForModule,
+  type AssetOperationId,
+} from '#shared/config/asset-operations'
+import {
+  assetModuleIds,
+  type AssetModuleId,
+  type AssetOperationDefinition,
+} from '#shared/types/asset-operations'
 import type {
   EnvironmentAccount,
   EnvironmentAsset,
@@ -27,9 +36,9 @@ const projectId = computed(() => routeSegments.value[0])
 const projectPath = computed(() => `/projects/${projectId.value}`)
 const assetsPath = computed(() => `${projectPath.value}/assets`)
 const requirementsPath = computed(() => `${projectPath.value}/requirements`)
-const assetModules = ['repositories', 'members', 'environments', 'knowledge'] as const
+const assetModules = assetModuleIds
 
-type AssetModule = typeof assetModules[number]
+type AssetModule = AssetModuleId
 
 const requestedSection = routeSegments.value[1]
 const requestedModule = routeSegments.value[2]
@@ -66,10 +75,13 @@ const assetModuleLabel = computed(() => ({
   environments: '环境管理',
   knowledge: '知识',
 })[activeAssetModule.value || 'repositories'])
+const activeAssetOperations = computed(() => activeAssetModule.value
+  ? assetOperationsForModule(activeAssetModule.value)
+  : [])
 const dialog = ref<'requirement' | 'statuses' | 'versions' | 'repository' | 'member' | 'environment' | null>(null)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
-const repositoryOperation = ref<{ id: string, type: 'clone' | 'update' } | null>(null)
+const repositoryOperation = ref<{ id: string, operationId: AssetOperationId } | null>(null)
 const actionError = ref('')
 const { success } = useAppToast()
 
@@ -417,18 +429,53 @@ const selectGitLabRepository = (repository: GitLabRepository) => {
   })
 }
 
-const runRepositoryOperation = async (repository: RepositoryAsset, operation: 'clone' | 'update') => {
-  repositoryOperation.value = { id: repository.id, type: operation }
+const runRepositoryCommand = async (repository: RepositoryAsset, operation: AssetOperationDefinition) => {
+  if (operation.execution.kind !== 'command') return
+  repositoryOperation.value = { id: repository.id, operationId: operation.id as AssetOperationId }
   actionError.value = ''
   try {
-    const result = await $fetch<RepositoryCloneResult | RepositoryUpdateResult>(`/api/repositories/${repository.id}/${operation}`, {
+    const result = await $fetch<RepositoryCloneResult | RepositoryUpdateResult>(`/api/assets/repository/${repository.id}/operations/${operation.id}`, {
       method: 'POST',
     })
-    success(`仓库已${operation === 'clone' ? '克隆' : '更新'}：${result.path}`)
+    success(`${operation.label}完成：${result.path}`)
   } catch (requestError) {
     actionError.value = errorMessage(requestError)
   } finally {
     repositoryOperation.value = null
+  }
+}
+
+const runRepositoryAssetOperation = (repository: RepositoryAsset, operation: AssetOperationDefinition) => {
+  if (operation.execution.kind === 'command') return runRepositoryCommand(repository, operation)
+  if (operation.id === 'repository.edit') return openRepository(repository)
+  if (operation.id === 'repository.delete') {
+    return removeRecord('repository', repository.id, repository.name, repository.referenceCount)
+  }
+}
+
+const runMemberAssetOperation = (member: ProjectMember, operation: AssetOperationDefinition) => {
+  if (operation.id === 'member.edit') return openMember(member)
+  if (operation.id === 'member.remove') {
+    return removeRecord('member', member.id, member.user.name, member.referenceCount)
+  }
+}
+
+const runEnvironmentAssetOperation = (environment: EnvironmentAsset, operation: AssetOperationDefinition) => {
+  if (operation.id === 'environment.edit') return openEnvironment(environment)
+  if (operation.id === 'environment.delete') {
+    return removeRecord('environment', environment.id, environment.address)
+  }
+}
+
+const knowledgeOperationTarget = (knowledgeId: string, operationId: string) => {
+  if (operationId === 'knowledge.info') return `${assetsPath.value}/knowledge/${knowledgeId}/info`
+  if (operationId === 'knowledge.edit') return `${assetsPath.value}/knowledge/${knowledgeId}/edit`
+  return undefined
+}
+
+const runKnowledgeAssetOperation = (knowledge: ProjectWorkspace['knowledge'][number], operation: AssetOperationDefinition) => {
+  if (operation.id === 'knowledge.delete') {
+    return removeRecord('knowledge', knowledge.id, knowledge.title)
   }
 }
 
@@ -704,11 +751,12 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
           <div class="asset-detail-heading">
             <div class="section-heading"><div><p class="overline">REPOSITORY ASSETS</p><h2>代码仓库</h2><p>管理项目引用的源代码仓库。</p></div><AppButton icon="add" @click="openRepository()">添加仓库</AppButton></div>
           </div>
+          <AssetOperationCatalog :operations="activeAssetOperations" />
           <div v-if="workspace.repositories.length" class="asset-record-list">
             <article v-for="repository in workspace.repositories" :id="`asset-${repository.id}`" :key="repository.id" class="panel asset-card asset-record-card">
               <div class="asset-icon repository-icon"><AppIcon name="repository" :size="20" /></div>
               <div class="asset-copy"><strong>{{ repository.name }} <span class="provider-badge">{{ repositoryProviderLabel(repository.provider) }}</span></strong><a :href="repository.url" target="_blank" rel="noreferrer">{{ repository.url }}</a><span class="asset-note">版本分支策略：{{ repositoryBranchStrategyLabel(repository.branchStrategy) }}</span><span v-if="repository.note" class="asset-note">备注：{{ repository.note }}</span><small>被 {{ repository.referenceCount }} 条需求引用</small></div>
-              <div class="asset-actions"><AppButton variant="text" icon="clone" :busy="repositoryOperation?.id === repository.id && repositoryOperation.type === 'clone'" busy-label="克隆中…" :disabled="Boolean(repositoryOperation)" @click="runRepositoryOperation(repository, 'clone')">克隆</AppButton><AppButton variant="text" icon="refresh" :busy="repositoryOperation?.id === repository.id && repositoryOperation.type === 'update'" busy-label="更新中…" :disabled="Boolean(repositoryOperation)" @click="runRepositoryOperation(repository, 'update')">更新</AppButton><AppButton variant="text" icon="edit" :disabled="Boolean(repositoryOperation)" @click="openRepository(repository)">编辑</AppButton><AppButton variant="text-danger" icon="delete" :disabled="Boolean(repositoryOperation)" @click="removeRecord('repository', repository.id, repository.name, repository.referenceCount)">删除</AppButton></div>
+              <div class="asset-actions"><AppButton v-for="operation in activeAssetOperations" :key="operation.id" :variant="operation.danger ? 'text-danger' : 'text'" :icon="operation.icon" :busy="repositoryOperation?.id === repository.id && repositoryOperation.operationId === operation.id" :busy-label="`${operation.label}中…`" :disabled="Boolean(repositoryOperation)" @click="runRepositoryAssetOperation(repository, operation)">{{ operation.label }}</AppButton></div>
             </article>
           </div>
           <div v-else class="panel empty-state"><strong>还没有代码仓库</strong><span>添加仓库后，需求可以直接引用它。</span><AppButton icon="add" @click="openRepository()">添加第一个仓库</AppButton></div>
@@ -718,11 +766,12 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
           <div class="asset-detail-heading">
             <div class="section-heading"><div><p class="overline">PROJECT MEMBERS</p><h2>项目成员</h2><p>选择全局用户加入项目，并维护其项目角色。</p></div><AppButton icon="add" @click="openMember()">添加成员</AppButton></div>
           </div>
+          <AssetOperationCatalog :operations="activeAssetOperations" />
           <div v-if="workspace.members.length" class="asset-record-list">
             <article v-for="member in workspace.members" :id="`asset-${member.id}`" :key="member.id" class="panel asset-card asset-record-card">
               <div class="asset-icon member-icon">{{ member.user.name.slice(0, 1) }}</div>
               <div class="asset-copy"><strong>{{ member.user.name }}</strong><span>{{ member.user.email }}</span><small>{{ member.role }} · 被 {{ member.referenceCount }} 条需求引用</small></div>
-              <div class="asset-actions"><AppButton variant="text" icon="edit" @click="openMember(member)">编辑角色</AppButton><AppButton variant="text-danger" icon="delete" @click="removeRecord('member', member.id, member.user.name, member.referenceCount)">移除</AppButton></div>
+              <div class="asset-actions"><AppButton v-for="operation in activeAssetOperations" :key="operation.id" :variant="operation.danger ? 'text-danger' : 'text'" :icon="operation.icon" @click="runMemberAssetOperation(member, operation)">{{ operation.label }}</AppButton></div>
             </article>
           </div>
           <div v-else class="panel empty-state"><strong>还没有项目成员</strong><span>从全局用户中选择成员，并为其设置项目角色。</span><AppButton icon="add" @click="openMember()">添加第一位成员</AppButton></div>
@@ -732,11 +781,12 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
           <div class="asset-detail-heading">
             <div class="section-heading"><div><p class="overline">ENVIRONMENT ASSETS</p><h2>环境管理</h2><p>维护项目开发、测试和生产环境的访问入口。</p></div><AppButton icon="add" @click="openEnvironment()">添加环境</AppButton></div>
           </div>
+          <AssetOperationCatalog :operations="activeAssetOperations" />
           <div v-if="workspace.environments.length" class="asset-record-list">
             <article v-for="environment in workspace.environments" :id="`asset-${environment.id}`" :key="environment.id" class="panel asset-card asset-record-card">
               <div class="asset-icon environment-icon"><AppIcon name="environment" :size="20" /></div>
               <div class="asset-copy"><strong>项目环境 <span class="provider-badge environment-badge" :data-environment="environment.type">{{ environmentTypeLabel(environment.type) }}</span></strong><a :href="environment.address" target="_blank" rel="noreferrer">{{ environment.address }}</a><span v-if="environment.note" class="asset-note">备注：{{ environment.note }}</span><small v-for="account in environment.accounts" :key="account.account" class="environment-account">账号：{{ account.account }}　密码：{{ account.password || '未设置' }}</small></div>
-              <div class="asset-actions"><AppButton variant="text" icon="edit" @click="openEnvironment(environment)">编辑</AppButton><AppButton variant="text-danger" icon="delete" @click="removeRecord('environment', environment.id, environment.address)">删除</AppButton></div>
+              <div class="asset-actions"><AppButton v-for="operation in activeAssetOperations" :key="operation.id" :variant="operation.danger ? 'text-danger' : 'text'" :icon="operation.icon" @click="runEnvironmentAssetOperation(environment, operation)">{{ operation.label }}</AppButton></div>
             </article>
           </div>
           <div v-else class="panel empty-state"><strong>还没有项目环境</strong><span>登记环境地址，并可选择添加自助使用的测试账号。</span><AppButton icon="add" @click="openEnvironment()">添加第一个环境</AppButton></div>
@@ -746,6 +796,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
           <div class="asset-detail-heading">
             <div class="section-heading"><div><p class="overline">KNOWLEDGE ASSETS</p><h2>知识</h2><p>先维护知识基本信息，再进入全屏 Markdown 页面编写正文。</p></div><AppButton icon="add" :to="`${assetsPath}/knowledge/new`">添加知识</AppButton></div>
           </div>
+          <AssetOperationCatalog :operations="activeAssetOperations" />
           <div v-if="workspace.knowledge.length" class="asset-record-list knowledge-record-list">
             <article v-for="knowledge in workspace.knowledge" :id="`asset-${knowledge.id}`" :key="knowledge.id" class="panel asset-card asset-record-card knowledge-card">
               <div class="asset-icon knowledge-icon"><AppIcon name="knowledge" :size="20" /></div>
@@ -760,7 +811,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
                 </div>
                 <small>Markdown · {{ knowledge.references.length }} 个资产引用 · 更新于 {{ formatDate(knowledge.updatedAt) }}</small>
               </div>
-              <div class="asset-actions"><AppButton variant="text" icon="settings" :to="`${assetsPath}/knowledge/${knowledge.id}/info`">基本信息</AppButton><AppButton variant="text" icon="edit" :to="`${assetsPath}/knowledge/${knowledge.id}/edit`">编写正文</AppButton><AppButton variant="text-danger" icon="delete" @click="removeRecord('knowledge', knowledge.id, knowledge.title)">删除</AppButton></div>
+              <div class="asset-actions"><AppButton v-for="operation in activeAssetOperations" :key="operation.id" :variant="operation.danger ? 'text-danger' : 'text'" :icon="operation.icon" :to="knowledgeOperationTarget(knowledge.id, operation.id)" @click="runKnowledgeAssetOperation(knowledge, operation)">{{ operation.label }}</AppButton></div>
             </article>
           </div>
           <div v-else class="panel empty-state"><strong>还没有项目知识</strong><span>先添加基本信息，再用全屏编辑器编写 Markdown 正文。</span><AppButton icon="add" :to="`${assetsPath}/knowledge/new`">添加第一篇知识</AppButton></div>

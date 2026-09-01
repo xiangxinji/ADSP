@@ -115,6 +115,16 @@ Each `EnvironmentAsset` is project-owned and records an HTTP(S) address, an opti
 
 Each `KnowledgeAsset` is a project-owned Markdown document. Its title and authored Markdown content are stored unchanged in SQLite. The client creates metadata first with an empty Markdown string, then authors the body on a dedicated full-screen editor route; title and body updates remain independent API operations. The client uses Milkdown for live editing and maps inline tokens such as `[[repository:record-id]]` to atomic controls that show current asset metadata and serialize back to the same Markdown token. New tokens use the stable English asset types `repository`, `member`, `environment`, and `knowledge` with an ASCII colon separator; legacy Chinese type aliases and full-width separators remain readable for compatibility. Supported targets are repository assets, project members, environment assets, and other knowledge assets. Resolution is restricted to the current project. The Markdown remains the source of truth: deleting or moving a target does not rewrite authored content, and the API returns the token as unresolved instead of silently pointing elsewhere.
 
+Asset capabilities are described by the versioned registry in
+`shared/config/asset-operations.ts`. Every operation has a stable ID, display metadata,
+an execution kind, and an explicit workflow-availability flag. The asset pages render
+their operation catalog and record actions from this registry. Server commands enter
+through the asset-operation service, which resolves the configured operation ID to a
+focused domain use case. Future workflow definitions may reference the same stable IDs
+without depending on button labels or provider payloads. Client-only navigation and
+management actions are explicitly excluded from workflow execution. Existing
+resource-specific API routes remain compatibility adapters over the same service.
+
 The SQLite bootstrap creates the environment, account, and knowledge tables idempotently for existing installations. Existing projects and assets require no data rewrite; their environment and knowledge collections begin empty.
 
 The ForgePilot rebrand preserves legacy database identifiers and the default `.data/asdp.sqlite` path. During bootstrap, only the untouched `project-asdp` sample project with its exact former default name and description is renamed; user-edited project records are never overwritten.

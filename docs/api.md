@@ -95,6 +95,9 @@ requirements or designate another initial status first.
 | `POST` | `/api/projects/:id/repositories` | Register a repository |
 | `PATCH` | `/api/repositories/:id` | Update repository metadata |
 | `DELETE` | `/api/repositories/:id` | Remove it and cascade requirement references |
+| `POST` | `/api/repositories/:id/clone` | Compatibility route for the `repository.clone` operation |
+| `POST` | `/api/repositories/:id/update` | Compatibility route for the `repository.update` operation |
+| `POST` | `/api/assets/:assetType/:id/operations/:operationId` | Execute a configured server-side asset operation |
 
 Body: `{ "provider": "gitlab" | "github", "branchStrategy"?: "multi-version" | "development-production", "externalId"?: string | null, "name": string, "note"?: string, "url": string }`.
 
@@ -108,6 +111,12 @@ development and `main` for production release.
 Existing repository records default to `gitlab` during migration.
 Existing repository records default to the `multi-version` branch strategy during migration.
 The repository asset does not persist a default branch; integrations query provider-owned branch metadata when needed.
+
+The versioned operation registry lives in `shared/config/asset-operations.ts`. The
+generic operation route currently accepts `repository.clone` and `repository.update`
+for the `repository` asset type. Client-only operations such as editing or deleting
+metadata return `404` from this route and are not available to workflow execution.
+Operation IDs are stable contracts intended for later workflow-step configuration.
 
 ## Global GitLab Settings
 
