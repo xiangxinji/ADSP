@@ -16,6 +16,8 @@ Read `docs/product-vision.md` and `docs/architecture.md` before changing product
 
 This is a Nuxt 4 application. Code lives in `app/`, routes in `app/pages/`, shared types in `shared/`, server endpoints in `server/api/`, domain use cases in `server/services/`, persistence in `server/repositories/`, external-system adapters in `server/integrations/`, and product documentation in `docs/`. Put reusable UI in `app/components/` and shared client logic in `app/composables/`. Never commit `.nuxt/`, `.output/`, `.data/`, or `node_modules/`.
 
+Whenever any new asset type is added, update the Markdown editor shortcuts in the same change so the new asset type is available from the editor's shortcut UI.
+
 ## Backend API Architecture — Hard Requirement
 
 High cohesion and low coupling are mandatory for every backend API change. A change that violates the rules below is incomplete and must not be committed or merged.
