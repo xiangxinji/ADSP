@@ -22,7 +22,7 @@ const props = withDefaults(defineProps<{
   trailingIcon: undefined,
   iconSize: undefined,
   busy: false,
-  busyLabel: '',
+  busyLabel: '处理中…',
   disabled: false,
   to: undefined,
 })
@@ -58,9 +58,10 @@ const resolvedIconSize = computed(() => props.iconSize ?? ({ sm: 12, md: 16, lg:
     :disabled="disabled || busy"
     :aria-busy="busy || undefined"
   >
-    <AppIcon v-if="icon" :name="icon" :size="resolvedIconSize" />
-    <template v-if="busy && busyLabel">{{ busyLabel }}</template>
+    <span v-if="busy" class="app-button-spinner" aria-hidden="true" />
+    <AppIcon v-else-if="icon" :name="icon" :size="resolvedIconSize" />
+    <span v-if="busy" class="app-button-busy-label" aria-live="polite">{{ busyLabel }}</span>
     <slot v-else />
-    <AppIcon v-if="trailingIcon" :name="trailingIcon" :size="resolvedIconSize" />
+    <AppIcon v-if="trailingIcon && !busy" :name="trailingIcon" :size="resolvedIconSize" />
   </button>
 </template>

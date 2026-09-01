@@ -155,6 +155,7 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--focus-ring); ou
 .button.danger-outline:hover:not(:disabled) { background: var(--danger-soft); }
 .app-button { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); }
 .app-button > .app-icon { flex: none; }
+.app-button-spinner { width: 1em; height: 1em; flex: none; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
 .text-button { border: 0; color: var(--blue); background: transparent; cursor: pointer; }
 .text-button[data-size="sm"] { min-height: var(--size-button-sm); padding: var(--space-0-5) var(--space-1); font-size: 10px; }
 .text-button[data-size="md"] { min-height: var(--size-button-md); padding: var(--space-0-5) var(--space-1-5); font-size: var(--font-size-xs); }
