@@ -343,7 +343,7 @@ const routeCases: ApiRouteCase[] = [
       const response = await harness.request<RepositoryCloneResult>(`/api/repositories/${repositoryId}/clone`, {
         method: 'POST',
       })
-      repositoryWorkingCopyPath = join(dirname(harness.databasePath), 'local-workspace', 'repositories', 'forgepilot-api-test')
+      repositoryWorkingCopyPath = join(dirname(harness.databasePath), 'local-workspace', projectId, 'repositories', 'forgepilot-api-test')
       expect(response.status).toBe(201)
       expect(response.data).toEqual({ repositoryId, path: repositoryWorkingCopyPath })
       expect(existsSync(join(repositoryWorkingCopyPath, '.git'))).toBe(true)
@@ -351,6 +351,30 @@ const routeCases: ApiRouteCase[] = [
 
       const duplicate = await harness.request(`/api/repositories/${repositoryId}/clone`, { method: 'POST' })
       expect(duplicate.status).toBe(409)
+
+      const isolatedProject = await harness.request<Project>('/api/projects', {
+        method: 'POST',
+        body: { name: '仓库路径隔离项目', description: '验证同名仓库按项目隔离' },
+      })
+      const isolatedRepository = await harness.request<RepositoryAsset>(`/api/projects/${isolatedProject.data.id}/repositories`, {
+        method: 'POST',
+        body: {
+          provider: 'github',
+          name: 'forgepilot-api-test',
+          url: pathToFileURL(repositoryRemotePath).href,
+        },
+      })
+      const isolatedClone = await harness.request<RepositoryCloneResult>(`/api/repositories/${isolatedRepository.data.id}/clone`, {
+        method: 'POST',
+      })
+      expect(isolatedClone.status).toBe(201)
+      expect(isolatedClone.data.path).toBe(join(
+        dirname(harness.databasePath),
+        'local-workspace',
+        isolatedProject.data.id,
+        'repositories',
+        'forgepilot-api-test',
+      ))
     },
   },
   {

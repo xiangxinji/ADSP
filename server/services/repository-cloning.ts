@@ -69,11 +69,11 @@ const cloneAuthorization = (repositoryUrl: string) => {
 export const cloneRepository = async (id: string): Promise<RepositoryCloneResult> => {
   const repository = getRepository(id)
   const workspaceRoot = requireLocalWorkspaceRoot()
-  const repositoriesRoot = resolveLocalWorkspacePath('repositories')
+  const repositoriesRoot = resolveLocalWorkspacePath(repository.projectId, 'repositories')
   await mkdir(repositoriesRoot, { recursive: true })
   const repositoriesRootStat = await pathStat(repositoriesRoot)
   if (!repositoriesRootStat?.isDirectory() || repositoriesRootStat.isSymbolicLink()) {
-    throw conflict('本地 repositories 路径不是可用的仓库目录')
+    throw conflict('项目 repositories 路径不是可用的仓库目录')
   }
 
   const canonicalWorkspaceRoot = await realpath(workspaceRoot)
@@ -107,10 +107,10 @@ export const cloneRepository = async (id: string): Promise<RepositoryCloneResult
 export const updateRepositoryWorkingCopy = async (id: string): Promise<RepositoryUpdateResult> => {
   const repository = getRepository(id)
   const workspaceRoot = requireLocalWorkspaceRoot()
-  const repositoriesRoot = resolveLocalWorkspacePath('repositories')
+  const repositoriesRoot = resolveLocalWorkspacePath(repository.projectId, 'repositories')
   const repositoriesRootStat = await pathStat(repositoriesRoot)
   if (!repositoriesRootStat?.isDirectory() || repositoriesRootStat.isSymbolicLink()) {
-    throw conflict('本地 repositories 目录不存在，请先克隆仓库')
+    throw conflict('项目 repositories 目录不存在，请先克隆仓库')
   }
 
   const canonicalWorkspaceRoot = await realpath(workspaceRoot)
