@@ -662,7 +662,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
   <div class="app-frame">
     <AppHeader />
 
-    <main v-if="workspace" id="main-content" class="page workspace-page">
+    <main v-if="workspace" id="main-content" class="page workspace-page" :class="{ 'asset-module-page': activeTab === 'assets' && activeAssetModule }">
       <nav class="breadcrumbs" aria-label="当前位置">
         <NuxtLink to="/">项目</NuxtLink><span aria-hidden="true">/</span>
         <NuxtLink :to="projectPath">{{ workspace.project.name }}</NuxtLink><span aria-hidden="true">/</span>
@@ -752,7 +752,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
             <div class="section-heading"><div><p class="overline">REPOSITORY ASSETS</p><h2>代码仓库</h2><p>管理项目引用的源代码仓库。</p></div><AppButton icon="add" @click="openRepository()">添加仓库</AppButton></div>
           </div>
           <AssetOperationCatalog :operations="activeAssetOperations" />
-          <div v-if="workspace.repositories.length" class="asset-record-list">
+          <div v-if="workspace.repositories.length" class="asset-record-list" role="region" aria-label="代码仓库列表" tabindex="0">
             <article v-for="repository in workspace.repositories" :id="`asset-${repository.id}`" :key="repository.id" class="panel asset-card asset-record-card">
               <div class="asset-icon repository-icon"><AppIcon name="repository" :size="20" /></div>
               <div class="asset-copy"><strong>{{ repository.name }} <span class="provider-badge">{{ repositoryProviderLabel(repository.provider) }}</span></strong><a :href="repository.url" target="_blank" rel="noreferrer">{{ repository.url }}</a><span class="asset-note">版本分支策略：{{ repositoryBranchStrategyLabel(repository.branchStrategy) }}</span><span v-if="repository.note" class="asset-note">备注：{{ repository.note }}</span><small>被 {{ repository.referenceCount }} 条需求引用</small></div>
@@ -767,7 +767,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
             <div class="section-heading"><div><p class="overline">PROJECT MEMBERS</p><h2>项目成员</h2><p>选择全局用户加入项目，并维护其项目角色。</p></div><AppButton icon="add" @click="openMember()">添加成员</AppButton></div>
           </div>
           <AssetOperationCatalog :operations="activeAssetOperations" />
-          <div v-if="workspace.members.length" class="asset-record-list">
+          <div v-if="workspace.members.length" class="asset-record-list" role="region" aria-label="项目成员列表" tabindex="0">
             <article v-for="member in workspace.members" :id="`asset-${member.id}`" :key="member.id" class="panel asset-card asset-record-card">
               <div class="asset-icon member-icon">{{ member.user.name.slice(0, 1) }}</div>
               <div class="asset-copy"><strong>{{ member.user.name }}</strong><span>{{ member.user.email }}</span><small>{{ member.role }} · 被 {{ member.referenceCount }} 条需求引用</small></div>
@@ -782,7 +782,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
             <div class="section-heading"><div><p class="overline">ENVIRONMENT ASSETS</p><h2>环境管理</h2><p>维护项目开发、测试和生产环境的访问入口。</p></div><AppButton icon="add" @click="openEnvironment()">添加环境</AppButton></div>
           </div>
           <AssetOperationCatalog :operations="activeAssetOperations" />
-          <div v-if="workspace.environments.length" class="asset-record-list">
+          <div v-if="workspace.environments.length" class="asset-record-list" role="region" aria-label="项目环境列表" tabindex="0">
             <article v-for="environment in workspace.environments" :id="`asset-${environment.id}`" :key="environment.id" class="panel asset-card asset-record-card">
               <div class="asset-icon environment-icon"><AppIcon name="environment" :size="20" /></div>
               <div class="asset-copy"><strong>项目环境 <span class="provider-badge environment-badge" :data-environment="environment.type">{{ environmentTypeLabel(environment.type) }}</span></strong><a :href="environment.address" target="_blank" rel="noreferrer">{{ environment.address }}</a><span v-if="environment.note" class="asset-note">备注：{{ environment.note }}</span><small v-for="account in environment.accounts" :key="account.account" class="environment-account">账号：{{ account.account }}　密码：{{ account.password || '未设置' }}</small></div>
@@ -797,7 +797,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
             <div class="section-heading"><div><p class="overline">KNOWLEDGE ASSETS</p><h2>知识</h2><p>先维护知识基本信息，再进入全屏 Markdown 页面编写正文。</p></div><AppButton icon="add" :to="`${assetsPath}/knowledge/new`">添加知识</AppButton></div>
           </div>
           <AssetOperationCatalog :operations="activeAssetOperations" />
-          <div v-if="workspace.knowledge.length" class="asset-record-list knowledge-record-list">
+          <div v-if="workspace.knowledge.length" class="asset-record-list knowledge-record-list" role="region" aria-label="项目知识列表" tabindex="0">
             <article v-for="knowledge in workspace.knowledge" :id="`asset-${knowledge.id}`" :key="knowledge.id" class="panel asset-card asset-record-card knowledge-card">
               <div class="asset-icon knowledge-icon"><AppIcon name="knowledge" :size="20" /></div>
               <div class="asset-copy knowledge-copy">
