@@ -60,7 +60,7 @@ Organization
 
 ## Initial Product Entry
 
-The first usable workflow starts from a project. A project is the context boundary for requirements, repositories, member roles, permissions, and workflow runs. User identities remain global.
+The first usable workflow starts from a project. A project is the context boundary for requirements, repositories, member roles, permissions, and workflow runs. User identities remain global. User Management provisions and resets user passwords; passwords are never displayed or returned by ForgePilot.
 
 ```text
 Project workspace

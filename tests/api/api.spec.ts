@@ -8,6 +8,7 @@ import type {
   GitLabSettings,
   KnowledgeAsset,
   LocalWorkspaceSettings,
+  ManagedUserAccount,
   Project,
   ProjectMember,
   ProjectSummary,
@@ -16,7 +17,6 @@ import type {
   Requirement,
   RequirementStatus,
   RequirementVersion,
-  UserAccount,
 } from '../../shared/types/asdp'
 import { startApiTestHarness, type ApiTestHarness } from '../support/api-test-harness'
 
@@ -116,21 +116,49 @@ const routeCases: ApiRouteCase[] = [
   {
     route: 'GET /api/users',
     run: async () => {
-      const response = await harness.request<UserAccount[]>('/api/users')
+      const response = await harness.request<ManagedUserAccount[]>('/api/users')
       expect(response.status).toBe(200)
       expect(Array.isArray(response.data)).toBe(true)
+      expect(response.data.every(user => typeof user.hasPassword === 'boolean')).toBe(true)
     },
   },
   {
     route: 'POST /api/users',
     run: async () => {
-      const response = await harness.request<UserAccount>('/api/users', {
+      const missingPassword = await harness.request('/api/users', {
         method: 'POST',
-        body: { name: '接口测试员', email: 'api-tester@example.com', role: 'member' },
+        body: { name: '无密码用户', email: 'no-password@example.com', role: 'member' },
+      })
+      expect(missingPassword.status).toBe(400)
+
+      const response = await harness.request<ManagedUserAccount>('/api/users', {
+        method: 'POST',
+        body: { name: '接口测试员', email: 'api-tester@example.com', role: 'member', password: 'initial-password' },
       })
       expect(response.status).toBe(201)
-      expect(response.data).toMatchObject({ email: 'api-tester@example.com', role: 'member' })
+      expect(response.data).toMatchObject({ email: 'api-tester@example.com', role: 'member', hasPassword: true })
+      expect(response.data).not.toHaveProperty('password')
+      expect(response.data).not.toHaveProperty('passwordHash')
       userId = response.data.id
+    },
+  },
+  {
+    route: 'PUT /api/users/:id/password',
+    run: async () => {
+      const shortPassword = await harness.request(`/api/users/${userId}/password`, {
+        method: 'PUT',
+        body: { password: 'short' },
+      })
+      expect(shortPassword.status).toBe(400)
+
+      const response = await harness.request<ManagedUserAccount>(`/api/users/${userId}/password`, {
+        method: 'PUT',
+        body: { password: 'replacement-password' },
+      })
+      expect(response.status).toBe(200)
+      expect(response.data).toMatchObject({ id: userId, hasPassword: true })
+      expect(response.data).not.toHaveProperty('password')
+      expect(response.data).not.toHaveProperty('passwordHash')
     },
   },
   {

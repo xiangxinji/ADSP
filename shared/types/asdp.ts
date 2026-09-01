@@ -21,6 +21,10 @@ export type UserAccount = {
   updatedAt: string
 }
 
+export type ManagedUserAccount = UserAccount & {
+  hasPassword: boolean
+}
+
 export type Project = {
   id: string
   name: string
@@ -193,7 +197,12 @@ export type ProjectWorkspace = {
 
 export type CreateProjectInput = Pick<Project, 'name' | 'description'>
 export type UpdateProjectInput = Partial<CreateProjectInput>
-export type CreateUserInput = Pick<UserAccount, 'name' | 'email' | 'role'>
+export type CreateUserInput = Pick<UserAccount, 'name' | 'email' | 'role'> & {
+  password: string
+}
+export type UpdateUserPasswordInput = {
+  password: string
+}
 export type CreateRepositoryInput = Pick<RepositoryAsset, 'provider' | 'name' | 'url'> & {
   branchStrategy?: RepositoryBranchStrategy
   externalId?: string | null

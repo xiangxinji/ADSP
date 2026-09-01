@@ -116,6 +116,7 @@ const createDatabase = async () => {
       name TEXT NOT NULL,
       email TEXT NOT NULL COLLATE NOCASE UNIQUE,
       role TEXT NOT NULL DEFAULT 'member',
+      password_hash TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -271,6 +272,11 @@ const createDatabase = async () => {
     CREATE UNIQUE INDEX IF NOT EXISTS idx_requirement_statuses_initial
       ON requirement_statuses(project_id) WHERE is_initial = 1;
   `)
+
+  const userColumns = persistentDatabase.prepare('PRAGMA table_info(users)').all() as { name: string }[]
+  if (!userColumns.some(column => column.name === 'password_hash')) {
+    persistentDatabase.exec('ALTER TABLE users ADD COLUMN password_hash TEXT')
+  }
 
   const legacyPersonCount = persistentDatabase.prepare('SELECT COUNT(*) AS count FROM people').get() as { count: number }
   if (Number(legacyPersonCount.count) > 0) {

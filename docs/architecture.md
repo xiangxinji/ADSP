@@ -129,6 +129,14 @@ the member's role. Requirements reference project members, not global users dire
 so participant roles remain meaningful within the project. Existing project people
 records migrate to global users and project memberships by email.
 
+User credentials remain global with the user identity. New users require an 8–128
+character password, and User Management can replace a credential without exposing the
+previous value. SQLite stores only a salted `scrypt` hash in `users.password_hash`; API
+responses expose only `hasPassword`. Existing users migrate with no password hash and
+remain available for project membership until an administrator provisions a password.
+This credential storage does not itself introduce browser sessions or change project
+authorization boundaries.
+
 The first implementation persists these records in SQLite through the Nuxt server API. Database access remains behind a repository layer so a future PostgreSQL migration can preserve the same identities, constraints, and API contracts.
 
 Requirement lifecycle states are project-owned records, not application enums. Each
