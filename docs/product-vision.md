@@ -81,8 +81,10 @@ The current local preview has one global local-workspace directory. Repository w
 copies are cloned into a project-specific `repositories/` child directory, while task
 files and generated filesystem artifacts also stay beneath this operator-selected root.
 Each project owns its filesystem namespace, so repository copies use
-`<workspace>/<project-id>/repositories/`. ForgePilot validates the directory before saving
-it; application data and encrypted credentials remain separate control-plane state.
+`<workspace>/projects/<project-id>/repositories/`. Every other project-owned filesystem
+operation is likewise constrained to `<workspace>/projects/<project-id>/`. ForgePilot
+validates the global directory before saving it; application data and encrypted
+credentials remain separate control-plane state.
 
 Requirement creation will eventually begin with a natural-language AI entry. ForgePilot will create a draft, derive acceptance criteria, recommend assets and participants, clarify missing information, and start execution according to project policy.
 

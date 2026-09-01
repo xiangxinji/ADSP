@@ -168,11 +168,14 @@ rejected. When no root is configured, such operations fail before touching the f
 
 Repository assets remain remote source-control references until an operator requests a
 clone. Each project owns a directory named by its stable project ID below the configured
-root. The repository cloning use case creates that project's fixed `repositories/`
-directory and clones each working copy to
-`<workspace>/<project-id>/repositories/<remote-name>`, where the final directory name
-comes from the repository URL without `.git`. This prevents same-name repositories in
-different projects from sharing a working copy. Existing destinations make the clone
+root's fixed `projects/` namespace. All project-owned filesystem operations must resolve
+through the shared project containment primitive and remain below
+`<workspace>/projects/<project-id>/`; a project operation must never read or write another
+project's directory. The repository cloning use case creates that project's fixed
+`repositories/` directory and clones each working copy to
+`<workspace>/projects/<project-id>/repositories/<remote-name>`, where the final directory
+name comes from the repository URL without `.git`. This prevents same-name repositories
+in different projects from sharing a working copy. Existing destinations make the clone
 action return a conflict and are never overwritten. A separate update action verifies
 that the destination is a Git repository whose `origin` matches the asset, then runs
 `git remote update --prune` followed by `git pull --ff-only`; unrelated same-name

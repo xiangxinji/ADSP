@@ -343,7 +343,7 @@ const routeCases: ApiRouteCase[] = [
       const response = await harness.request<RepositoryCloneResult>(`/api/repositories/${repositoryId}/clone`, {
         method: 'POST',
       })
-      repositoryWorkingCopyPath = join(dirname(harness.databasePath), 'local-workspace', projectId, 'repositories', 'forgepilot-api-test')
+      repositoryWorkingCopyPath = join(dirname(harness.databasePath), 'local-workspace', 'projects', projectId, 'repositories', 'forgepilot-api-test')
       expect(response.status).toBe(201)
       expect(response.data).toEqual({ repositoryId, path: repositoryWorkingCopyPath })
       expect(existsSync(join(repositoryWorkingCopyPath, '.git'))).toBe(true)
@@ -371,6 +371,7 @@ const routeCases: ApiRouteCase[] = [
       expect(isolatedClone.data.path).toBe(join(
         dirname(harness.databasePath),
         'local-workspace',
+        'projects',
         isolatedProject.data.id,
         'repositories',
         'forgepilot-api-test',

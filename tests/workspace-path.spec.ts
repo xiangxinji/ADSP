@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest'
 import {
   InvalidWorkspacePathError,
   normalizeWorkspaceRoot,
+  resolveProjectWorkspacePath,
   resolveWithinWorkspace,
 } from '../server/utils/workspace-path'
 
@@ -25,5 +26,17 @@ describe('workspace path boundary', () => {
   test('rejects paths that escape the workspace', () => {
     expect(() => resolveWithinWorkspace(root, '..', 'outside')).toThrow(InvalidWorkspacePathError)
     expect(() => resolveWithinWorkspace(root, dirname(root))).toThrow(InvalidWorkspacePathError)
+  })
+
+  test('keeps project files inside projects/<project-id>', () => {
+    expect(resolveProjectWorkspacePath(root, 'project-a', 'repositories', 'forgepilot-web')).toBe(
+      join(normalizeWorkspaceRoot(root), 'projects', 'project-a', 'repositories', 'forgepilot-web'),
+    )
+    expect(() => resolveProjectWorkspacePath(root, 'project-a', '..', 'project-b')).toThrow(
+      InvalidWorkspacePathError,
+    )
+    expect(() => resolveProjectWorkspacePath(root, '../project-a', 'repositories')).toThrow(
+      InvalidWorkspacePathError,
+    )
   })
 })

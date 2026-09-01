@@ -8,7 +8,7 @@ import { conflict } from './errors'
 import { getStoredGitLabCredentials } from './gitlab'
 import {
   requireLocalWorkspaceRoot,
-  resolveLocalWorkspacePath,
+  resolveLocalProjectWorkspacePath,
 } from './local-workspace-settings'
 import { getRepository } from './repository-assets'
 
@@ -69,18 +69,28 @@ const cloneAuthorization = (repositoryUrl: string) => {
 export const cloneRepository = async (id: string): Promise<RepositoryCloneResult> => {
   const repository = getRepository(id)
   const workspaceRoot = requireLocalWorkspaceRoot()
-  const repositoriesRoot = resolveLocalWorkspacePath(repository.projectId, 'repositories')
+  const projectRoot = resolveLocalProjectWorkspacePath(repository.projectId)
+  const repositoriesRoot = resolveLocalProjectWorkspacePath(repository.projectId, 'repositories')
   await mkdir(repositoriesRoot, { recursive: true })
+  const projectRootStat = await pathStat(projectRoot)
   const repositoriesRootStat = await pathStat(repositoriesRoot)
-  if (!repositoriesRootStat?.isDirectory() || repositoriesRootStat.isSymbolicLink()) {
+  if (!projectRootStat?.isDirectory()
+    || projectRootStat.isSymbolicLink()
+    || !repositoriesRootStat?.isDirectory()
+    || repositoriesRootStat.isSymbolicLink()) {
     throw conflict('项目 repositories 路径不是可用的仓库目录')
   }
 
   const canonicalWorkspaceRoot = await realpath(workspaceRoot)
+  const canonicalProjectRoot = await realpath(projectRoot)
   const canonicalRepositoriesRoot = await realpath(repositoriesRoot)
   resolveWithinWorkspace(
     canonicalWorkspaceRoot,
-    relative(canonicalWorkspaceRoot, canonicalRepositoriesRoot),
+    relative(canonicalWorkspaceRoot, canonicalProjectRoot),
+  )
+  resolveWithinWorkspace(
+    canonicalProjectRoot,
+    relative(canonicalProjectRoot, canonicalRepositoriesRoot),
   )
 
   const destination = resolveWithinWorkspace(
@@ -107,17 +117,27 @@ export const cloneRepository = async (id: string): Promise<RepositoryCloneResult
 export const updateRepositoryWorkingCopy = async (id: string): Promise<RepositoryUpdateResult> => {
   const repository = getRepository(id)
   const workspaceRoot = requireLocalWorkspaceRoot()
-  const repositoriesRoot = resolveLocalWorkspacePath(repository.projectId, 'repositories')
+  const projectRoot = resolveLocalProjectWorkspacePath(repository.projectId)
+  const repositoriesRoot = resolveLocalProjectWorkspacePath(repository.projectId, 'repositories')
+  const projectRootStat = await pathStat(projectRoot)
   const repositoriesRootStat = await pathStat(repositoriesRoot)
-  if (!repositoriesRootStat?.isDirectory() || repositoriesRootStat.isSymbolicLink()) {
+  if (!projectRootStat?.isDirectory()
+    || projectRootStat.isSymbolicLink()
+    || !repositoriesRootStat?.isDirectory()
+    || repositoriesRootStat.isSymbolicLink()) {
     throw conflict('项目 repositories 目录不存在，请先克隆仓库')
   }
 
   const canonicalWorkspaceRoot = await realpath(workspaceRoot)
+  const canonicalProjectRoot = await realpath(projectRoot)
   const canonicalRepositoriesRoot = await realpath(repositoriesRoot)
   resolveWithinWorkspace(
     canonicalWorkspaceRoot,
-    relative(canonicalWorkspaceRoot, canonicalRepositoriesRoot),
+    relative(canonicalWorkspaceRoot, canonicalProjectRoot),
+  )
+  resolveWithinWorkspace(
+    canonicalProjectRoot,
+    relative(canonicalProjectRoot, canonicalRepositoriesRoot),
   )
 
   const destination = resolveWithinWorkspace(

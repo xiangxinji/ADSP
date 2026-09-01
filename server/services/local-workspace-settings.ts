@@ -9,6 +9,7 @@ import {
 import {
   InvalidWorkspacePathError,
   normalizeWorkspaceRoot,
+  resolveProjectWorkspacePath,
   resolveWithinWorkspace,
 } from '../utils/workspace-path'
 
@@ -66,6 +67,15 @@ export const requireLocalWorkspaceRoot = () => {
 export const resolveLocalWorkspacePath = (...segments: string[]) => {
   try {
     return resolveWithinWorkspace(requireLocalWorkspaceRoot(), ...segments)
+  } catch (error) {
+    if (error instanceof InvalidWorkspacePathError) throw invalidWorkspaceError(error)
+    throw error
+  }
+}
+
+export const resolveLocalProjectWorkspacePath = (projectId: string, ...segments: string[]) => {
+  try {
+    return resolveProjectWorkspacePath(requireLocalWorkspaceRoot(), projectId, ...segments)
   } catch (error) {
     if (error instanceof InvalidWorkspacePathError) throw invalidWorkspaceError(error)
     throw error

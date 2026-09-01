@@ -32,6 +32,12 @@ High cohesion and low coupling are mandatory for every backend API change. A cha
 - Reuse small transport primitives from `server/utils/http-input.ts`, but keep domain payload validation in focused files under `server/validation/`.
 - Update `docs/architecture.md` whenever these boundaries or their dependency direction change, and verify every backend change with `npm run build`.
 
+## Project Filesystem Boundary — Hard Requirement
+
+All filesystem operations performed for a project must stay inside that project's dedicated directory at `<global-workspace>/projects/<project-id>/`. Repository working copies belong at `<global-workspace>/projects/<project-id>/repositories/<repository-name>/`. Never place project-owned files directly under the global workspace root, never read or write another project's directory, and never allow relative traversal or absolute paths to escape the owning project directory.
+
+Backend code must resolve project-owned paths through the shared project-workspace containment primitive in `server/utils/workspace-path.ts` (or the corresponding settings-service wrapper) instead of joining paths ad hoc. Global control-plane state such as the SQLite database and encryption keys remains outside project directories. Any project filesystem feature is incomplete unless its containment behavior is covered by tests.
+
 ## Build, Test, and Development Commands
 
 - `npm install --legacy-peer-deps`: install dependencies with the required npm 10 workaround.
