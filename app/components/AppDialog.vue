@@ -125,7 +125,7 @@ onBeforeUnmount(() => {
               <h2 :id="titleId">{{ title }}</h2>
             </div>
           </div>
-          <AppButton variant="plain" class="close-button" icon="close" :icon-size="18" :aria-label="closeLabel" :disabled="busy" @click="emit('requestClose', 'button')" />
+          <AppButton variant="plain" class="close-button" icon="close" :icon-size="16" :aria-label="closeLabel" :disabled="busy" @click="emit('requestClose', 'button')" />
         </header>
         <div class="dialog-body">
           <slot />

@@ -1,5 +1,13 @@
 <script setup lang="ts">
+import type { AppControlSize } from '~/types/ui'
+
 defineOptions({ inheritAttrs: false })
+
+withDefaults(defineProps<{
+  size?: AppControlSize
+}>(), {
+  size: 'md',
+})
 
 const [model, modifiers] = defineModel<string | number | null | undefined, 'number' | 'trim'>({
   set(value) {
@@ -14,5 +22,5 @@ const [model, modifiers] = defineModel<string | number | null | undefined, 'numb
 </script>
 
 <template>
-  <input v-model="model" v-bind="$attrs" />
+  <input v-model="model" v-bind="$attrs" class="app-control" :data-size="size" />
 </template>

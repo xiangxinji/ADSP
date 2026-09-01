@@ -6,7 +6,7 @@ ForgePilot is an AI-native software engineering orchestration platform. It turns
 
 > 从需求启航，让软件自主交付。
 
-The product is currently in the architecture-design stage. Read [Product Vision](docs/product-vision.md), [Architecture](docs/architecture.md), the current [Requirements & Assets specification](docs/requirements-assets.md), and [API contract](docs/api.md) before implementation.
+The product is currently in the architecture-design stage. Read [Product Vision](docs/product-vision.md), [Architecture](docs/architecture.md), the current [Requirements & Assets specification](docs/requirements-assets.md), [UI size system](docs/ui-size-system.md), and [API contract](docs/api.md) before implementation.
 
 ## Setup
 

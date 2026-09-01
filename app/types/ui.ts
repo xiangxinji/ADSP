@@ -11,6 +11,7 @@ export type AppIconName =
   | 'eye-off'
   | 'knowledge'
   | 'members'
+  | 'moon'
   | 'refresh'
   | 'repository'
   | 'save'
@@ -18,6 +19,7 @@ export type AppIconName =
   | 'settings'
   | 'shield-check'
   | 'status'
+  | 'sun'
   | 'versions'
 
 export type AppButtonVariant =
@@ -28,3 +30,5 @@ export type AppButtonVariant =
   | 'text'
   | 'text-danger'
   | 'plain'
+
+export type AppControlSize = 'sm' | 'md' | 'lg'

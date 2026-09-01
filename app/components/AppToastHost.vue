@@ -12,7 +12,7 @@ const { toast, dismiss } = useAppToast()
         :role="toast.tone === 'error' ? 'alert' : 'status'"
         :aria-live="toast.tone === 'error' ? 'assertive' : 'polite'"
       >
-        <span class="app-toast-icon"><AppIcon :name="toast.tone === 'error' ? 'alert' : 'check'" :size="18" /></span>
+        <span class="app-toast-icon"><AppIcon :name="toast.tone === 'error' ? 'alert' : 'check'" :size="16" /></span>
         <span>{{ toast.message }}</span>
         <AppButton variant="plain" icon="close" aria-label="关闭提示" @click="dismiss" />
       </aside>

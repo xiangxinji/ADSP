@@ -78,6 +78,9 @@ withDefaults(defineProps<{
       <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
       <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </template>
+    <template v-else-if="name === 'moon'">
+      <path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z" />
+    </template>
     <template v-else-if="name === 'environment'">
       <rect x="3" y="4" width="18" height="6" rx="2" />
       <rect x="3" y="14" width="18" height="6" rx="2" />
@@ -91,6 +94,10 @@ withDefaults(defineProps<{
     <template v-else-if="name === 'shield-check'">
       <path d="M20 13c0 5-3.5 7.5-8 9-4.5-1.5-8-4-8-9V5l8-3 8 3z" />
       <path d="m9 12 2 2 4-4" />
+    </template>
+    <template v-else-if="name === 'sun'">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.65 17.65l1.42 1.42M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.65 6.35l1.42-1.42" />
     </template>
     <template v-else-if="name === 'check'">
       <path d="m5 12 4 4L19 6" />

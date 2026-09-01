@@ -4,6 +4,8 @@ defineProps<{
 }>()
 
 const route = useRoute()
+const { resolvedMode, toggleColorMode } = useColorMode()
+const themeToggleLabel = computed(() => resolvedMode.value === 'dark' ? '切换到浅色模式' : '切换到黑夜模式')
 const activeSection = computed(() => {
   if (route.path === '/users') return 'users'
   if (route.path === '/settings') return 'settings'
@@ -23,5 +25,15 @@ const activeSection = computed(() => {
       <NuxtLink to="/settings" :class="{ active: activeSection === 'settings' }" :aria-current="activeSection === 'settings' ? 'page' : undefined">全局设置</NuxtLink>
     </nav>
     <span v-if="badge" class="header-badge">{{ badge }}</span>
+    <button
+      class="theme-toggle"
+      type="button"
+      :aria-label="themeToggleLabel"
+      :title="themeToggleLabel"
+      :aria-pressed="resolvedMode === 'dark'"
+      @click="toggleColorMode"
+    >
+      <AppIcon :name="resolvedMode === 'dark' ? 'sun' : 'moon'" :size="16" />
+    </button>
   </header>
 </template>

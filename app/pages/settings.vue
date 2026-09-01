@@ -174,7 +174,7 @@ onMounted(() => {
           <form class="panel integration-form" @submit.prevent="saveSettings">
             <AppFormField field-id="gitlab-url" label="GitLab 地址" hint="支持 GitLab.com 和企业自托管地址。"><AppInput id="gitlab-url" v-model="form.baseUrl" required type="url" placeholder="https://gitlab.com" /></AppFormField>
             <AppFormField field-id="gitlab-token" label="Access Token">
-              <div class="secret-input"><AppInput id="gitlab-token" v-model="form.token" :required="!settings?.configured" :type="showToken ? 'text' : 'password'" autocomplete="new-password" spellcheck="false" :placeholder="settings?.configured ? `已保存 ${settings.tokenHint}，留空则保持不变` : '输入 GitLab Personal Access Token'" /><AppButton variant="plain" :icon="showToken ? 'eye-off' : 'eye'" :icon-size="14" @click="showToken = !showToken">{{ showToken ? '隐藏' : '显示' }}</AppButton></div>
+              <div class="secret-input"><AppInput id="gitlab-token" v-model="form.token" :required="!settings?.configured" :type="showToken ? 'text' : 'password'" autocomplete="new-password" spellcheck="false" :placeholder="settings?.configured ? `已保存 ${settings.tokenHint}，留空则保持不变` : '输入 GitLab Personal Access Token'" /><AppButton variant="plain" :icon="showToken ? 'eye-off' : 'eye'" @click="showToken = !showToken">{{ showToken ? '隐藏' : '显示' }}</AppButton></div>
               <template #hint>Token 只发送到 ForgePilot 服务端，并以加密形式保存。仓库读取至少需要 <code>read_api</code> 权限。</template>
             </AppFormField>
 

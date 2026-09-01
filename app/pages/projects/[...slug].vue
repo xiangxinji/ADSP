@@ -181,6 +181,7 @@ const environmentTypeOptions: { value: EnvironmentType, label: string }[] = [
 ]
 
 const priorityLabel = (value: RequirementPriority) => priorityOptions.find(option => option.value === value)?.label || value
+const requirementStatusStyle = (color: string) => ({ '--status-color': color })
 const repositoryProviderLabel = (value: RepositoryProvider) => repositoryProviderOptions.find(option => option.value === value)?.label || value
 const repositoryBranchStrategyLabel = (value: RepositoryBranchStrategy) => repositoryBranchStrategyOptions.find(option => option.value === value)?.label || value
 const environmentTypeLabel = (value: EnvironmentType) => environmentTypeOptions.find(option => option.value === value)?.label || value
@@ -624,7 +625,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
         <div v-if="workspace.requirements.length" class="requirement-list">
           <article v-for="requirement in workspace.requirements" :key="requirement.id" class="panel requirement-card">
             <div class="requirement-main">
-              <div class="requirement-title-line"><h3>{{ requirement.title }}</h3><span class="status" :style="{ color: requirement.status.color, backgroundColor: `${requirement.status.color}18` }">{{ requirement.status.name }}</span><span class="priority" :data-priority="requirement.priority">{{ priorityLabel(requirement.priority) }}</span></div>
+              <div class="requirement-title-line"><h3>{{ requirement.title }}</h3><span class="status dynamic-status" :style="requirementStatusStyle(requirement.status.color)">{{ requirement.status.name }}</span><span class="priority" :data-priority="requirement.priority">{{ priorityLabel(requirement.priority) }}</span></div>
               <p>{{ requirement.description || '暂无需求说明' }}</p>
               <div class="asset-references">
                 <span v-for="version in requirement.versions" :key="version.id" class="chip version-chip">{{ version.name }}<em v-if="version.isLatest">latest</em></span>
@@ -633,7 +634,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
                 <span v-if="!requirement.versions.length && !requirement.repositories.length && !requirement.members.length" class="unbound">尚未关联版本或资产</span>
               </div>
             </div>
-            <div class="requirement-meta"><span>更新于 {{ formatDate(requirement.updatedAt) }}</span><div><AppButton variant="text" icon="edit" :icon-size="14" @click="openRequirement(requirement)">编辑</AppButton><AppButton variant="text-danger" icon="delete" :icon-size="14" @click="removeRecord('requirement', requirement.id, requirement.title)">删除</AppButton></div></div>
+            <div class="requirement-meta"><span>更新于 {{ formatDate(requirement.updatedAt) }}</span><div><AppButton variant="text" icon="edit" @click="openRequirement(requirement)">编辑</AppButton><AppButton variant="text-danger" icon="delete" @click="removeRecord('requirement', requirement.id, requirement.title)">删除</AppButton></div></div>
           </article>
         </div>
         <div v-else class="panel empty-state"><strong>还没有需求</strong><span>创建第一条需求，并绑定代码仓库和项目成员。</span><AppButton icon="add" @click="openRequirement()">新建需求</AppButton></div>
@@ -683,9 +684,9 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
           </div>
           <div v-if="workspace.repositories.length" class="asset-record-list">
             <article v-for="repository in workspace.repositories" :id="`asset-${repository.id}`" :key="repository.id" class="panel asset-card asset-record-card">
-              <div class="asset-icon repository-icon"><AppIcon name="repository" :size="18" /></div>
+              <div class="asset-icon repository-icon"><AppIcon name="repository" :size="20" /></div>
               <div class="asset-copy"><strong>{{ repository.name }} <span class="provider-badge">{{ repositoryProviderLabel(repository.provider) }}</span></strong><a :href="repository.url" target="_blank" rel="noreferrer">{{ repository.url }}</a><span class="asset-note">版本分支策略：{{ repositoryBranchStrategyLabel(repository.branchStrategy) }}</span><span v-if="repository.note" class="asset-note">备注：{{ repository.note }}</span><small>被 {{ repository.referenceCount }} 条需求引用</small></div>
-              <div class="asset-actions"><AppButton variant="text" icon="edit" :icon-size="14" @click="openRepository(repository)">编辑</AppButton><AppButton variant="text-danger" icon="delete" :icon-size="14" @click="removeRecord('repository', repository.id, repository.name, repository.referenceCount)">删除</AppButton></div>
+              <div class="asset-actions"><AppButton variant="text" icon="edit" @click="openRepository(repository)">编辑</AppButton><AppButton variant="text-danger" icon="delete" @click="removeRecord('repository', repository.id, repository.name, repository.referenceCount)">删除</AppButton></div>
             </article>
           </div>
           <div v-else class="panel empty-state"><strong>还没有代码仓库</strong><span>添加仓库后，需求可以直接引用它。</span><AppButton icon="add" @click="openRepository()">添加第一个仓库</AppButton></div>
@@ -699,7 +700,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
             <article v-for="member in workspace.members" :id="`asset-${member.id}`" :key="member.id" class="panel asset-card asset-record-card">
               <div class="asset-icon member-icon">{{ member.user.name.slice(0, 1) }}</div>
               <div class="asset-copy"><strong>{{ member.user.name }}</strong><span>{{ member.user.email }}</span><small>{{ member.role }} · 被 {{ member.referenceCount }} 条需求引用</small></div>
-              <div class="asset-actions"><AppButton variant="text" icon="edit" :icon-size="14" @click="openMember(member)">编辑角色</AppButton><AppButton variant="text-danger" icon="delete" :icon-size="14" @click="removeRecord('member', member.id, member.user.name, member.referenceCount)">移除</AppButton></div>
+              <div class="asset-actions"><AppButton variant="text" icon="edit" @click="openMember(member)">编辑角色</AppButton><AppButton variant="text-danger" icon="delete" @click="removeRecord('member', member.id, member.user.name, member.referenceCount)">移除</AppButton></div>
             </article>
           </div>
           <div v-else class="panel empty-state"><strong>还没有项目成员</strong><span>从全局用户中选择成员，并为其设置项目角色。</span><AppButton icon="add" @click="openMember()">添加第一位成员</AppButton></div>
@@ -711,9 +712,9 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
           </div>
           <div v-if="workspace.environments.length" class="asset-record-list">
             <article v-for="environment in workspace.environments" :id="`asset-${environment.id}`" :key="environment.id" class="panel asset-card asset-record-card">
-              <div class="asset-icon environment-icon"><AppIcon name="environment" :size="18" /></div>
+              <div class="asset-icon environment-icon"><AppIcon name="environment" :size="20" /></div>
               <div class="asset-copy"><strong>项目环境 <span class="provider-badge environment-badge" :data-environment="environment.type">{{ environmentTypeLabel(environment.type) }}</span></strong><a :href="environment.address" target="_blank" rel="noreferrer">{{ environment.address }}</a><span v-if="environment.note" class="asset-note">备注：{{ environment.note }}</span><small v-for="account in environment.accounts" :key="account.account" class="environment-account">账号：{{ account.account }}　密码：{{ account.password || '未设置' }}</small></div>
-              <div class="asset-actions"><AppButton variant="text" icon="edit" :icon-size="14" @click="openEnvironment(environment)">编辑</AppButton><AppButton variant="text-danger" icon="delete" :icon-size="14" @click="removeRecord('environment', environment.id, environment.address)">删除</AppButton></div>
+              <div class="asset-actions"><AppButton variant="text" icon="edit" @click="openEnvironment(environment)">编辑</AppButton><AppButton variant="text-danger" icon="delete" @click="removeRecord('environment', environment.id, environment.address)">删除</AppButton></div>
             </article>
           </div>
           <div v-else class="panel empty-state"><strong>还没有项目环境</strong><span>登记环境地址，并可选择添加自助使用的测试账号。</span><AppButton icon="add" @click="openEnvironment()">添加第一个环境</AppButton></div>
@@ -725,7 +726,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
           </div>
           <div v-if="workspace.knowledge.length" class="asset-record-list knowledge-record-list">
             <article v-for="knowledge in workspace.knowledge" :id="`asset-${knowledge.id}`" :key="knowledge.id" class="panel asset-card asset-record-card knowledge-card">
-              <div class="asset-icon knowledge-icon"><AppIcon name="knowledge" :size="18" /></div>
+              <div class="asset-icon knowledge-icon"><AppIcon name="knowledge" :size="20" /></div>
               <div class="asset-copy knowledge-copy">
                 <strong>{{ knowledge.title }}</strong>
                 <pre>{{ knowledge.content }}</pre>
@@ -737,7 +738,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
                 </div>
                 <small>Markdown · {{ knowledge.references.length }} 个资产引用 · 更新于 {{ formatDate(knowledge.updatedAt) }}</small>
               </div>
-              <div class="asset-actions"><AppButton variant="text" icon="settings" :icon-size="14" :to="`${assetsPath}/knowledge/${knowledge.id}/info`">基本信息</AppButton><AppButton variant="text" icon="edit" :icon-size="14" :to="`${assetsPath}/knowledge/${knowledge.id}/edit`">编写正文</AppButton><AppButton variant="text-danger" icon="delete" :icon-size="14" @click="removeRecord('knowledge', knowledge.id, knowledge.title)">删除</AppButton></div>
+              <div class="asset-actions"><AppButton variant="text" icon="settings" :to="`${assetsPath}/knowledge/${knowledge.id}/info`">基本信息</AppButton><AppButton variant="text" icon="edit" :to="`${assetsPath}/knowledge/${knowledge.id}/edit`">编写正文</AppButton><AppButton variant="text-danger" icon="delete" @click="removeRecord('knowledge', knowledge.id, knowledge.title)">删除</AppButton></div>
             </article>
           </div>
           <div v-else class="panel empty-state"><strong>还没有项目知识</strong><span>先添加基本信息，再用全屏编辑器编写 Markdown 正文。</span><AppButton icon="add" :to="`${assetsPath}/knowledge/new`">添加第一篇知识</AppButton></div>
@@ -771,11 +772,11 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
           <article v-for="requirementStatus in workspace?.requirementStatuses" :key="requirementStatus.id" class="status-record" :class="{ selected: editingId === requirementStatus.id }">
             <span class="status-color" :style="{ backgroundColor: requirementStatus.color }" />
             <div><strong>{{ requirementStatus.name }}</strong><small>{{ requirementStatus.key }} · 排序 {{ requirementStatus.sortOrder }} · {{ requirementStatus.requirementCount }} 条需求</small><div class="status-flags"><span v-if="requirementStatus.isInitial">初始状态</span><span v-if="requirementStatus.isTerminal">终态</span></div></div>
-            <div class="status-actions"><AppButton variant="text" icon="edit" :icon-size="14" @click="editRequirementStatus(requirementStatus)">编辑</AppButton><AppButton variant="text-danger" icon="delete" :icon-size="14" @click="removeRequirementStatus(requirementStatus)">删除</AppButton></div>
+            <div class="status-actions"><AppButton variant="text" icon="edit" @click="editRequirementStatus(requirementStatus)">编辑</AppButton><AppButton variant="text-danger" icon="delete" @click="removeRequirementStatus(requirementStatus)">删除</AppButton></div>
           </article>
         </div>
         <form class="status-editor" @submit.prevent="saveRequirementStatus">
-          <div class="status-editor-heading"><h3>{{ editingId ? '编辑状态' : '新增状态' }}</h3><AppButton v-if="editingId" variant="text" icon="add" :icon-size="14" @click="resetRequirementStatusForm">新增状态</AppButton></div>
+          <div class="status-editor-heading"><h3>{{ editingId ? '编辑状态' : '新增状态' }}</h3><AppButton v-if="editingId" variant="text" icon="add" @click="resetRequirementStatusForm">新增状态</AppButton></div>
           <div class="form-grid two">
             <AppFormField field-id="status-name" label="显示名称"><AppInput id="status-name" v-model="requirementStatusForm.name" required autofocus placeholder="例如：评审中" /></AppFormField>
             <AppFormField field-id="status-key" label="唯一标识"><AppInput id="status-key" v-model="requirementStatusForm.key" required pattern="[a-z][a-z0-9_]*" placeholder="reviewing" /></AppFormField>
@@ -794,11 +795,11 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
       <p class="dialog-intro">只维护大版本号，系统固定展示为 v${大版本号}.x；数值最大的版本自动标记为 latest。</p>
       <div class="status-manager">
         <div class="status-records">
-          <article v-for="version in workspace?.requirementVersions" :key="version.id" class="status-record version-record" :class="{ selected: editingId === version.id }"><div><strong>{{ version.name }} <em v-if="version.isLatest" class="latest-label">latest</em></strong><small>大版本号 {{ version.major }} · {{ version.requirementCount }} 条需求</small></div><div class="status-actions"><AppButton variant="text" icon="edit" :icon-size="14" @click="editRequirementVersion(version)">编辑</AppButton><AppButton variant="text-danger" icon="delete" :icon-size="14" @click="removeRequirementVersion(version)">删除</AppButton></div></article>
+          <article v-for="version in workspace?.requirementVersions" :key="version.id" class="status-record version-record" :class="{ selected: editingId === version.id }"><div><strong>{{ version.name }} <em v-if="version.isLatest" class="latest-label">latest</em></strong><small>大版本号 {{ version.major }} · {{ version.requirementCount }} 条需求</small></div><div class="status-actions"><AppButton variant="text" icon="edit" @click="editRequirementVersion(version)">编辑</AppButton><AppButton variant="text-danger" icon="delete" @click="removeRequirementVersion(version)">删除</AppButton></div></article>
           <p v-if="!workspace?.requirementVersions.length" class="picker-empty">还没有版本，请先添加一个大版本。</p>
         </div>
         <form class="status-editor" @submit.prevent="saveRequirementVersion">
-          <div class="status-editor-heading"><h3>{{ editingId ? '编辑版本' : '新增版本' }}</h3><AppButton v-if="editingId" variant="text" icon="add" :icon-size="14" @click="resetRequirementVersionForm">新增版本</AppButton></div>
+          <div class="status-editor-heading"><h3>{{ editingId ? '编辑版本' : '新增版本' }}</h3><AppButton v-if="editingId" variant="text" icon="add" @click="resetRequirementVersionForm">新增版本</AppButton></div>
           <AppFormField field-id="version-major" label="大版本号"><AppInput id="version-major" v-model.number="requirementVersionForm.major" required autofocus type="number" min="0" step="1" placeholder="例如：3" /><template #hint>将显示为 v{{ requirementVersionForm.major }}.x</template></AppFormField>
           <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
           <div class="dialog-actions"><AppButton type="submit" :icon="editingId ? 'save' : 'add'" :busy="saving" busy-label="保存中…">{{ editingId ? '保存修改' : '新增版本' }}</AppButton></div>
@@ -808,7 +809,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
 
     <AppDialog :open="dialog === 'repository'" :title="editingId ? '编辑代码仓库' : '添加代码仓库'" overline="REPOSITORY ASSET" class="repository-dialog" :busy="saving" @request-close="requestDialogClose">
       <form id="repository-form" @submit.prevent="saveRepository">
-        <section v-if="!editingId && repositoryForm.provider === 'gitlab'" class="gitlab-picker"><div class="gitlab-picker-heading"><div><strong>从 GitLab 选择</strong><small>使用全局 Token 读取你有权访问的仓库</small></div><AppButton variant="text" icon="settings" :icon-size="14" to="/settings">全局设置</AppButton></div><div class="gitlab-picker-search"><label class="sr-only" for="gitlab-repository-search">搜索 GitLab 仓库</label><AppInput id="gitlab-repository-search" v-model="gitlabRepositorySearch" placeholder="搜索 GitLab 仓库" @keydown.enter.prevent="loadGitLabRepositories" /><AppButton variant="secondary" icon="search" :busy="gitlabRepositoriesLoading" busy-label="读取中…" @click="loadGitLabRepositories">查询</AppButton></div><p v-if="gitlabRepositoryError" class="picker-error" role="alert">{{ gitlabRepositoryError }}</p><div v-if="gitlabRepositories.length" class="gitlab-results"><AppButton v-for="repository in gitlabRepositories" :key="repository.id" variant="plain" :class="{ selected: repositoryForm.externalId === String(repository.id) }" @click="selectGitLabRepository(repository)"><span><strong>{{ repository.name }}</strong><small>{{ repository.nameWithNamespace }}</small></span><em>{{ repository.defaultBranch }}</em></AppButton></div></section>
+        <section v-if="!editingId && repositoryForm.provider === 'gitlab'" class="gitlab-picker"><div class="gitlab-picker-heading"><div><strong>从 GitLab 选择</strong><small>使用全局 Token 读取你有权访问的仓库</small></div><AppButton variant="text" icon="settings" to="/settings">全局设置</AppButton></div><div class="gitlab-picker-search"><label class="sr-only" for="gitlab-repository-search">搜索 GitLab 仓库</label><AppInput id="gitlab-repository-search" v-model="gitlabRepositorySearch" placeholder="搜索 GitLab 仓库" @keydown.enter.prevent="loadGitLabRepositories" /><AppButton variant="secondary" icon="search" :busy="gitlabRepositoriesLoading" busy-label="读取中…" @click="loadGitLabRepositories">查询</AppButton></div><p v-if="gitlabRepositoryError" class="picker-error" role="alert">{{ gitlabRepositoryError }}</p><div v-if="gitlabRepositories.length" class="gitlab-results"><AppButton v-for="repository in gitlabRepositories" :key="repository.id" variant="plain" :class="{ selected: repositoryForm.externalId === String(repository.id) }" @click="selectGitLabRepository(repository)"><span><strong>{{ repository.name }}</strong><small>{{ repository.nameWithNamespace }}</small></span><em>{{ repository.defaultBranch }}</em></AppButton></div></section>
         <AppFormField field-id="repository-provider" label="代码托管平台"><AppSelect id="repository-provider" v-model="repositoryForm.provider" required><option v-for="option in repositoryProviderOptions" :key="option.value" :value="option.value">{{ option.label }}</option></AppSelect></AppFormField>
         <fieldset class="branch-strategy-field">
           <legend>版本分支策略</legend>
@@ -839,7 +840,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
         <AppFormField field-id="environment-type" label="环境类型"><AppSelect id="environment-type" v-model="environmentForm.type" required><option v-for="option in environmentTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option></AppSelect></AppFormField>
         <AppFormField field-id="environment-address" label="环境地址" hint="仅支持 HTTP 或 HTTPS 地址，地址中不能包含账号密码。"><AppInput id="environment-address" v-model="environmentForm.address" required autofocus type="url" placeholder="https://dev.example.com" /></AppFormField>
         <AppFormField field-id="environment-note" label="备注" hint="可填写环境用途、访问限制或其他说明。"><AppTextarea id="environment-note" v-model="environmentForm.note" maxlength="500" placeholder="例如：供测试团队进行验收验证" /></AppFormField>
-        <div class="field"><span class="field-label">关联账号（可选）</span><div class="account-list"><div v-for="(_, index) in environmentForm.accounts" :key="index" class="account-row"><AppInput v-model="environmentForm.accounts[index].account" required maxlength="100" :aria-label="`账号 ${index + 1}`" :placeholder="`账号 ${index + 1}`" /><AppInput v-model="environmentForm.accounts[index].password" maxlength="500" type="text" autocomplete="off" :aria-label="`密码 ${index + 1}`" :placeholder="`密码 ${index + 1}（可选）`" /><AppButton variant="text-danger" icon="delete" :icon-size="14" @click="removeEnvironmentAccount(index)">移除</AppButton></div><AppButton variant="text" class="add-account" icon="add" :icon-size="14" :disabled="environmentForm.accounts.length >= 20" @click="addEnvironmentAccount">添加账号</AppButton></div><small>可以不添加账号；最多添加 20 个，密码可留空且会按原文保存并明文展示。</small></div>
+        <div class="field"><span class="field-label">关联账号（可选）</span><div class="account-list"><div v-for="(_, index) in environmentForm.accounts" :key="index" class="account-row"><AppInput v-model="environmentForm.accounts[index].account" required maxlength="100" :aria-label="`账号 ${index + 1}`" :placeholder="`账号 ${index + 1}`" /><AppInput v-model="environmentForm.accounts[index].password" maxlength="500" type="text" autocomplete="off" :aria-label="`密码 ${index + 1}`" :placeholder="`密码 ${index + 1}（可选）`" /><AppButton variant="text-danger" icon="delete" @click="removeEnvironmentAccount(index)">移除</AppButton></div><AppButton variant="text" class="add-account" icon="add" :disabled="environmentForm.accounts.length >= 20" @click="addEnvironmentAccount">添加账号</AppButton></div><small>可以不添加账号；最多添加 20 个，密码可留空且会按原文保存并明文展示。</small></div>
         <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
       </form>
       <template #actions><AppButton variant="secondary" :disabled="saving" @click="requestDialogClose">取消</AppButton><AppButton type="submit" form="environment-form" icon="save" :busy="saving" busy-label="保存中…">保存环境</AppButton></template>
