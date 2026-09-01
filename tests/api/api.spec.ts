@@ -1,5 +1,9 @@
+import { execFile } from 'node:child_process'
 import { existsSync, readdirSync, realpathSync } from 'node:fs'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
+import { pathToFileURL } from 'node:url'
+import { promisify } from 'node:util'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import type {
   EnvironmentAsset,
@@ -14,6 +18,8 @@ import type {
   ProjectSummary,
   ProjectWorkspace,
   RepositoryAsset,
+  RepositoryCloneResult,
+  RepositoryUpdateResult,
   Requirement,
   RequirementStatus,
   RequirementVersion,
@@ -64,6 +70,11 @@ let version2Id = ''
 let version3Id = ''
 let requirementId = ''
 let userId = ''
+let repositorySourcePath = ''
+let repositoryRemotePath = ''
+let repositoryWorkingCopyPath = ''
+
+const run = promisify(execFile)
 
 const routeCases: ApiRouteCase[] = [
   {
@@ -305,6 +316,62 @@ const routeCases: ApiRouteCase[] = [
         note: '已更新的接口测试仓库',
       })
       expect(response.data).not.toHaveProperty('defaultBranch')
+    },
+  },
+  {
+    route: 'POST /api/repositories/:id/clone',
+    run: async () => {
+      const remoteParent = join(dirname(harness.databasePath), 'remotes')
+      repositoryRemotePath = join(remoteParent, 'forgepilot-api-test.git')
+      repositorySourcePath = join(remoteParent, 'source')
+      await mkdir(remoteParent, { recursive: true })
+      await run('git', ['init', '--initial-branch=main', repositorySourcePath])
+      await run('git', ['-C', repositorySourcePath, 'config', 'user.name', 'ForgePilot Test'])
+      await run('git', ['-C', repositorySourcePath, 'config', 'user.email', 'forgepilot@example.com'])
+      await writeFile(join(repositorySourcePath, 'version.txt'), 'v1\n')
+      await run('git', ['-C', repositorySourcePath, 'add', 'version.txt'])
+      await run('git', ['-C', repositorySourcePath, 'commit', '-m', 'test: add initial version'])
+      await run('git', ['init', '--bare', repositoryRemotePath])
+      await run('git', ['-C', repositorySourcePath, 'remote', 'add', 'origin', pathToFileURL(repositoryRemotePath).href])
+      await run('git', ['-C', repositorySourcePath, 'push', '-u', 'origin', 'main'])
+      await run('git', ['--git-dir', repositoryRemotePath, 'symbolic-ref', 'HEAD', 'refs/heads/main'])
+      await harness.request<RepositoryAsset>(`/api/repositories/${repositoryId}`, {
+        method: 'PATCH',
+        body: { provider: 'github', url: pathToFileURL(repositoryRemotePath).href },
+      })
+
+      const response = await harness.request<RepositoryCloneResult>(`/api/repositories/${repositoryId}/clone`, {
+        method: 'POST',
+      })
+      repositoryWorkingCopyPath = join(dirname(harness.databasePath), 'local-workspace', 'repositories', 'forgepilot-api-test')
+      expect(response.status).toBe(201)
+      expect(response.data).toEqual({ repositoryId, path: repositoryWorkingCopyPath })
+      expect(existsSync(join(repositoryWorkingCopyPath, '.git'))).toBe(true)
+      expect((await readFile(join(repositoryWorkingCopyPath, 'version.txt'), 'utf8')).trim()).toBe('v1')
+
+      const duplicate = await harness.request(`/api/repositories/${repositoryId}/clone`, { method: 'POST' })
+      expect(duplicate.status).toBe(409)
+    },
+  },
+  {
+    route: 'POST /api/repositories/:id/update',
+    run: async () => {
+      await run('git', ['-C', repositoryWorkingCopyPath, 'remote', 'set-url', 'origin', 'https://example.com/unrelated.git'])
+      const mismatched = await harness.request(`/api/repositories/${repositoryId}/update`, { method: 'POST' })
+      expect(mismatched.status).toBe(409)
+      await run('git', ['-C', repositoryWorkingCopyPath, 'remote', 'set-url', 'origin', pathToFileURL(repositoryRemotePath).href])
+
+      await writeFile(join(repositorySourcePath, 'version.txt'), 'v2\n')
+      await run('git', ['-C', repositorySourcePath, 'add', 'version.txt'])
+      await run('git', ['-C', repositorySourcePath, 'commit', '-m', 'test: update version'])
+      await run('git', ['-C', repositorySourcePath, 'push'])
+
+      const response = await harness.request<RepositoryUpdateResult>(`/api/repositories/${repositoryId}/update`, {
+        method: 'POST',
+      })
+      expect(response.status).toBe(200)
+      expect(response.data).toEqual({ repositoryId, path: repositoryWorkingCopyPath })
+      expect((await readFile(join(repositoryWorkingCopyPath, 'version.txt'), 'utf8')).trim()).toBe('v2')
     },
   },
   {

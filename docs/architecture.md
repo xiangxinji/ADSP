@@ -166,6 +166,18 @@ operation must obtain this setting and resolve descendants through the shared co
 primitive. Relative traversal and absolute targets outside the configured root are
 rejected. When no root is configured, such operations fail before touching the filesystem.
 
+Repository assets remain remote source-control references until an operator requests a
+clone. The repository cloning use case creates the fixed `repositories/` directory below
+the configured root and clones each working copy to `repositories/<remote-name>`, where
+the directory name comes from the final repository URL segment without `.git`. Existing
+destinations make the clone action return a conflict and are never overwritten. A
+separate update action verifies that the destination is a Git repository whose `origin`
+matches the asset, then runs `git remote update --prune` followed by
+`git pull --ff-only`; unrelated same-name directories are not modified. GitLab HTTP clone
+and update actions reuse the encrypted global token only when the repository URL has the
+same origin as the configured GitLab instance; the credential is injected into the Git
+child-process environment and never returned to the browser or embedded in the remote URL.
+
 The SQLite database and credential-encryption key are control-plane state, not task
 workspace content, and continue to use their independent environment-variable or `.data`
 locations. This directory boundary prevents accidental file placement but is not an

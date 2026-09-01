@@ -102,6 +102,10 @@ withDefaults(defineProps<{
     <template v-else-if="name === 'check'">
       <path d="m5 12 4 4L19 6" />
     </template>
+    <template v-else-if="name === 'clone'">
+      <path d="M8 7h10a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3h-8a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h7" />
+      <path d="m13 9 4-4-4-4M17 5H8a5 5 0 0 0-5 5v5" />
+    </template>
     <template v-else-if="name === 'close'">
       <path d="M18 6 6 18M6 6l12 12" />
     </template>

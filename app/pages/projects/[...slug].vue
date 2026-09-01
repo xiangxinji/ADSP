@@ -10,7 +10,9 @@ import type {
   ProjectMember,
   RepositoryAsset,
   RepositoryBranchStrategy,
+  RepositoryCloneResult,
   RepositoryProvider,
+  RepositoryUpdateResult,
   Requirement,
   RequirementPriority,
   RequirementStatus,
@@ -67,6 +69,7 @@ const assetModuleLabel = computed(() => ({
 const dialog = ref<'requirement' | 'statuses' | 'versions' | 'repository' | 'member' | 'environment' | null>(null)
 const editingId = ref<string | null>(null)
 const saving = ref(false)
+const repositoryOperation = ref<{ id: string, type: 'clone' | 'update' } | null>(null)
 const actionError = ref('')
 const { success } = useAppToast()
 
@@ -414,6 +417,21 @@ const selectGitLabRepository = (repository: GitLabRepository) => {
   })
 }
 
+const runRepositoryOperation = async (repository: RepositoryAsset, operation: 'clone' | 'update') => {
+  repositoryOperation.value = { id: repository.id, type: operation }
+  actionError.value = ''
+  try {
+    const result = await $fetch<RepositoryCloneResult | RepositoryUpdateResult>(`/api/repositories/${repository.id}/${operation}`, {
+      method: 'POST',
+    })
+    success(`仓库已${operation === 'clone' ? '克隆' : '更新'}：${result.path}`)
+  } catch (requestError) {
+    actionError.value = errorMessage(requestError)
+  } finally {
+    repositoryOperation.value = null
+  }
+}
+
 const saveRequirement = async () => {
   saving.value = true
   actionError.value = ''
@@ -690,7 +708,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
             <article v-for="repository in workspace.repositories" :id="`asset-${repository.id}`" :key="repository.id" class="panel asset-card asset-record-card">
               <div class="asset-icon repository-icon"><AppIcon name="repository" :size="20" /></div>
               <div class="asset-copy"><strong>{{ repository.name }} <span class="provider-badge">{{ repositoryProviderLabel(repository.provider) }}</span></strong><a :href="repository.url" target="_blank" rel="noreferrer">{{ repository.url }}</a><span class="asset-note">版本分支策略：{{ repositoryBranchStrategyLabel(repository.branchStrategy) }}</span><span v-if="repository.note" class="asset-note">备注：{{ repository.note }}</span><small>被 {{ repository.referenceCount }} 条需求引用</small></div>
-              <div class="asset-actions"><AppButton variant="text" icon="edit" @click="openRepository(repository)">编辑</AppButton><AppButton variant="text-danger" icon="delete" @click="removeRecord('repository', repository.id, repository.name, repository.referenceCount)">删除</AppButton></div>
+              <div class="asset-actions"><AppButton variant="text" icon="clone" :busy="repositoryOperation?.id === repository.id && repositoryOperation.type === 'clone'" busy-label="克隆中…" :disabled="Boolean(repositoryOperation)" @click="runRepositoryOperation(repository, 'clone')">克隆</AppButton><AppButton variant="text" icon="refresh" :busy="repositoryOperation?.id === repository.id && repositoryOperation.type === 'update'" busy-label="更新中…" :disabled="Boolean(repositoryOperation)" @click="runRepositoryOperation(repository, 'update')">更新</AppButton><AppButton variant="text" icon="edit" :disabled="Boolean(repositoryOperation)" @click="openRepository(repository)">编辑</AppButton><AppButton variant="text-danger" icon="delete" :disabled="Boolean(repositoryOperation)" @click="removeRecord('repository', repository.id, repository.name, repository.referenceCount)">删除</AppButton></div>
             </article>
           </div>
           <div v-else class="panel empty-state"><strong>还没有代码仓库</strong><span>添加仓库后，需求可以直接引用它。</span><AppButton icon="add" @click="openRepository()">添加第一个仓库</AppButton></div>

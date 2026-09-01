@@ -55,6 +55,16 @@ export type RepositoryAsset = {
   updatedAt: string
 }
 
+export type RepositoryCloneResult = {
+  repositoryId: string
+  path: string
+}
+
+export type RepositoryUpdateResult = {
+  repositoryId: string
+  path: string
+}
+
 export type EnvironmentAccount = {
   account: string
   password: string

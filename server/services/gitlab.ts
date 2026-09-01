@@ -57,6 +57,8 @@ const getStoredCredentials = (): GitLabCredentials | null => {
   }
 }
 
+export const getStoredGitLabCredentials = () => getStoredCredentials()
+
 const resolveCredentials = (input: GitLabSettingsInput, missingTokenMessage: string) => {
   const suppliedToken = input.token?.trim() || ''
   const currentSettings = settingsFromRecord()
