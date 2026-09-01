@@ -5,6 +5,7 @@ type RepositoryRow = {
   id: string
   project_id: string
   provider: RepositoryAsset['provider']
+  branch_strategy: RepositoryAsset['branchStrategy']
   external_id: string | null
   name: string
   note: string
@@ -18,6 +19,7 @@ const repositoryFromRow = (row: RepositoryRow): RepositoryAsset => ({
   id: row.id,
   projectId: row.project_id,
   provider: row.provider,
+  branchStrategy: row.branch_strategy,
   externalId: row.external_id || null,
   name: row.name,
   note: row.note || '',
@@ -64,12 +66,13 @@ export const countProjectRepositoryAssets = (projectId: string, ids: string[]) =
 export const insertRepositoryAsset = (repository: RepositoryAsset) => {
   useDatabase().prepare(`
     INSERT INTO repository_assets
-      (id, project_id, provider, external_id, name, note, url, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, project_id, provider, branch_strategy, external_id, name, note, url, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     repository.id,
     repository.projectId,
     repository.provider,
+    repository.branchStrategy,
     repository.externalId,
     repository.name,
     repository.note,
@@ -82,10 +85,11 @@ export const insertRepositoryAsset = (repository: RepositoryAsset) => {
 export const updateRepositoryAssetRecord = (repository: RepositoryAsset) => {
   useDatabase().prepare(`
     UPDATE repository_assets
-    SET provider = ?, external_id = ?, name = ?, note = ?, url = ?, updated_at = ?
+    SET provider = ?, branch_strategy = ?, external_id = ?, name = ?, note = ?, url = ?, updated_at = ?
     WHERE id = ?
   `).run(
     repository.provider,
+    repository.branchStrategy,
     repository.externalId,
     repository.name,
     repository.note,

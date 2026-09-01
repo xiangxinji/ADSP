@@ -63,14 +63,18 @@ const prepareLegacyDatabase = async (databasePath: string) => {
   database.close()
 }
 
-describe('repository asset default branch migration', () => {
-  test('removes persisted default branches and accepts branch-free assets', async () => {
+describe('repository asset branch migration', () => {
+  test('removes persisted default branches and defaults branch strategy', async () => {
     const harness = await startApiTestHarness({ prepareDatabase: prepareLegacyDatabase })
     try {
       const workspace = await harness.request<ProjectWorkspace>(`/api/projects/${legacyProjectId}`)
       expect(workspace.status).toBe(200)
       expect(workspace.data.repositories).toEqual([
-        expect.objectContaining({ id: legacyRepositoryId, name: 'legacy-repository' }),
+        expect.objectContaining({
+          id: legacyRepositoryId,
+          branchStrategy: 'multi-version',
+          name: 'legacy-repository',
+        }),
       ])
       expect(workspace.data.repositories[0]).not.toHaveProperty('defaultBranch')
 
@@ -83,6 +87,7 @@ describe('repository asset default branch migration', () => {
         },
       })
       expect(created.status).toBe(201)
+      expect(created.data.branchStrategy).toBe('multi-version')
       expect(created.data).not.toHaveProperty('defaultBranch')
 
       const SQL = await sqlJs()
@@ -90,6 +95,9 @@ describe('repository asset default branch migration', () => {
       const columns = database.exec('PRAGMA table_info(repository_assets)')[0].values
         .map(column => String(column[1]))
       expect(columns).not.toContain('default_branch')
+      expect(columns).toContain('branch_strategy')
+      expect(database.exec('SELECT branch_strategy FROM repository_assets ORDER BY id')[0].values)
+        .toEqual([['multi-version'], ['multi-version']])
       database.close()
     } finally {
       await harness.stop()

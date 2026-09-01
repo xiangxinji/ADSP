@@ -1,11 +1,13 @@
 export const requirementPriorities = ['low', 'medium', 'high', 'urgent'] as const
 export const repositoryProviders = ['gitlab', 'github'] as const
+export const repositoryBranchStrategies = ['multi-version', 'development-production'] as const
 export const environmentTypes = ['development', 'testing', 'production'] as const
 export const knowledgeReferenceTypes = ['repository', 'member', 'environment', 'knowledge'] as const
 export const userRoles = ['administrator', 'member'] as const
 
 export type RequirementPriority = typeof requirementPriorities[number]
 export type RepositoryProvider = typeof repositoryProviders[number]
+export type RepositoryBranchStrategy = typeof repositoryBranchStrategies[number]
 export type EnvironmentType = typeof environmentTypes[number]
 export type KnowledgeReferenceType = typeof knowledgeReferenceTypes[number]
 export type UserRole = typeof userRoles[number]
@@ -39,6 +41,7 @@ export type RepositoryAsset = {
   id: string
   projectId: string
   provider: RepositoryProvider
+  branchStrategy: RepositoryBranchStrategy
   externalId: string | null
   name: string
   note: string
@@ -186,6 +189,7 @@ export type CreateProjectInput = Pick<Project, 'name' | 'description'>
 export type UpdateProjectInput = Partial<CreateProjectInput>
 export type CreateUserInput = Pick<UserAccount, 'name' | 'email' | 'role'>
 export type CreateRepositoryInput = Pick<RepositoryAsset, 'provider' | 'name' | 'url'> & {
+  branchStrategy?: RepositoryBranchStrategy
   externalId?: string | null
   note?: string
 }

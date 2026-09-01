@@ -1,5 +1,5 @@
 import type { CreateRepositoryInput, UpdateRepositoryInput } from '../../shared/types/asdp'
-import { repositoryProviders } from '../../shared/types/asdp'
+import { repositoryBranchStrategies, repositoryProviders } from '../../shared/types/asdp'
 import { bodyObject, enumValue, optionalText, requiredText } from '../utils/http-input'
 
 export const repositoryPayload = (
@@ -11,6 +11,9 @@ export const repositoryPayload = (
     provider: partial && body.provider === undefined
       ? undefined
       : enumValue(body.provider, repositoryProviders, 'gitlab'),
+    branchStrategy: partial && body.branchStrategy === undefined
+      ? undefined
+      : enumValue(body.branchStrategy, repositoryBranchStrategies, 'multi-version'),
     externalId: partial && body.externalId === undefined
       ? undefined
       : body.externalId === null

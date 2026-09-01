@@ -96,12 +96,17 @@ requirements or designate another initial status first.
 | `PATCH` | `/api/repositories/:id` | Update repository metadata |
 | `DELETE` | `/api/repositories/:id` | Remove it and cascade requirement references |
 
-Body: `{ "provider": "gitlab" | "github", "externalId"?: string | null, "name": string, "note"?: string, "url": string }`.
+Body: `{ "provider": "gitlab" | "github", "branchStrategy"?: "multi-version" | "development-production", "externalId"?: string | null, "name": string, "note"?: string, "url": string }`.
 
 `note` is optional user-authored context for the repository and defaults to an empty string.
 `externalId` is null when a repository is registered manually rather than selected from GitLab discovery.
+`branchStrategy` defaults to `multi-version`. In that strategy, `main` / `test` map to the
+release / test branches for `latest`, and `vN.x` / `vN.x-test` map to the release / test
+branches for requirement version `vN.x`. `development-production` uses only `dev` for
+development and `main` for production release.
 
 Existing repository records default to `gitlab` during migration.
+Existing repository records default to the `multi-version` branch strategy during migration.
 The repository asset does not persist a default branch; integrations query provider-owned branch metadata when needed.
 
 ## Global GitLab Settings
@@ -161,11 +166,12 @@ Create body:
 
 The optional note records the environment's purpose or access constraints. The
 address must be an HTTP(S) URL without embedded credentials. Types are
-`development`, `testing`, and `production`. At least one account is required, with a
-maximum of 20 unique account names. Each account requires a password of up to 500
-characters. Account passwords are intended for non-sensitive, self-service test
-accounts and are stored and returned without masking. Tokens, private keys, and
-production deployment credentials remain outside this API.
+`development`, `testing`, and `production`. The accounts array may be empty and
+accepts a maximum of 20 unique account names. Each account name is required, while
+its password is optional and allows up to 500 characters. Supplied account passwords
+are intended for non-sensitive, self-service test accounts and are stored and returned
+without masking. Tokens, private keys, and production deployment credentials remain
+outside this API.
 
 ## Knowledge Assets
 

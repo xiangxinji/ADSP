@@ -124,6 +124,8 @@ const createDatabase = async () => {
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       provider TEXT NOT NULL DEFAULT 'gitlab',
+      branch_strategy TEXT NOT NULL DEFAULT 'multi-version'
+        CHECK(branch_strategy IN ('multi-version', 'development-production')),
       external_id TEXT,
       name TEXT NOT NULL,
       note TEXT NOT NULL DEFAULT '',
@@ -319,6 +321,12 @@ const createDatabase = async () => {
   }
   if (!repositoryColumns.some(column => column.name === 'note')) {
     persistentDatabase.exec("ALTER TABLE repository_assets ADD COLUMN note TEXT NOT NULL DEFAULT ''")
+  }
+  if (!repositoryColumns.some(column => column.name === 'branch_strategy')) {
+    persistentDatabase.exec(`
+      ALTER TABLE repository_assets ADD COLUMN branch_strategy TEXT NOT NULL DEFAULT 'multi-version'
+        CHECK(branch_strategy IN ('multi-version', 'development-production'))
+    `)
   }
   if (repositoryColumns.some(column => column.name === 'default_branch')) {
     persistentDatabase.exec('ALTER TABLE repository_assets DROP COLUMN default_branch')

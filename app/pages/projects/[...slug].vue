@@ -9,6 +9,7 @@ import type {
   ProjectWorkspace,
   ProjectMember,
   RepositoryAsset,
+  RepositoryBranchStrategy,
   RepositoryProvider,
   Requirement,
   RequirementPriority,
@@ -75,7 +76,14 @@ const requirementForm = reactive({
   repositoryIds: [] as string[],
   memberIds: [] as string[],
 })
-const repositoryForm = reactive({ provider: 'gitlab' as RepositoryProvider, externalId: null as string | null, name: '', note: '', url: '' })
+const repositoryForm = reactive({
+  provider: 'gitlab' as RepositoryProvider,
+  branchStrategy: 'multi-version' as RepositoryBranchStrategy,
+  externalId: null as string | null,
+  name: '',
+  note: '',
+  url: '',
+})
 const gitlabRepositories = ref<GitLabRepository[]>([])
 const gitlabRepositorySearch = ref('')
 const gitlabRepositoriesLoading = ref(false)
@@ -85,7 +93,7 @@ const environmentForm = reactive({
   address: '',
   note: '',
   type: 'development' as EnvironmentType,
-  accounts: [{ account: '', password: '' }] as EnvironmentAccount[],
+  accounts: [] as EnvironmentAccount[],
 })
 const requirementStatusForm = reactive({
   key: '',
@@ -138,6 +146,34 @@ const repositoryProviderOptions: { value: RepositoryProvider, label: string }[] 
   { value: 'github', label: 'GitHub' },
 ]
 
+const repositoryBranchStrategyOptions: {
+  value: RepositoryBranchStrategy
+  label: string
+  description: string
+  rules: { branch: string, purpose: string }[]
+}[] = [
+  {
+    value: 'multi-version',
+    label: '多版本分支策略',
+    description: '分支与需求中的版本概念联动，latest 和每个 vN.x 版本分别拥有发布、测试分支。',
+    rules: [
+      { branch: 'main', purpose: 'latest 发布分支' },
+      { branch: 'test', purpose: 'latest 测试分支' },
+      { branch: 'v1.x', purpose: 'v1.x 版本发布分支' },
+      { branch: 'v1.x-test', purpose: 'v1.x 版本测试分支' },
+    ],
+  },
+  {
+    value: 'development-production',
+    label: '开发生产策略',
+    description: '仅使用两个长期分支，不与需求版本拆分出独立分支。',
+    rules: [
+      { branch: 'dev', purpose: '开发分支' },
+      { branch: 'main', purpose: '生产发布分支' },
+    ],
+  },
+]
+
 const environmentTypeOptions: { value: EnvironmentType, label: string }[] = [
   { value: 'development', label: '开发环境' },
   { value: 'testing', label: '测试环境' },
@@ -146,6 +182,7 @@ const environmentTypeOptions: { value: EnvironmentType, label: string }[] = [
 
 const priorityLabel = (value: RequirementPriority) => priorityOptions.find(option => option.value === value)?.label || value
 const repositoryProviderLabel = (value: RepositoryProvider) => repositoryProviderOptions.find(option => option.value === value)?.label || value
+const repositoryBranchStrategyLabel = (value: RepositoryBranchStrategy) => repositoryBranchStrategyOptions.find(option => option.value === value)?.label || value
 const environmentTypeLabel = (value: EnvironmentType) => environmentTypeOptions.find(option => option.value === value)?.label || value
 const repositoryUrlPlaceholder = computed(() => repositoryForm.provider === 'github'
   ? 'https://github.com/team/repo.git'
@@ -239,8 +276,13 @@ const editRequirementVersion = (version: ProjectWorkspace['requirementVersions']
 const openRepository = (repository?: RepositoryAsset) => {
   editingId.value = repository?.id || null
   Object.assign(repositoryForm, repository ? {
-    provider: repository.provider, externalId: repository.externalId, name: repository.name, note: repository.note, url: repository.url,
-  } : { provider: 'gitlab', externalId: null, name: '', note: '', url: '' })
+    provider: repository.provider,
+    branchStrategy: repository.branchStrategy,
+    externalId: repository.externalId,
+    name: repository.name,
+    note: repository.note,
+    url: repository.url,
+  } : { provider: 'gitlab', branchStrategy: 'multi-version', externalId: null, name: '', note: '', url: '' })
   gitlabRepositories.value = []
   gitlabRepositorySearch.value = ''
   gitlabRepositoryError.value = ''
@@ -271,7 +313,7 @@ const openEnvironment = (environment?: EnvironmentAsset) => {
     address: '',
     note: '',
     type: 'development',
-    accounts: [{ account: '', password: '' }],
+    accounts: [],
   })
   actionError.value = ''
   dialog.value = 'environment'
@@ -298,10 +340,6 @@ const knowledgeReferenceWarning = (reference: KnowledgeReference) =>
 const addEnvironmentAccount = () => environmentForm.accounts.push({ account: '', password: '' })
 
 const removeEnvironmentAccount = (index: number) => {
-  if (environmentForm.accounts.length === 1) {
-    environmentForm.accounts[0] = { account: '', password: '' }
-    return
-  }
   environmentForm.accounts.splice(index, 1)
 }
 
@@ -635,7 +673,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
 
           <aside class="asset-security-note">
             <span><AppIcon name="shield-check" :size="16" /></span>
-            <p><strong>测试账号支持自助使用</strong>ForgePilot 会保存并明文展示环境账号密码；请勿登记生产凭据、Token 或私钥。</p>
+            <p><strong>测试账号可选</strong>如登记测试账号，ForgePilot 会保存并明文展示账号密码；请勿登记生产凭据、Token 或私钥。</p>
           </aside>
         </template>
 
@@ -646,7 +684,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
           <div v-if="workspace.repositories.length" class="asset-record-list">
             <article v-for="repository in workspace.repositories" :id="`asset-${repository.id}`" :key="repository.id" class="panel asset-card asset-record-card">
               <div class="asset-icon repository-icon"><AppIcon name="repository" :size="18" /></div>
-              <div class="asset-copy"><strong>{{ repository.name }} <span class="provider-badge">{{ repositoryProviderLabel(repository.provider) }}</span></strong><a :href="repository.url" target="_blank" rel="noreferrer">{{ repository.url }}</a><span v-if="repository.note" class="asset-note">备注：{{ repository.note }}</span><small>被 {{ repository.referenceCount }} 条需求引用</small></div>
+              <div class="asset-copy"><strong>{{ repository.name }} <span class="provider-badge">{{ repositoryProviderLabel(repository.provider) }}</span></strong><a :href="repository.url" target="_blank" rel="noreferrer">{{ repository.url }}</a><span class="asset-note">版本分支策略：{{ repositoryBranchStrategyLabel(repository.branchStrategy) }}</span><span v-if="repository.note" class="asset-note">备注：{{ repository.note }}</span><small>被 {{ repository.referenceCount }} 条需求引用</small></div>
               <div class="asset-actions"><AppButton variant="text" icon="edit" :icon-size="14" @click="openRepository(repository)">编辑</AppButton><AppButton variant="text-danger" icon="delete" :icon-size="14" @click="removeRecord('repository', repository.id, repository.name, repository.referenceCount)">删除</AppButton></div>
             </article>
           </div>
@@ -678,7 +716,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
               <div class="asset-actions"><AppButton variant="text" icon="edit" :icon-size="14" @click="openEnvironment(environment)">编辑</AppButton><AppButton variant="text-danger" icon="delete" :icon-size="14" @click="removeRecord('environment', environment.id, environment.address)">删除</AppButton></div>
             </article>
           </div>
-          <div v-else class="panel empty-state"><strong>还没有项目环境</strong><span>登记环境地址以及可自助使用的测试账号和密码。</span><AppButton icon="add" @click="openEnvironment()">添加第一个环境</AppButton></div>
+          <div v-else class="panel empty-state"><strong>还没有项目环境</strong><span>登记环境地址，并可选择添加自助使用的测试账号。</span><AppButton icon="add" @click="openEnvironment()">添加第一个环境</AppButton></div>
         </template>
 
         <template v-else>
@@ -772,6 +810,21 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
       <form id="repository-form" @submit.prevent="saveRepository">
         <section v-if="!editingId && repositoryForm.provider === 'gitlab'" class="gitlab-picker"><div class="gitlab-picker-heading"><div><strong>从 GitLab 选择</strong><small>使用全局 Token 读取你有权访问的仓库</small></div><AppButton variant="text" icon="settings" :icon-size="14" to="/settings">全局设置</AppButton></div><div class="gitlab-picker-search"><label class="sr-only" for="gitlab-repository-search">搜索 GitLab 仓库</label><AppInput id="gitlab-repository-search" v-model="gitlabRepositorySearch" placeholder="搜索 GitLab 仓库" @keydown.enter.prevent="loadGitLabRepositories" /><AppButton variant="secondary" icon="search" :busy="gitlabRepositoriesLoading" busy-label="读取中…" @click="loadGitLabRepositories">查询</AppButton></div><p v-if="gitlabRepositoryError" class="picker-error" role="alert">{{ gitlabRepositoryError }}</p><div v-if="gitlabRepositories.length" class="gitlab-results"><AppButton v-for="repository in gitlabRepositories" :key="repository.id" variant="plain" :class="{ selected: repositoryForm.externalId === String(repository.id) }" @click="selectGitLabRepository(repository)"><span><strong>{{ repository.name }}</strong><small>{{ repository.nameWithNamespace }}</small></span><em>{{ repository.defaultBranch }}</em></AppButton></div></section>
         <AppFormField field-id="repository-provider" label="代码托管平台"><AppSelect id="repository-provider" v-model="repositoryForm.provider" required><option v-for="option in repositoryProviderOptions" :key="option.value" :value="option.value">{{ option.label }}</option></AppSelect></AppFormField>
+        <fieldset class="branch-strategy-field">
+          <legend>版本分支策略</legend>
+          <div class="branch-strategy-options">
+            <label v-for="option in repositoryBranchStrategyOptions" :key="option.value" class="branch-strategy-option">
+              <input v-model="repositoryForm.branchStrategy" type="radio" name="repository-branch-strategy" :value="option.value">
+              <span class="branch-strategy-copy">
+                <strong>{{ option.label }}</strong>
+                <small>{{ option.description }}</small>
+                <span class="branch-strategy-rules">
+                  <span v-for="rule in option.rules" :key="rule.branch" class="branch-strategy-rule"><code>{{ rule.branch }}</code><span>{{ rule.purpose }}</span></span>
+                </span>
+              </span>
+            </label>
+          </div>
+        </fieldset>
         <AppFormField field-id="repository-name" label="仓库名称"><AppInput id="repository-name" v-model="repositoryForm.name" required placeholder="例如：forgepilot-web" /></AppFormField>
         <AppFormField field-id="repository-note" label="备注" hint="可填写仓库用途、维护范围或其他说明。"><AppTextarea id="repository-note" v-model="repositoryForm.note" maxlength="500" placeholder="例如：前端主仓库，负责 ForgePilot 控制台" /></AppFormField>
         <AppFormField field-id="repository-url" :label="`${repositoryProviderLabel(repositoryForm.provider)} 仓库地址`"><AppInput id="repository-url" v-model="repositoryForm.url" required type="url" :placeholder="repositoryUrlPlaceholder" @input="repositoryForm.externalId = null" /></AppFormField>
@@ -782,11 +835,11 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
 
     <AppDialog :open="dialog === 'environment'" :title="editingId ? '编辑环境' : '添加环境'" overline="ENVIRONMENT ASSET" :busy="saving" @request-close="requestDialogClose">
       <form id="environment-form" @submit.prevent="saveEnvironment">
-        <p class="dialog-intro">登记可访问的环境地址以及可自助使用的测试账号。账号和密码会直接展示，不做脱敏。</p>
+        <p class="dialog-intro">登记可访问的环境地址，并可选择添加自助使用的测试账号。账号和密码会直接展示，不做脱敏。</p>
         <AppFormField field-id="environment-type" label="环境类型"><AppSelect id="environment-type" v-model="environmentForm.type" required><option v-for="option in environmentTypeOptions" :key="option.value" :value="option.value">{{ option.label }}</option></AppSelect></AppFormField>
         <AppFormField field-id="environment-address" label="环境地址" hint="仅支持 HTTP 或 HTTPS 地址，地址中不能包含账号密码。"><AppInput id="environment-address" v-model="environmentForm.address" required autofocus type="url" placeholder="https://dev.example.com" /></AppFormField>
         <AppFormField field-id="environment-note" label="备注" hint="可填写环境用途、访问限制或其他说明。"><AppTextarea id="environment-note" v-model="environmentForm.note" maxlength="500" placeholder="例如：供测试团队进行验收验证" /></AppFormField>
-        <div class="field"><span class="field-label">关联账号</span><div class="account-list"><div v-for="(_, index) in environmentForm.accounts" :key="index" class="account-row"><AppInput v-model="environmentForm.accounts[index].account" required maxlength="100" :aria-label="`账号 ${index + 1}`" :placeholder="`账号 ${index + 1}`" /><AppInput v-model="environmentForm.accounts[index].password" required maxlength="500" type="text" autocomplete="off" :aria-label="`密码 ${index + 1}`" :placeholder="`密码 ${index + 1}`" /><AppButton variant="text-danger" icon="delete" :icon-size="14" @click="removeEnvironmentAccount(index)">移除</AppButton></div><AppButton variant="text" class="add-account" icon="add" :icon-size="14" :disabled="environmentForm.accounts.length >= 20" @click="addEnvironmentAccount">添加账号</AppButton></div><small>最多 20 个账号；密码按原文保存并明文展示，请仅登记非敏感测试账号。</small></div>
+        <div class="field"><span class="field-label">关联账号（可选）</span><div class="account-list"><div v-for="(_, index) in environmentForm.accounts" :key="index" class="account-row"><AppInput v-model="environmentForm.accounts[index].account" required maxlength="100" :aria-label="`账号 ${index + 1}`" :placeholder="`账号 ${index + 1}`" /><AppInput v-model="environmentForm.accounts[index].password" maxlength="500" type="text" autocomplete="off" :aria-label="`密码 ${index + 1}`" :placeholder="`密码 ${index + 1}（可选）`" /><AppButton variant="text-danger" icon="delete" :icon-size="14" @click="removeEnvironmentAccount(index)">移除</AppButton></div><AppButton variant="text" class="add-account" icon="add" :icon-size="14" :disabled="environmentForm.accounts.length >= 20" @click="addEnvironmentAccount">添加账号</AppButton></div><small>可以不添加账号；最多添加 20 个，密码可留空且会按原文保存并明文展示。</small></div>
         <p v-if="actionError" class="form-error" role="alert">{{ actionError }}</p>
       </form>
       <template #actions><AppButton variant="secondary" :disabled="saving" @click="requestDialogClose">取消</AppButton><AppButton type="submit" form="environment-form" icon="save" :busy="saving" busy-label="保存中…">保存环境</AppButton></template>

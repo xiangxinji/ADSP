@@ -12,7 +12,7 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 - A project contains many knowledge assets whose title and Markdown content are persisted in SQLite.
 - Knowledge Markdown may reference repositories, project members, environments, or other knowledge through `[[asset type：record id]]` tokens.
 - Knowledge references resolve only within the owning project. Missing, deleted, unknown, or cross-project targets remain in the Markdown and are reported as unresolved.
-- An environment has one HTTP(S) address, an optional note, one lifecycle type (`development`, `testing`, or `production`), and one or more account-and-password pairs.
+- An environment has one HTTP(S) address, an optional note, one lifecycle type (`development`, `testing`, or `production`), and zero or more test accounts with optional passwords.
 - Environment account passwords are for non-sensitive, self-service test accounts and are stored and displayed without masking. Tokens, private keys, and production deployment credentials are not accepted.
 - A requirement may reference zero or more repositories and project members.
 - A project owns major requirement versions, and a requirement may reference zero or more versions.
@@ -21,6 +21,9 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 - Status keys are project-local and unique. Exactly one status is designated as the initial status.
 - Referenced statuses cannot be deleted until their requirements are reassigned.
 - Repositories and project memberships must belong to the same project as the requirement.
+- Each repository uses either the `multi-version` branch strategy or the `development-production` strategy, defaulting to `multi-version`.
+- Under `multi-version`, `main` / `test` represent the `latest` release / test branches and `vN.x` / `vN.x-test` represent the corresponding requirement version's release / test branches.
+- Under `development-production`, the repository uses only `dev` and `main` as its development and production branches.
 - Asset references use stable IDs rather than copied names.
 - Removing an asset also removes its references from existing requirements.
 - A user is global and does not belong to a project. A project member selects one global user and stores a project-specific role.
@@ -49,9 +52,9 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 
 ### Asset Management
 
-- Create, edit, and remove repository assets with hosting provider (GitLab or GitHub), name, note, and URL; query provider-owned default-branch metadata when needed instead of persisting it.
+- Create, edit, and remove repository assets with hosting provider (GitLab or GitHub), version branch strategy, name, note, and URL; query provider-owned default-branch metadata when needed instead of persisting it.
 - Add project members by selecting global users, edit their project roles, and remove their memberships.
-- Create, edit, and remove development, testing, and production environments with an HTTP(S) address, an optional note, and multiple account-and-password pairs.
+- Create, edit, and remove development, testing, and production environments with an HTTP(S) address, an optional note, and optional test accounts whose passwords may be empty.
 - Create, edit, and remove knowledge assets with a title and Markdown body.
 - Insert and display knowledge references to repositories, project members, environments, and other knowledge.
 - Show where an asset is referenced before deletion.
@@ -78,6 +81,7 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 18. Removing an environment cascades its account records without affecting other project assets.
 19. A repository note can be recorded, edited, displayed in the asset list, and preserved after a server restart.
 20. Manual repository registration accepts no external project ID and does not require global GitLab settings.
+21. Repository branch strategy accepts only `multi-version` or `development-production`, defaults historical and new omitted values to `multi-version`, and remains editable.
 21. Knowledge titles and Markdown content remain available after a server restart.
 22. `[[asset type：record id]]` tokens resolve only to supported assets in the same project.
 23. Deleting a referenced asset preserves the authored Markdown and marks that reference as unresolved.
@@ -85,5 +89,5 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 25. A requirement can reference multiple project-local major versions stored as comma-separated stable IDs.
 26. Version names always render as `v{major}.x`, and exactly the greatest configured major is marked `latest`.
 27. API validation rejects version IDs from another project and prevents deletion while referenced.
-28. Environment account passwords are stored and returned as clear text for self-service test use, while existing account-only records migrate with an empty password.
+28. Environments can be stored without test accounts; account passwords are optional and, when supplied, are stored and returned as clear text for self-service test use, while existing account-only records migrate with an empty password.
 29. An environment note can be recorded, edited, displayed in the asset list, and preserved after a server restart; existing environment rows migrate with an empty note.

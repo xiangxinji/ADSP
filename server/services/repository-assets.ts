@@ -25,6 +25,7 @@ export const createRepository = (projectId: string, input: CreateRepositoryInput
     id: randomUUID(),
     projectId,
     provider: input.provider,
+    branchStrategy: input.branchStrategy || 'multi-version',
     externalId: input.externalId || null,
     name: input.name,
     note: input.note || '',
@@ -46,6 +47,7 @@ export const updateRepository = (id: string, input: UpdateRepositoryInput) => {
   const repository: RepositoryAsset = {
     ...current,
     provider: input.provider ?? current.provider,
+    branchStrategy: input.branchStrategy ?? current.branchStrategy,
     externalId: input.externalId === undefined ? current.externalId : input.externalId,
     name: input.name ?? current.name,
     note: input.note ?? current.note,

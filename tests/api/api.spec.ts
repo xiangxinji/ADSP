@@ -200,6 +200,17 @@ const routeCases: ApiRouteCase[] = [
   {
     route: 'POST /api/projects/:id/repositories',
     run: async () => {
+      const invalid = await harness.request<{ statusMessage: string }>(`/api/projects/${projectId}/repositories`, {
+        method: 'POST',
+        body: {
+          provider: 'gitlab',
+          branchStrategy: 'git-flow',
+          name: 'invalid-branch-strategy',
+          url: 'https://gitlab.example.com/asdp/invalid-branch-strategy.git',
+        },
+      })
+      expect(invalid.status).toBe(400)
+
       const response = await harness.request<RepositoryAsset>(`/api/projects/${projectId}/repositories`, {
         method: 'POST',
         body: {
@@ -211,7 +222,11 @@ const routeCases: ApiRouteCase[] = [
         },
       })
       expect(response.status).toBe(201)
-      expect(response.data).toMatchObject({ externalId: null, note: '接口测试仓库' })
+      expect(response.data).toMatchObject({
+        externalId: null,
+        branchStrategy: 'multi-version',
+        note: '接口测试仓库',
+      })
       expect(response.data).not.toHaveProperty('defaultBranch')
       repositoryId = response.data.id
     },
@@ -221,10 +236,14 @@ const routeCases: ApiRouteCase[] = [
     run: async () => {
       const response = await harness.request<RepositoryAsset>(`/api/repositories/${repositoryId}`, {
         method: 'PATCH',
-        body: { note: '已更新的接口测试仓库' },
+        body: { branchStrategy: 'development-production', note: '已更新的接口测试仓库' },
       })
       expect(response.status).toBe(200)
-      expect(response.data).toMatchObject({ id: repositoryId, note: '已更新的接口测试仓库' })
+      expect(response.data).toMatchObject({
+        id: repositoryId,
+        branchStrategy: 'development-production',
+        note: '已更新的接口测试仓库',
+      })
       expect(response.data).not.toHaveProperty('defaultBranch')
     },
   },
