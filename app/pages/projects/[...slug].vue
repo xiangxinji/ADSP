@@ -24,6 +24,7 @@ const routeSegments = computed(() => Array.isArray(route.params.slug)
 const projectId = computed(() => routeSegments.value[0])
 const projectPath = computed(() => `/projects/${projectId.value}`)
 const assetsPath = computed(() => `${projectPath.value}/assets`)
+const requirementsPath = computed(() => `${projectPath.value}/requirements`)
 const assetModules = ['repositories', 'members', 'environments', 'knowledge'] as const
 
 type AssetModule = typeof assetModules[number]
@@ -31,23 +32,26 @@ type AssetModule = typeof assetModules[number]
 const requestedSection = routeSegments.value[1]
 const requestedModule = routeSegments.value[2]
 
-if ((requestedSection && requestedSection !== 'assets')
-  || (requestedModule && !assetModules.includes(requestedModule as AssetModule))
+if ((requestedSection && !['assets', 'requirements'].includes(requestedSection))
+  || (requestedModule && (requestedSection !== 'assets' || !assetModules.includes(requestedModule as AssetModule)))
   || routeSegments.value.length > 3) {
   throw createError({ statusCode: 404, statusMessage: '项目页面不存在' })
 }
 
-if (!requestedSection && route.query.tab === 'assets') {
+if (!requestedSection) {
   const legacyModule = String(route.query.asset || '')
   const modulePath = assetModules.includes(legacyModule as AssetModule) ? `/${legacyModule}` : ''
-  await navigateTo(`${assetsPath.value}${modulePath}`, { replace: true })
+  const defaultPath = route.query.tab === 'requirements'
+    ? requirementsPath.value
+    : `${assetsPath.value}${modulePath}`
+  await navigateTo(defaultPath, { replace: true })
 }
 
 const workspaceUrl = computed(() => `/api/projects/${projectId.value}`)
 const { data: workspace, status, error, refresh } = await useFetch<ProjectWorkspace>(workspaceUrl)
 const { data: users, status: usersStatus, error: usersError } = await useFetch<UserAccount[]>('/api/users')
 
-const activeTab = computed<'requirements' | 'assets'>(() => routeSegments.value[1] === 'assets' ? 'assets' : 'requirements')
+const activeTab = computed<'requirements' | 'assets'>(() => routeSegments.value[1] === 'requirements' ? 'requirements' : 'assets')
 const activeAssetModule = computed<AssetModule | null>(() => {
   const module = routeSegments.value[2] || ''
   return activeTab.value === 'assets' && assetModules.includes(module as AssetModule)
@@ -611,8 +615,8 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
       </section>
 
       <nav class="tabs" aria-label="项目模块">
-        <NuxtLink :to="projectPath" :class="{ active: activeTab === 'requirements' }" :aria-current="activeTab === 'requirements' ? 'page' : undefined">需求</NuxtLink>
         <NuxtLink :to="assetsPath" :class="{ active: activeTab === 'assets' }" :aria-current="activeTab === 'assets' ? 'page' : undefined">资产</NuxtLink>
+        <NuxtLink :to="requirementsPath" :class="{ active: activeTab === 'requirements' }" :aria-current="activeTab === 'requirements' ? 'page' : undefined">需求</NuxtLink>
       </nav>
 
       <p v-if="actionError && !dialog" class="alert error-state" role="alert">{{ actionError }}</p>
