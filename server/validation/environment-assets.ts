@@ -44,8 +44,8 @@ const environmentAccounts = (value: unknown) => {
     const entry = item as Record<string, unknown>
     const account = typeof entry.account === 'string' ? entry.account.trim() : ''
     const password = typeof entry.password === 'string' ? entry.password : ''
-    if (!account || !password) {
-      throw createError({ statusCode: 400, statusMessage: 'each environment account requires an account name and password' })
+    if (!account) {
+      throw createError({ statusCode: 400, statusMessage: 'each environment account requires an account name' })
     }
     if (account.length > 100 || password.length > 500) {
       throw createError({
@@ -55,9 +55,6 @@ const environmentAccounts = (value: unknown) => {
     }
     return { account, password }
   })
-  if (accounts.length === 0) {
-    throw createError({ statusCode: 400, statusMessage: 'at least one account is required' })
-  }
   if (accounts.length > 20) {
     throw createError({
       statusCode: 400,

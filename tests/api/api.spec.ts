@@ -278,7 +278,7 @@ const routeCases: ApiRouteCase[] = [
         body: {
           address: 'https://invalid-environment.example.com',
           type: 'testing',
-          accounts: [{ account: 'qa-user' }],
+          accounts: [{ password: 'qa-password' }],
         },
       })
       expect(rejected.status).toBe(400)
