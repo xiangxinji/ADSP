@@ -148,6 +148,22 @@ The current single-tenant preview provides one global GitLab connection. An oper
 
 Repository discovery uses this connection to list membership projects. Importing a result creates a ForgePilot `RepositoryAsset` with its GitLab project ID as `external_id`; it does not copy or replace the GitLab repository. The global credential is an initial operating model for local or controlled deployments. Organization-scoped ownership, administrator authorization, OAuth, token rotation policy, and per-project credentials remain required before a multi-tenant production release.
 
+## Local Workspace Boundary
+
+The current single-tenant preview stores one operator-selected local workspace root in
+SQLite. The settings service accepts only an absolute non-root path, creates it when
+missing, verifies read/write access, and persists its canonical path. Repository working
+copies, task files, generated artifacts, and every other business-level filesystem
+operation must obtain this setting and resolve descendants through the shared containment
+primitive. Relative traversal and absolute targets outside the configured root are
+rejected. When no root is configured, such operations fail before touching the filesystem.
+
+The SQLite database and credential-encryption key are control-plane state, not task
+workspace content, and continue to use their independent environment-variable or `.data`
+locations. This directory boundary prevents accidental file placement but is not an
+execution sandbox; container, VM, or remote-workspace isolation remains a later runtime
+decision.
+
 ## Cross-Cutting Requirements
 
 - Every automated action must record actor, model, input context, tool call, output, and resulting external reference.

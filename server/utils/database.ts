@@ -176,6 +176,13 @@ const createDatabase = async () => {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS local_workspace_settings (
+      id INTEGER PRIMARY KEY CHECK(id = 1),
+      workspace_path TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS people (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,

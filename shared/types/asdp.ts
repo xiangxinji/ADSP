@@ -100,6 +100,12 @@ export type GitLabSettings = {
   updatedAt: string | null
 }
 
+export type LocalWorkspaceSettings = {
+  path: string | null
+  configured: boolean
+  updatedAt: string | null
+}
+
 export type GitLabRepository = {
   id: number
   name: string

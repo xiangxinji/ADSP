@@ -1,18 +1,28 @@
 <script setup lang="ts">
-import type { GitLabIdentity, GitLabRepositoryPage, GitLabSettings } from '#shared/types/asdp'
+import type { GitLabIdentity, GitLabRepositoryPage, GitLabSettings, LocalWorkspaceSettings } from '#shared/types/asdp'
 
 const { data: settings, status, error, refresh } = await useFetch<GitLabSettings>('/api/settings/gitlab')
+const {
+  data: workspaceSettings,
+  status: workspaceStatus,
+  error: workspaceError,
+  refresh: refreshWorkspace,
+} = await useFetch<LocalWorkspaceSettings>('/api/settings/workspace')
 const form = reactive({
   baseUrl: settings.value?.baseUrl || 'https://gitlab.com',
   token: '',
 })
+const workspaceForm = reactive({ path: workspaceSettings.value?.path || '' })
 const saving = ref(false)
+const workspaceSaving = ref(false)
 const testing = ref(false)
 const removing = ref(false)
 const showRemoveConfirm = ref(false)
 const showToken = ref(false)
 const actionError = ref('')
 const successMessage = ref('')
+const workspaceActionError = ref('')
+const workspaceSuccessMessage = ref('')
 const testedIdentity = ref<GitLabIdentity | null>(null)
 const repositories = ref<GitLabRepositoryPage | null>(null)
 const repositoriesLoading = ref(false)
@@ -20,10 +30,37 @@ const repositoryError = ref('')
 const repositorySearch = ref('')
 const { success } = useAppToast()
 
+const pagePending = computed(() => status.value === 'pending' || workspaceStatus.value === 'pending')
+const pageError = computed(() => error.value?.statusMessage || workspaceError.value?.statusMessage || '')
+
 const errorMessage = (requestError: any) => requestError?.data?.statusMessage || requestError?.message || '操作失败'
 const formatDate = (value: string | null) => value
   ? new Intl.DateTimeFormat('zh-CN', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value))
   : '尚未验证'
+
+const refreshAllSettings = async () => {
+  await Promise.all([refresh(), refreshWorkspace()])
+}
+
+const saveLocalWorkspaceSettings = async () => {
+  workspaceSaving.value = true
+  workspaceActionError.value = ''
+  workspaceSuccessMessage.value = ''
+  try {
+    const saved = await $fetch<LocalWorkspaceSettings>('/api/settings/workspace', {
+      method: 'PUT',
+      body: workspaceForm,
+    })
+    await refreshWorkspace()
+    workspaceForm.path = saved.path || workspaceForm.path
+    workspaceSuccessMessage.value = '本地工作空间已保存，目录可正常读写'
+    success(workspaceSuccessMessage.value)
+  } catch (requestError) {
+    workspaceActionError.value = errorMessage(requestError)
+  } finally {
+    workspaceSaving.value = false
+  }
+}
 
 const testConnection = async () => {
   testing.value = true
@@ -106,12 +143,31 @@ onMounted(() => {
 
     <main id="main-content" class="page settings-page">
       <section class="page-title-row">
-        <div><p class="overline">GLOBAL SETTINGS</p><h1>全局设置</h1><p>管理 ForgePilot 调用外部交付系统所需的连接凭据。</p></div>
+        <div><p class="overline">GLOBAL SETTINGS</p><h1>全局设置</h1><p>管理 ForgePilot 的本地工作目录和外部系统连接。</p></div>
       </section>
 
-      <AppAsyncState v-if="status === 'pending' || error" :pending="status === 'pending'" :error-message="error?.statusMessage" @retry="refresh" />
+      <AppAsyncState v-if="pagePending || pageError" :pending="pagePending" :error-message="pageError" @retry="refreshAllSettings" />
 
       <div v-else class="settings-layout">
+        <section>
+          <div class="settings-section-heading"><div><p class="overline">LOCAL WORKSPACE</p><h2>本地工作空间</h2><p>仓库检出、任务文件和后续所有业务文件操作都限定在这个目录中。</p></div><span class="connection-state" :class="{ connected: workspaceSettings?.configured }">{{ workspaceSettings?.configured ? '已就绪' : '未配置' }}</span></div>
+
+          <form class="panel integration-form" @submit.prevent="saveLocalWorkspaceSettings">
+            <AppFormField field-id="workspace-path" label="工作空间目录">
+              <AppInput id="workspace-path" v-model="workspaceForm.path" required autocomplete="off" spellcheck="false" placeholder="例如 C:\ForgePilot\workspaces" />
+              <template #hint>填写运行 ForgePilot 这台电脑上的绝对路径。目录不存在时会自动创建，并检查是否可读写。</template>
+            </AppFormField>
+            <div v-if="workspaceSettings?.configured" class="connection-summary workspace-summary"><div><span>当前生效目录</span><strong>{{ workspaceSettings.path }}</strong></div><div><span>最近更新</span><strong>{{ formatDate(workspaceSettings.updatedAt) }}</strong></div></div>
+            <p v-if="workspaceSuccessMessage" class="form-success" role="status">{{ workspaceSuccessMessage }}</p>
+            <p v-if="workspaceActionError" class="form-error" role="alert">{{ workspaceActionError }}</p>
+            <div class="settings-actions single-action"><AppButton type="submit" icon="save" :busy="workspaceSaving" busy-label="检查中…">保存并检查目录</AppButton></div>
+          </form>
+        </section>
+
+        <aside class="panel security-note workspace-note"><div class="security-icon"><AppIcon name="environment" :size="20" /></div><h3>统一目录边界</h3><p>保存后，ForgePilot 会把仓库副本、任务过程文件和生成物统一放在该目录下，避免文件散落到其他位置。</p><ul><li>只能配置绝对路径</li><li>业务路径不能越过此目录</li><li>数据库和加密密钥不随目录迁移</li></ul></aside>
+      </div>
+
+      <div v-if="!pagePending && !pageError" class="settings-layout">
         <section>
           <div class="settings-section-heading"><div><p class="overline">SOURCE CONTROL</p><h2>GitLab</h2><p>用于验证身份、读取可访问仓库，并为项目登记仓库资产。</p></div><span class="connection-state" :class="{ connected: settings?.configured }">{{ settings?.configured ? '已连接' : '未配置' }}</span></div>
 

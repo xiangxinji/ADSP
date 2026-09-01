@@ -361,13 +361,17 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(37,99,235,.32); 
 .connection-summary span { margin-bottom: 4px; color: #98a2b3; font-size: 8px; }
 .connection-summary strong { font-size: 10px; }
 .connection-summary strong small { color: var(--muted); font-size: 8px; font-weight: 500; }
+.workspace-summary { grid-template-columns: minmax(0, 2fr) minmax(130px, 1fr); }
+.workspace-summary strong { overflow-wrap: anywhere; }
 .settings-actions { display: grid; grid-template-columns: auto 1fr auto auto; gap: 9px; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+.settings-actions.single-action { display: flex; justify-content: flex-end; }
 .security-note { padding: 22px; }
 .security-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; color: #067647; background: #d1fadf; font-size: 15px; font-weight: 800; }
 .security-note h3 { margin: 14px 0 8px; font-size: 13px; }
 .security-note p, .security-note li { color: var(--muted); font-size: 9px; line-height: 1.7; }
 .security-note p { margin: 0; }
 .security-note ul { margin: 13px 0 0; padding: 12px 0 0 16px; border-top: 1px solid var(--line); }
+.workspace-note .security-icon { color: var(--blue); background: var(--blue-soft); }
 .repository-browser { display: flex; flex-direction: column; gap: 14px; padding-top: 4px; }
 .repository-search { display: flex; gap: 8px; }
 .repository-search input { width: 210px; height: 38px; padding: 0 10px; border: 1px solid #d0d5dd; border-radius: 7px; outline: 0; font-size: 11px; }

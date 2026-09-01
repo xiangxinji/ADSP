@@ -77,6 +77,11 @@ Project workspace
 
 A project may contain multiple requirement versions, repositories, environment records, Markdown knowledge documents, and global users selected as project members with project-specific roles. Requirement versions are major-version lines displayed as `v{major}.x`; a requirement may target multiple version lines and the greatest configured major is always marked `latest`. Each repository selects either a multi-version branch strategy tied to those requirement versions or a development-production strategy limited to `dev` and `main`. Environments record an address, an optional note, a lifecycle type, and zero or more self-service test accounts whose passwords are optional. Any supplied non-sensitive test passwords are stored and displayed without masking; tokens, private keys, and production deployment credentials remain in CI/CD or the target infrastructure. Knowledge metadata is created in a focused form before its Markdown body is authored on a separate full-screen page. The live Milkdown editor preserves Markdown in the project database and renders stable project-asset references as editable inline controls. A requirement may reference multiple repositories and multiple project members. Assets and memberships are registered once at project level and reused across requirements. A requirement represents business intent; each execution attempt is a separate workflow run so failures and retries remain auditable.
 
+The current local preview has one global local-workspace directory. Repository working
+copies, task files, and generated filesystem artifacts stay beneath this operator-selected
+root. ForgePilot validates the directory before saving it; application data and encrypted
+credentials remain separate control-plane state.
+
 Requirement creation will eventually begin with a natural-language AI entry. ForgePilot will create a draft, derive acceptance criteria, recommend assets and participants, clarify missing information, and start execution according to project policy.
 
 ## Non-Goals

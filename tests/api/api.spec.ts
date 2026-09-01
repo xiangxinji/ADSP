@@ -1,5 +1,5 @@
-import { readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { existsSync, readdirSync, realpathSync } from 'node:fs'
+import { dirname, join } from 'node:path'
 import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import type {
   EnvironmentAsset,
@@ -7,6 +7,7 @@ import type {
   GitLabRepositoryPage,
   GitLabSettings,
   KnowledgeAsset,
+  LocalWorkspaceSettings,
   Project,
   ProjectMember,
   ProjectSummary,
@@ -138,6 +139,37 @@ const routeCases: ApiRouteCase[] = [
       const response = await harness.request<GitLabSettings>('/api/settings/gitlab')
       expect(response.status).toBe(200)
       expect(response.data).toMatchObject({ configured: false, connectedUser: null, tokenHint: '' })
+    },
+  },
+  {
+    route: 'GET /api/settings/workspace',
+    run: async () => {
+      const response = await harness.request<LocalWorkspaceSettings>('/api/settings/workspace')
+      expect(response.status).toBe(200)
+      expect(response.data).toEqual({ path: null, configured: false, updatedAt: null })
+    },
+  },
+  {
+    route: 'PUT /api/settings/workspace',
+    run: async () => {
+      const relativePath = await harness.request('/api/settings/workspace', {
+        method: 'PUT',
+        body: { path: 'relative/workspace' },
+      })
+      expect(relativePath.status).toBe(400)
+
+      const workspacePath = join(dirname(harness.databasePath), 'local-workspace')
+      const response = await harness.request<LocalWorkspaceSettings>('/api/settings/workspace', {
+        method: 'PUT',
+        body: { path: workspacePath },
+      })
+      expect(response.status).toBe(200)
+      expect(response.data).toMatchObject({ path: realpathSync(workspacePath), configured: true })
+      expect(response.data.updatedAt).toBeTruthy()
+      expect(existsSync(workspacePath)).toBe(true)
+
+      const stored = await harness.request<LocalWorkspaceSettings>('/api/settings/workspace')
+      expect(stored.data).toEqual(response.data)
     },
   },
   {

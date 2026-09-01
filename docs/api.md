@@ -121,6 +121,21 @@ The repository asset does not persist a default branch; integrations query provi
 
 `PUT` and `POST /test` accept `{ "baseUrl": string, "token"?: string }`. When a connection already exists, an omitted or empty token keeps and tests the saved token. Saved tokens are never returned by any API. Repository queries accept `search`, `page`, and `perPage` (maximum 100).
 
+## Global Local Workspace Settings
+
+| Method | Route | Purpose |
+|---|---|---|
+| `GET` | `/api/settings/workspace` | Read the configured server-local workspace directory |
+| `PUT` | `/api/settings/workspace` | Create, validate, and save the workspace directory |
+
+`PUT` accepts `{ "path": string }`. The path must be absolute and cannot be a filesystem
+or drive root. ForgePilot creates a missing directory, verifies that it is readable and
+writable, resolves it to a canonical path, and then persists it. Until this setting exists,
+filesystem-backed business operations must fail with a configuration error. Repository
+working copies, task files, and generated artifacts must resolve beneath this root; path
+traversal outside it is rejected. The application database and credential-encryption key
+are control-plane state and remain at their independently configured locations.
+
 ## Users
 
 | Method | Path | Purpose |
