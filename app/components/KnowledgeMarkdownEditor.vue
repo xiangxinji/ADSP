@@ -3,9 +3,15 @@ import { Crepe } from '@milkdown/crepe'
 import type { Ctx } from '@milkdown/kit/ctx'
 import { commandsCtx, editorViewCtx } from '@milkdown/kit/core'
 import { clearTextInCurrentBlockCommand } from '@milkdown/kit/preset/commonmark'
-import { replaceAll } from '@milkdown/kit/utils'
+import { Plugin, TextSelection } from '@milkdown/kit/prose/state'
+import type { EditorView } from '@milkdown/kit/prose/view'
+import { $prose, replaceAll } from '@milkdown/kit/utils'
 import type { KnowledgeAssetReferenceOption } from '~/editor/knowledge-asset-reference'
 import { createKnowledgeAssetReferencePlugins } from '~/editor/knowledge-asset-reference'
+import {
+  findInlineAssetSlashMatch,
+  matchesInlineAssetSlashQuery,
+} from '~/editor/inline-asset-slash'
 import { createKnowledgeReferenceToken } from '~/editor/knowledge-reference-syntax'
 
 const props = defineProps<{
@@ -18,9 +24,132 @@ const emit = defineEmits<{
 }>()
 
 const editorRoot = ref<HTMLDivElement | null>(null)
+const inlineMenuRoot = ref<HTMLDivElement | null>(null)
 let editor: Crepe | null = null
 let editorReady: Promise<unknown> | null = null
 let unmounted = false
+
+type InlineMenuState = {
+  from: number
+  to: number
+  left: number
+  top: number
+}
+
+const inlineMenu = ref<InlineMenuState | null>(null)
+const inlineMenuQuery = ref('')
+const inlineMenuActiveIndex = ref(0)
+const inlineMenuOptions = computed(() => props.references.filter(option => (
+  matchesInlineAssetSlashQuery(option, inlineMenuQuery.value)
+)))
+
+const closeInlineMenu = () => {
+  inlineMenu.value = null
+  inlineMenuQuery.value = ''
+  inlineMenuActiveIndex.value = 0
+}
+
+const updateInlineMenu = (view: EditorView) => {
+  const { selection } = view.state
+  if (!(selection instanceof TextSelection) || !selection.empty) {
+    closeInlineMenu()
+    return
+  }
+
+  const { $from } = selection
+  if (!['paragraph', 'heading'].includes($from.parent.type.name)) {
+    closeInlineMenu()
+    return
+  }
+
+  const textBeforeCursor = $from.parent.textBetween(0, $from.parentOffset, undefined, '\uFFFC')
+  const match = findInlineAssetSlashMatch(textBeforeCursor)
+  if (!match) {
+    closeInlineMenu()
+    return
+  }
+
+  const coordinates = view.coordsAtPos(selection.from)
+  const menuWidth = Math.min(360, window.innerWidth - 24)
+  inlineMenu.value = {
+    from: $from.start() + match.slashOffset,
+    to: selection.from,
+    left: Math.max(12, Math.min(coordinates.left, window.innerWidth - menuWidth - 12)),
+    top: coordinates.bottom + 8,
+  }
+  inlineMenuQuery.value = match.query
+  inlineMenuActiveIndex.value = Math.min(
+    inlineMenuActiveIndex.value,
+    Math.max(0, inlineMenuOptions.value.length - 1),
+  )
+}
+
+const insertInlineAssetReference = (
+  view: EditorView,
+  option: KnowledgeAssetReferenceOption,
+) => {
+  const menu = inlineMenu.value
+  const referenceNode = view.state.schema.nodes.assetReference
+  if (!menu || !referenceNode) return
+
+  const raw = createKnowledgeReferenceToken(option.targetType, option.recordId)
+  const node = referenceNode.create({
+    assetType: option.targetType,
+    recordId: option.recordId,
+    raw,
+  })
+  closeInlineMenu()
+  view.dispatch(view.state.tr.replaceWith(menu.from, menu.to, node).scrollIntoView())
+  view.focus()
+}
+
+const selectInlineMenuOption = (option: KnowledgeAssetReferenceOption) => {
+  editor?.editor.action(ctx => insertInlineAssetReference(ctx.get(editorViewCtx), option))
+}
+
+const createInlineAssetSlashMenuPlugin = () => $prose(() => new Plugin({
+  props: {
+    handleKeyDown: (view, event) => {
+      if (!inlineMenu.value) return false
+
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        closeInlineMenu()
+        return true
+      }
+
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault()
+        const direction = event.key === 'ArrowDown' ? 1 : -1
+        const lastIndex = inlineMenuOptions.value.length - 1
+        inlineMenuActiveIndex.value = Math.max(
+          0,
+          Math.min(lastIndex, inlineMenuActiveIndex.value + direction),
+        )
+        void nextTick(() => {
+          inlineMenuRoot.value
+            ?.querySelector<HTMLElement>('[aria-selected="true"]')
+            ?.scrollIntoView({ block: 'nearest' })
+        })
+        return true
+      }
+
+      if (event.key === 'Enter') {
+        const option = inlineMenuOptions.value[inlineMenuActiveIndex.value]
+        if (!option) return false
+        event.preventDefault()
+        insertInlineAssetReference(view, option)
+        return true
+      }
+
+      return false
+    },
+  },
+  view: view => ({
+    update: updateInlineMenu,
+    destroy: closeInlineMenu,
+  }),
+}))
 
 const toolbarLabels = [
   '加粗',
@@ -165,6 +294,7 @@ onMounted(() => {
     },
   })
   instance.editor.use(createKnowledgeAssetReferencePlugins(props.references))
+  instance.editor.use(createInlineAssetSlashMenuPlugin())
   instance.on(listener => listener.markdownUpdated((_ctx, markdown) => {
     if (markdown !== props.modelValue) emit('update:modelValue', markdown)
   }))
@@ -185,6 +315,7 @@ watch(() => props.modelValue, (value) => {
 
 onBeforeUnmount(() => {
   unmounted = true
+  closeInlineMenu()
   if (editor) void editor.destroy()
 })
 
@@ -196,5 +327,37 @@ defineExpose({ getMarkdown })
 <template>
   <div class="knowledge-markdown-editor">
     <div ref="editorRoot" />
+    <Teleport to="body">
+      <div
+        v-if="inlineMenu"
+        ref="inlineMenuRoot"
+        class="knowledge-inline-slash-menu"
+        :style="{ left: `${inlineMenu.left}px`, top: `${inlineMenu.top}px` }"
+        role="listbox"
+        aria-label="快捷添加资产"
+      >
+        <header>
+          <span>资产引用</span>
+          <small v-if="inlineMenuQuery">“{{ inlineMenuQuery }}”</small>
+        </header>
+        <div v-if="inlineMenuOptions.length" class="knowledge-inline-slash-options">
+          <button
+            v-for="(option, index) in inlineMenuOptions"
+            :key="`${option.targetType}-${option.recordId}`"
+            type="button"
+            role="option"
+            :aria-selected="inlineMenuActiveIndex === index"
+            @pointerenter="inlineMenuActiveIndex = index"
+            @pointerdown.prevent
+            @click="selectInlineMenuOption(option)"
+          >
+            <span>{{ option.typeLabel }}</span>
+            <strong>{{ option.label }}</strong>
+            <small>{{ option.detail }}</small>
+          </button>
+        </div>
+        <p v-else>{{ props.references.length ? '没有匹配的资产' : '暂无可引用资产' }}</p>
+      </div>
+    </Teleport>
   </div>
 </template>

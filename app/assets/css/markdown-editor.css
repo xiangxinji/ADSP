@@ -174,7 +174,7 @@
 
 .knowledge-editor-body .knowledge-markdown-editor .milkdown .ProseMirror {
   width: 100%;
-  min-height: calc(100% - 52px);
+  min-height: calc(100% - 53px);
   margin: 0;
   padding: 32px max(40px, calc((100% - 1440px) / 2)) 96px;
   border: 0;
@@ -319,6 +319,105 @@
   overflow: hidden;
 }
 
+.knowledge-inline-slash-menu {
+  position: fixed;
+  z-index: 80;
+  width: min(360px, calc(100vw - 24px));
+  overflow: hidden;
+  border: 1px solid var(--line, #e4e7ec);
+  border-radius: 9px;
+  color: var(--text-strong, #344054);
+  background: var(--surface, #ffffff);
+  box-shadow: 0 14px 36px var(--raised-shadow, rgba(16,24,40,.2));
+}
+
+.knowledge-inline-slash-menu > header {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--line, #e4e7ec);
+  color: var(--text-subtle, #98a2b3);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+
+.knowledge-inline-slash-menu > header small {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted, #667085);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knowledge-inline-slash-options {
+  max-height: min(360px, 52dvh);
+  padding: 6px;
+  overflow-y: auto;
+}
+
+.knowledge-inline-slash-options button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 9px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 6px;
+  color: var(--text-strong, #344054);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.knowledge-inline-slash-options button:hover,
+.knowledge-inline-slash-options button[aria-selected="true"] {
+  color: var(--blue-dark, #1d4ed8);
+  background: var(--blue-soft, #eff6ff);
+}
+
+.knowledge-inline-slash-options button > span {
+  grid-row: 1 / 3;
+  align-self: center;
+  padding: 3px 6px;
+  border-radius: 4px;
+  color: var(--blue, #2563eb);
+  background: var(--blue-soft-strong, #dbeafe);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.knowledge-inline-slash-options button > strong,
+.knowledge-inline-slash-options button > small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.knowledge-inline-slash-options button > strong {
+  font-size: 12px;
+}
+
+.knowledge-inline-slash-options button > small {
+  color: var(--muted, #667085);
+  font-size: 10px;
+}
+
+.knowledge-inline-slash-menu > p {
+  margin: 0;
+  padding: 18px 12px;
+  color: var(--muted, #667085);
+  font-size: 11px;
+  text-align: center;
+}
+
 .knowledge-markdown-editor .milkdown .milkdown-slash-menu .tab-group {
   padding: 8px 8px 0;
   border-bottom-color: var(--line, #e4e7ec);
@@ -365,6 +464,11 @@
   height: 30px;
   padding: 6px;
   border-radius: 6px;
+}
+
+.knowledge-markdown-editor .milkdown .milkdown-block-handle[data-show="false"] {
+  top: 0 !important;
+  left: 0 !important;
 }
 
 .knowledge-markdown-editor .milkdown .milkdown-block-handle .operation-item svg {
@@ -473,7 +577,7 @@
 
   .knowledge-editor-body .knowledge-markdown-editor .milkdown .ProseMirror {
     width: 100%;
-    min-height: calc(100% - 48px);
+    min-height: calc(100% - 49px);
     margin: 0;
     padding: 32px 20px 96px;
     border: 0;
