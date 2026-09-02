@@ -130,7 +130,11 @@ operation) appears in a shared More menu. New operations must explicitly choose 
 these placements; the component enforces the two-primary limit defensively.
 Repository commands include `repository.clone`, `repository.update`,
 `repository.local-clone-status`, and `repository.create-worktree`; all four are
-workflow-ready. The worktree command receives a branch name as input.
+workflow-ready. The worktree command receives a branch name as input. Repository assets
+persist the current or most recent local command, including its operation ID, running,
+success, or failure state, timestamps, and failure message. This lets an operator
+refresh the project workspace and recover visibility into a long-running local action
+without relying on browser-only state.
 
 The SQLite bootstrap creates the environment, account, and knowledge tables idempotently for existing installations. Existing projects and assets require no data rewrite; their environment and knowledge collections begin empty.
 

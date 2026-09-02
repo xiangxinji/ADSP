@@ -14,6 +14,10 @@ import {
   getRepositoryLocalCloneStatus,
   updateRepositoryWorkingCopy,
 } from './repository-cloning'
+import {
+  finishRepositoryLocalOperation,
+  startRepositoryLocalOperation,
+} from './repository-assets'
 
 type AssetOperationResult =
   | RepositoryCloneResult
@@ -24,6 +28,14 @@ type AssetOperationHandler = (
   assetId: string,
   input?: CreateRepositoryWorktreeInput,
 ) => Promise<AssetOperationResult>
+
+const localOperationError = (error: unknown) => {
+  if (error && typeof error === 'object' && 'statusMessage' in error) {
+    return String(error.statusMessage)
+  }
+  if (error instanceof Error) return error.message
+  return '本地操作执行失败'
+}
 
 const operationHandlers = {
   'repository.clone': (assetId: string) => cloneRepository(assetId),
@@ -53,7 +65,15 @@ export const executeAssetOperation = async (
     throw createError({ statusCode: 501, statusMessage: '资产操作尚未接入执行器' })
   }
 
-  return handler(assetId, input)
+  const localOperation = startRepositoryLocalOperation(assetId, operation.id)
+  try {
+    const result = await handler(assetId, input)
+    finishRepositoryLocalOperation(assetId, localOperation, 'succeeded')
+    return result
+  } catch (error) {
+    finishRepositoryLocalOperation(assetId, localOperation, 'failed', localOperationError(error))
+    throw error
+  }
 }
 
 export const executeRepositoryCloneOperation = (assetId: string) =>

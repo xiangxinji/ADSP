@@ -1,6 +1,7 @@
 export const requirementPriorities = ['low', 'medium', 'high', 'urgent'] as const
 export const repositoryProviders = ['gitlab', 'github'] as const
 export const repositoryBranchStrategies = ['multi-version', 'development-production'] as const
+export const repositoryLocalOperationStatuses = ['running', 'succeeded', 'failed'] as const
 export const environmentTypes = ['development', 'testing', 'production'] as const
 export const knowledgeReferenceTypes = ['repository', 'member', 'environment', 'knowledge'] as const
 export const userRoles = ['administrator', 'member'] as const
@@ -8,6 +9,7 @@ export const userRoles = ['administrator', 'member'] as const
 export type RequirementPriority = typeof requirementPriorities[number]
 export type RepositoryProvider = typeof repositoryProviders[number]
 export type RepositoryBranchStrategy = typeof repositoryBranchStrategies[number]
+export type RepositoryLocalOperationStatus = typeof repositoryLocalOperationStatuses[number]
 export type EnvironmentType = typeof environmentTypes[number]
 export type KnowledgeReferenceType = typeof knowledgeReferenceTypes[number]
 export type UserRole = typeof userRoles[number]
@@ -41,6 +43,14 @@ export type ProjectSummary = Project & {
   knowledgeCount: number
 }
 
+export type RepositoryLocalOperation = {
+  operationId: string
+  status: RepositoryLocalOperationStatus
+  startedAt: string
+  finishedAt: string | null
+  error: string | null
+}
+
 export type RepositoryAsset = {
   id: string
   projectId: string
@@ -50,6 +60,7 @@ export type RepositoryAsset = {
   name: string
   note: string
   url: string
+  localOperation: RepositoryLocalOperation | null
   referenceCount: number
   createdAt: string
   updatedAt: string

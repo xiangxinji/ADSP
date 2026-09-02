@@ -21,6 +21,7 @@ import type {
   RepositoryBranchStrategy,
   RepositoryCloneResult,
   RepositoryLocalCloneStatusResult,
+  RepositoryLocalOperationStatus,
   RepositoryProvider,
   RepositoryUpdateResult,
   RepositoryWorktreeResult,
@@ -437,6 +438,15 @@ type RepositoryOperationResult =
   | RepositoryUpdateResult
   | RepositoryWorktreeResult
 
+const repositoryOperationLabel = (operationId: string) => assetOperationsForModule('repositories')
+  .find(operation => operation.id === operationId)?.label || operationId
+
+const repositoryOperationStatusLabel = (status: RepositoryLocalOperationStatus) => ({
+  running: '执行中',
+  succeeded: '已完成',
+  failed: '执行失败',
+})[status]
+
 const runRepositoryCommand = async (
   repository: RepositoryAsset,
   operation: AssetOperationDefinition,
@@ -459,6 +469,7 @@ const runRepositoryCommand = async (
     actionError.value = errorMessage(requestError)
   } finally {
     repositoryOperation.value = null
+    await refresh()
   }
 }
 
@@ -783,8 +794,8 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
           <div v-if="workspace.repositories.length" class="asset-record-list" role="region" aria-label="代码仓库列表" tabindex="0">
             <article v-for="repository in workspace.repositories" :id="`asset-${repository.id}`" :key="repository.id" class="panel asset-card asset-record-card">
               <div class="asset-icon repository-icon"><AppIcon name="repository" :size="20" /></div>
-              <div class="asset-copy"><strong>{{ repository.name }} <span class="provider-badge">{{ repositoryProviderLabel(repository.provider) }}</span></strong><a :href="repository.url" target="_blank" rel="noreferrer">{{ repository.url }}</a><span class="asset-note">版本分支策略：{{ repositoryBranchStrategyLabel(repository.branchStrategy) }}</span><span v-if="repository.note" class="asset-note">备注：{{ repository.note }}</span><small>被 {{ repository.referenceCount }} 条需求引用</small></div>
-              <div class="asset-actions"><AssetActionMenu :operations="activeAssetOperations" :busy-operation-id="repositoryOperation?.id === repository.id ? repositoryOperation.operationId : null" :disabled="Boolean(repositoryOperation)" @select="runRepositoryAssetOperation(repository, $event)" /></div>
+              <div class="asset-copy"><strong>{{ repository.name }} <span class="provider-badge">{{ repositoryProviderLabel(repository.provider) }}</span></strong><a :href="repository.url" target="_blank" rel="noreferrer">{{ repository.url }}</a><span class="asset-note">版本分支策略：{{ repositoryBranchStrategyLabel(repository.branchStrategy) }}</span><span v-if="repository.localOperation" class="asset-note repository-operation-state" :class="`is-${repository.localOperation.status}`" :title="repository.localOperation.error || undefined">本地操作{{ repositoryOperationStatusLabel(repository.localOperation.status) }}：{{ repositoryOperationLabel(repository.localOperation.operationId) }}<template v-if="repository.localOperation.error"> · {{ repository.localOperation.error }}</template></span><span v-if="repository.note" class="asset-note">备注：{{ repository.note }}</span><small>被 {{ repository.referenceCount }} 条需求引用</small></div>
+              <div class="asset-actions"><AssetActionMenu :operations="activeAssetOperations" :busy-operation-id="repositoryOperation?.id === repository.id ? repositoryOperation.operationId : repository.localOperation?.status === 'running' ? repository.localOperation.operationId : null" :disabled="Boolean(repositoryOperation) || repository.localOperation?.status === 'running'" @select="runRepositoryAssetOperation(repository, $event)" /></div>
             </article>
           </div>
           <div v-else class="panel empty-state"><strong>还没有代码仓库</strong><span>添加仓库后，需求可以直接引用它。</span><AppButton icon="add" @click="openRepository()">添加第一个仓库</AppButton></div>

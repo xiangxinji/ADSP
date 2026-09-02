@@ -326,6 +326,9 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--focus-ring); ou
 .asset-copy strong .environment-badge[data-environment="production"] { color: var(--danger); background: var(--danger-soft-strong); }
 .asset-copy a, .asset-copy span { margin-bottom: 4px; color: var(--muted); font-size: 9px; }
 .asset-copy .asset-note { color: var(--text-secondary); }
+.asset-copy .repository-operation-state.is-running { color: var(--blue); }
+.asset-copy .repository-operation-state.is-succeeded { color: var(--success); }
+.asset-copy .repository-operation-state.is-failed { color: var(--danger); }
 .asset-copy a:hover { color: var(--blue); }
 .asset-copy small { color: var(--text-subtle); font-size: 8px; }
 .asset-copy .environment-account { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }

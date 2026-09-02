@@ -1,4 +1,4 @@
-import type { RepositoryAsset } from '../../shared/types/asdp'
+import type { RepositoryAsset, RepositoryLocalOperation } from '../../shared/types/asdp'
 import { useDatabase } from '../utils/database'
 
 type RepositoryRow = {
@@ -10,6 +10,11 @@ type RepositoryRow = {
   name: string
   note: string
   url: string
+  local_operation_id: string | null
+  local_operation_status: RepositoryLocalOperation['status'] | null
+  local_operation_started_at: string | null
+  local_operation_finished_at: string | null
+  local_operation_error: string | null
   reference_count: number
   created_at: string
   updated_at: string
@@ -24,6 +29,15 @@ const repositoryFromRow = (row: RepositoryRow): RepositoryAsset => ({
   name: row.name,
   note: row.note || '',
   url: row.url,
+  localOperation: row.local_operation_id && row.local_operation_status && row.local_operation_started_at
+    ? {
+        operationId: row.local_operation_id,
+        status: row.local_operation_status,
+        startedAt: row.local_operation_started_at,
+        finishedAt: row.local_operation_finished_at,
+        error: row.local_operation_error,
+      }
+    : null,
   referenceCount: Number(row.reference_count || 0),
   createdAt: row.created_at,
   updatedAt: row.updated_at,
@@ -96,6 +110,26 @@ export const updateRepositoryAssetRecord = (repository: RepositoryAsset) => {
     repository.url,
     repository.updatedAt,
     repository.id,
+  )
+}
+
+export const updateRepositoryLocalOperationRecord = (
+  id: string,
+  operation: RepositoryLocalOperation,
+) => {
+  useDatabase().prepare(`
+    UPDATE repository_assets
+    SET local_operation_id = ?, local_operation_status = ?, local_operation_started_at = ?,
+        local_operation_finished_at = ?, local_operation_error = ?, updated_at = ?
+    WHERE id = ?
+  `).run(
+    operation.operationId,
+    operation.status,
+    operation.startedAt,
+    operation.finishedAt,
+    operation.error,
+    operation.finishedAt || operation.startedAt,
+    id,
   )
 }
 

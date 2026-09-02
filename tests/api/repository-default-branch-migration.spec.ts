@@ -74,6 +74,7 @@ describe('repository asset branch migration', () => {
           id: legacyRepositoryId,
           branchStrategy: 'multi-version',
           name: 'legacy-repository',
+          localOperation: null,
         }),
       ])
       expect(workspace.data.repositories[0]).not.toHaveProperty('defaultBranch')
@@ -96,6 +97,11 @@ describe('repository asset branch migration', () => {
         .map(column => String(column[1]))
       expect(columns).not.toContain('default_branch')
       expect(columns).toContain('branch_strategy')
+      expect(columns).toContain('local_operation_id')
+      expect(columns).toContain('local_operation_status')
+      expect(columns).toContain('local_operation_started_at')
+      expect(columns).toContain('local_operation_finished_at')
+      expect(columns).toContain('local_operation_error')
       expect(database.exec('SELECT branch_strategy FROM repository_assets ORDER BY id')[0].values)
         .toEqual([['multi-version'], ['multi-version']])
       database.close()

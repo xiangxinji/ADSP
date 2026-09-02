@@ -353,6 +353,13 @@ const routeCases: ApiRouteCase[] = [
         cloned: false,
         path: repositoryWorkingCopyPath,
       })
+      const localCloneStatusWorkspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
+      expect(localCloneStatusWorkspace.data.repositories.find(repository => repository.id === repositoryId)?.localOperation)
+        .toMatchObject({
+          operationId: 'repository.local-clone-status',
+          status: 'succeeded',
+          error: null,
+        })
 
       const response = await harness.request<RepositoryCloneResult>(`/api/repositories/${repositoryId}/clone`, {
         method: 'POST',
@@ -362,8 +369,26 @@ const routeCases: ApiRouteCase[] = [
       expect(existsSync(join(repositoryWorkingCopyPath, '.git'))).toBe(true)
       expect((await readFile(join(repositoryWorkingCopyPath, 'version.txt'), 'utf8')).trim()).toBe('v1')
 
+      const clonedWorkspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
+      const clonedRepository = clonedWorkspace.data.repositories.find(repository => repository.id === repositoryId)
+      expect(clonedRepository?.localOperation).toMatchObject({
+        operationId: 'repository.clone',
+        status: 'succeeded',
+        error: null,
+      })
+      expect(clonedRepository?.localOperation?.startedAt).toEqual(expect.any(String))
+      expect(clonedRepository?.localOperation?.finishedAt).toEqual(expect.any(String))
+
       const duplicate = await harness.request(`/api/repositories/${repositoryId}/clone`, { method: 'POST' })
       expect(duplicate.status).toBe(409)
+
+      const failedCloneWorkspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
+      expect(failedCloneWorkspace.data.repositories.find(repository => repository.id === repositoryId)?.localOperation)
+        .toMatchObject({
+          operationId: 'repository.clone',
+          status: 'failed',
+          error: expect.stringContaining('本地目录已存在'),
+        })
 
       const isolatedProject = await harness.request<Project>('/api/projects', {
         method: 'POST',
@@ -397,6 +422,13 @@ const routeCases: ApiRouteCase[] = [
       await run('git', ['-C', repositoryWorkingCopyPath, 'remote', 'set-url', 'origin', 'https://example.com/unrelated.git'])
       const mismatched = await harness.request(`/api/repositories/${repositoryId}/update`, { method: 'POST' })
       expect(mismatched.status).toBe(409)
+      const failedUpdateWorkspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
+      expect(failedUpdateWorkspace.data.repositories.find(repository => repository.id === repositoryId)?.localOperation)
+        .toMatchObject({
+          operationId: 'repository.update',
+          status: 'failed',
+          error: expect.stringContaining('origin 与当前仓库资产不一致'),
+        })
       await run('git', ['-C', repositoryWorkingCopyPath, 'remote', 'set-url', 'origin', pathToFileURL(repositoryRemotePath).href])
 
       await writeFile(join(repositorySourcePath, 'version.txt'), 'v2\n')
@@ -410,6 +442,9 @@ const routeCases: ApiRouteCase[] = [
       expect(response.status).toBe(200)
       expect(response.data).toEqual({ repositoryId, path: repositoryWorkingCopyPath })
       expect((await readFile(join(repositoryWorkingCopyPath, 'version.txt'), 'utf8')).trim()).toBe('v2')
+      const updatedWorkspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
+      expect(updatedWorkspace.data.repositories.find(repository => repository.id === repositoryId)?.localOperation)
+        .toMatchObject({ operationId: 'repository.update', status: 'succeeded', error: null })
     },
   },
   {
@@ -468,11 +503,22 @@ const routeCases: ApiRouteCase[] = [
       expect(existsSync(join(repositoryWorktreePath, '.git'))).toBe(true)
       expect((await readFile(join(repositoryWorktreePath, 'worktree.txt'), 'utf8')).trim()).toBe('feature branch')
 
+      const worktreeWorkspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
+      expect(worktreeWorkspace.data.repositories.find(repository => repository.id === repositoryId)?.localOperation)
+        .toMatchObject({ operationId: 'repository.create-worktree', status: 'succeeded', error: null })
+
       const duplicateWorktree = await harness.request(
         `/api/assets/repository/${repositoryId}/operations/repository.create-worktree`,
         { method: 'POST', body: { branch: 'feature/worktree' } },
       )
       expect(duplicateWorktree.status).toBe(409)
+      const failedWorktreeWorkspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
+      expect(failedWorktreeWorkspace.data.repositories.find(repository => repository.id === repositoryId)?.localOperation)
+        .toMatchObject({
+          operationId: 'repository.create-worktree',
+          status: 'failed',
+          error: expect.stringContaining('工作树目录已存在'),
+        })
 
       const clientOnly = await harness.request(
         `/api/assets/repository/${repositoryId}/operations/repository.edit`,

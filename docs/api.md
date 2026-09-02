@@ -125,6 +125,13 @@ such as editing or deleting metadata return `404` from this route and are not av
 to workflow execution. Operation IDs are stable contracts intended for later
 workflow-step configuration.
 
+Every repository asset response includes `localOperation`, either `null` or the most
+recent local operation: `{ "operationId", "status", "startedAt", "finishedAt",
+"error" }`. `status` is `running`, `succeeded`, or `failed`. ForgePilot records
+`running` before executing a local repository command and synchronizes the same record
+to success or failure when the command returns. Refreshing the project workspace reads
+this persisted state; the client does not poll for completion.
+
 ## Global GitLab Settings
 
 | Method | Route | Purpose |

@@ -131,6 +131,12 @@ const createDatabase = async () => {
       name TEXT NOT NULL,
       note TEXT NOT NULL DEFAULT '',
       url TEXT NOT NULL,
+      local_operation_id TEXT,
+      local_operation_status TEXT
+        CHECK(local_operation_status IN ('running', 'succeeded', 'failed')),
+      local_operation_started_at TEXT,
+      local_operation_finished_at TEXT,
+      local_operation_error TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       UNIQUE(project_id, url)
@@ -340,6 +346,24 @@ const createDatabase = async () => {
       ALTER TABLE repository_assets ADD COLUMN branch_strategy TEXT NOT NULL DEFAULT 'multi-version'
         CHECK(branch_strategy IN ('multi-version', 'development-production'))
     `)
+  }
+  if (!repositoryColumns.some(column => column.name === 'local_operation_id')) {
+    persistentDatabase.exec('ALTER TABLE repository_assets ADD COLUMN local_operation_id TEXT')
+  }
+  if (!repositoryColumns.some(column => column.name === 'local_operation_status')) {
+    persistentDatabase.exec(`
+      ALTER TABLE repository_assets ADD COLUMN local_operation_status TEXT
+        CHECK(local_operation_status IN ('running', 'succeeded', 'failed'))
+    `)
+  }
+  if (!repositoryColumns.some(column => column.name === 'local_operation_started_at')) {
+    persistentDatabase.exec('ALTER TABLE repository_assets ADD COLUMN local_operation_started_at TEXT')
+  }
+  if (!repositoryColumns.some(column => column.name === 'local_operation_finished_at')) {
+    persistentDatabase.exec('ALTER TABLE repository_assets ADD COLUMN local_operation_finished_at TEXT')
+  }
+  if (!repositoryColumns.some(column => column.name === 'local_operation_error')) {
+    persistentDatabase.exec('ALTER TABLE repository_assets ADD COLUMN local_operation_error TEXT')
   }
   if (repositoryColumns.some(column => column.name === 'default_branch')) {
     persistentDatabase.exec('ALTER TABLE repository_assets DROP COLUMN default_branch')
