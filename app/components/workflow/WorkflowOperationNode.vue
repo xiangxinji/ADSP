@@ -20,7 +20,15 @@ const emit = defineEmits<{
 </script>
 
 <template>
-  <div class="workflow-flow-node operation-node" :class="{ incomplete: !data.complete }">
+  <div
+    class="workflow-flow-node operation-node"
+    :class="{ incomplete: !data.complete, 'connection-target-ready': data.awaitingTarget }"
+    :role="data.awaitingTarget ? 'button' : undefined"
+    :tabindex="data.awaitingTarget ? 0 : undefined"
+    @click="data.awaitingTarget && emit('selectTarget')"
+    @keydown.enter.stop.prevent="data.awaitingTarget && emit('selectTarget')"
+    @keydown.space.stop.prevent="data.awaitingTarget && emit('selectTarget')"
+  >
     <Handle
       type="target"
       :position="Position.Top"
@@ -35,6 +43,7 @@ const emit = defineEmits<{
     <span class="workflow-node-order">{{ data.order }}</span>
     <div><small>资产操作</small><strong>{{ data.label }}</strong><p>{{ data.assetLabel }}</p></div>
     <span v-if="!data.complete" class="workflow-node-warning">待配置</span>
+    <span v-if="data.awaitingTarget" class="workflow-node-connect-prompt">点击节点完成连线</span>
     <Handle
       type="source"
       :position="Position.Bottom"

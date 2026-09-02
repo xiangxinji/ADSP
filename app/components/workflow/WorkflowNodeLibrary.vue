@@ -83,7 +83,7 @@ const addOperation = () => {
     </section>
     <section class="workflow-library-section">
       <div class="workflow-library-title"><strong>2. 资产操作</strong><span>按共享操作契约生成节点</span></div>
-      <p class="workflow-connection-guide">添加节点后，从上游节点底部的蓝色端口拖到下游节点顶部端口。</p>
+      <p class="workflow-connection-guide">添加节点后，点击上游底部圆点，再点击下游节点卡片；也可以直接拖动端口。</p>
       <template v-if="assetOptions.length">
         <AppFormField field-id="workflow-asset" label="选择资产">
           <AppSelect id="workflow-asset" v-model="selectedAssetKey"><option value="">请选择资产</option><option v-for="asset in assetOptions" :key="asset.key" :value="asset.key">{{ asset.typeLabel }} · {{ asset.label }}</option></AppSelect>

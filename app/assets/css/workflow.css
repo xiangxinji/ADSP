@@ -435,6 +435,12 @@
   box-shadow: 0 0 0 3px var(--focus-ring), 0 10px 30px var(--panel-shadow);
 }
 
+.workflow-flow-node.connection-target-ready {
+  border-color: var(--success-border);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 18%, transparent), 0 10px 30px var(--panel-shadow);
+  cursor: pointer;
+}
+
 .workflow-flow-node.incomplete {
   border-color: var(--warning-border);
 }
@@ -500,6 +506,22 @@
   font-weight: 700;
 }
 
+.workflow-node-connect-prompt {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  padding: 3px 7px;
+  border-radius: var(--radius-full);
+  color: var(--success-strong);
+  background: var(--success-chip);
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.workflow-flow-node.connection-target-ready .workflow-node-warning {
+  display: none;
+}
+
 .workflow-flow-node .vue-flow__handle {
   width: 13px;
   height: 13px;
@@ -507,6 +529,16 @@
   background: var(--blue);
   cursor: crosshair;
   transition: transform .15s ease, background .15s ease;
+}
+
+.workflow-flow-node .vue-flow__handle::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  content: '';
+  transform: translate(-50%, -50%);
 }
 
 .workflow-flow-node .vue-flow__handle:hover,

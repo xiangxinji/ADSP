@@ -151,7 +151,7 @@ onBeforeUnmount(() => {
       <VueFlow id="workflow-definition-canvas" :nodes="canvasNodes" :edges="canvasEdges" :min-zoom="0.35" :max-zoom="1.6" :nodes-connectable="Boolean(trigger)" :edges-updatable="false" :delete-key-code="null" fit-view-on-init @connect="onConnect" @node-click="onNodeClick" @edge-click="onEdgeClick" @node-drag-stop="onNodeDragStop" @pane-click="clearSelection">
         <template #node-trigger="slotProps"><WorkflowTriggerNode v-bind="slotProps" @select-source="selectConnectionSource(slotProps.id)" /></template>
         <template #node-operation="slotProps"><WorkflowOperationNode v-bind="slotProps" @select-source="selectConnectionSource(slotProps.id)" @select-target="selectConnectionTarget(slotProps.id)" /></template>
-        <div v-if="pendingSourceId" class="workflow-connection-status" role="status">已选择起点，请点击下游节点顶部圆点完成连线。<button type="button" @click="pendingSourceId = null">取消</button></div>
+        <div v-if="pendingSourceId" class="workflow-connection-status" role="status">已选择起点，请点击下游节点卡片或顶部圆点。<button type="button" @click="pendingSourceId = null">取消</button></div>
         <div class="workflow-canvas-controls" aria-label="画板缩放工具">
           <button v-if="selectedEdgeId" type="button" class="danger" aria-label="删除选中的连线" @click="removeSelectedEdge">删线</button>
           <button type="button" aria-label="缩小画板" @click="zoomOut()">−</button>
