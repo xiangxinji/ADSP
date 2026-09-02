@@ -21,6 +21,7 @@ const emit = defineEmits<{
 
 const { fitView, zoomIn, zoomOut } = useVueFlow({ id: 'workflow-definition-canvas' })
 const selectedEdgeId = ref<string | null>(null)
+const pendingSourceId = ref<string | null>(null)
 const triggerLabels = {
   manual: { label: '手动触发', description: '由操作人员主动启动' },
   'requirement-created': { label: '需求创建时', description: '监听项目需求创建事件' },
@@ -57,6 +58,7 @@ const canvasNodes = computed<Node[]>(() => {
       description: triggerDetails?.description || '从左侧节点库选择根触发器',
       configured: Boolean(props.trigger),
       connected: triggerConnected,
+      connectionSource: pendingSourceId.value === workflowTriggerNodeId,
     },
   }, ...props.nodes.map((node, index) => {
     const operation = findAssetOperation(node.assetType, node.operationId)
@@ -71,6 +73,8 @@ const canvasNodes = computed<Node[]>(() => {
         description: operation?.description || '',
         complete: nodeComplete(node),
         order: orderById.get(node.id) || index + 1,
+        connectionSource: pendingSourceId.value === node.id,
+        awaitingTarget: Boolean(pendingSourceId.value && pendingSourceId.value !== node.id),
       },
     }
   })]
@@ -94,9 +98,20 @@ const onEdgeClick = ({ edge }: { edge: Edge }) => {
 }
 const onConnect = (connection: { source?: string | null, target?: string | null }) => {
   if (connection.source && connection.target) emit('connectEdge', { source: connection.source, target: connection.target })
+  pendingSourceId.value = null
+}
+const selectConnectionSource = (sourceId: string) => {
+  pendingSourceId.value = pendingSourceId.value === sourceId ? null : sourceId
+  selectedEdgeId.value = null
+}
+const selectConnectionTarget = (targetId: string) => {
+  if (!pendingSourceId.value) return
+  emit('connectEdge', { source: pendingSourceId.value, target: targetId })
+  pendingSourceId.value = null
 }
 const clearSelection = () => {
   selectedEdgeId.value = null
+  pendingSourceId.value = null
   emit('selectNode', null)
 }
 const removeSelectedEdge = () => {
@@ -134,8 +149,9 @@ onBeforeUnmount(() => {
   <section class="workflow-canvas" aria-label="工作流画板">
     <ClientOnly>
       <VueFlow id="workflow-definition-canvas" :nodes="canvasNodes" :edges="canvasEdges" :min-zoom="0.35" :max-zoom="1.6" :nodes-connectable="Boolean(trigger)" :edges-updatable="false" :delete-key-code="null" fit-view-on-init @connect="onConnect" @node-click="onNodeClick" @edge-click="onEdgeClick" @node-drag-stop="onNodeDragStop" @pane-click="clearSelection">
-        <template #node-trigger="slotProps"><WorkflowTriggerNode v-bind="slotProps" /></template>
-        <template #node-operation="slotProps"><WorkflowOperationNode v-bind="slotProps" /></template>
+        <template #node-trigger="slotProps"><WorkflowTriggerNode v-bind="slotProps" @select-source="selectConnectionSource(slotProps.id)" /></template>
+        <template #node-operation="slotProps"><WorkflowOperationNode v-bind="slotProps" @select-source="selectConnectionSource(slotProps.id)" @select-target="selectConnectionTarget(slotProps.id)" /></template>
+        <div v-if="pendingSourceId" class="workflow-connection-status" role="status">已选择起点，请点击下游节点顶部圆点完成连线。<button type="button" @click="pendingSourceId = null">取消</button></div>
         <div class="workflow-canvas-controls" aria-label="画板缩放工具">
           <button v-if="selectedEdgeId" type="button" class="danger" aria-label="删除选中的连线" @click="removeSelectedEdge">删线</button>
           <button type="button" aria-label="缩小画板" @click="zoomOut()">−</button>
