@@ -18,7 +18,7 @@ npm install --legacy-peer-deps
 
 ## Development Server
 
-Start the development server on `http://localhost:3000`:
+Start the development server on `http://localhost:9085`:
 
 ```bash
 npm run dev
