@@ -124,6 +124,9 @@ focused domain use case. Future workflow definitions may reference the same stab
 without depending on button labels or provider payloads. Client-only navigation and
 management actions are explicitly excluded from workflow execution. Existing
 resource-specific API routes remain compatibility adapters over the same service.
+Repository commands include `repository.clone`, `repository.update`,
+`repository.local-clone-status`, and `repository.create-worktree`; all four are
+workflow-ready. The worktree command receives a branch name as input.
 
 The SQLite bootstrap creates the environment, account, and knowledge tables idempotently for existing installations. Existing projects and assets require no data rewrite; their environment and knowledge collections begin empty.
 
@@ -193,6 +196,15 @@ directories are not modified. GitLab HTTP clone and update actions reuse the enc
 global token only when the repository URL has the same origin as the configured GitLab
 instance; the credential is injected into the Git child-process environment and never
 returned to the browser or embedded in the remote URL.
+
+The local-clone-status operation reports `cloned: true` only when the fixed clone
+destination is a non-symlink Git working copy whose `origin` matches the repository
+asset. The worktree operation requires this same verified local copy, refreshes its
+remote references, and accepts only an existing local or `origin` branch. It creates no
+branches implicitly and never replaces an existing directory. Worktrees live below
+`<workspace>/projects/<project-id>/repositories/worktrees/` and use the fixed directory
+name `<repository-name>_<branch-name>`; a slash in a branch name is rendered as `-` in
+the directory name so it remains a single contained path segment.
 
 The SQLite database and credential-encryption key are control-plane state, not task
 workspace content, and continue to use their independent environment-variable or `.data`

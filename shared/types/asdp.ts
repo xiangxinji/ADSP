@@ -65,6 +65,22 @@ export type RepositoryUpdateResult = {
   path: string
 }
 
+export type RepositoryLocalCloneStatusResult = {
+  repositoryId: string
+  cloned: boolean
+  path: string
+}
+
+export type CreateRepositoryWorktreeInput = {
+  branch: string
+}
+
+export type RepositoryWorktreeResult = {
+  repositoryId: string
+  branch: string
+  path: string
+}
+
 export type EnvironmentAccount = {
   account: string
   password: string

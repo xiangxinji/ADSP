@@ -20,8 +20,10 @@ import type {
   RepositoryAsset,
   RepositoryBranchStrategy,
   RepositoryCloneResult,
+  RepositoryLocalCloneStatusResult,
   RepositoryProvider,
   RepositoryUpdateResult,
+  RepositoryWorktreeResult,
   Requirement,
   RequirementPriority,
   RequirementStatus,
@@ -429,15 +431,30 @@ const selectGitLabRepository = (repository: GitLabRepository) => {
   })
 }
 
-const runRepositoryCommand = async (repository: RepositoryAsset, operation: AssetOperationDefinition) => {
+type RepositoryOperationResult =
+  | RepositoryCloneResult
+  | RepositoryLocalCloneStatusResult
+  | RepositoryUpdateResult
+  | RepositoryWorktreeResult
+
+const runRepositoryCommand = async (
+  repository: RepositoryAsset,
+  operation: AssetOperationDefinition,
+  body?: { branch: string },
+) => {
   if (operation.execution.kind !== 'command') return
   repositoryOperation.value = { id: repository.id, operationId: operation.id as AssetOperationId }
   actionError.value = ''
   try {
-    const result = await $fetch<RepositoryCloneResult | RepositoryUpdateResult>(`/api/assets/repository/${repository.id}/operations/${operation.id}`, {
+    const result = await $fetch<RepositoryOperationResult>(`/api/assets/repository/${repository.id}/operations/${operation.id}`, {
       method: 'POST',
+      body,
     })
-    success(`${operation.label}完成：${result.path}`)
+    success('cloned' in result
+      ? result.cloned
+        ? `本地已克隆：${result.path}`
+        : `本地尚未克隆：${result.path}`
+      : `${operation.label}完成：${result.path}`)
   } catch (requestError) {
     actionError.value = errorMessage(requestError)
   } finally {
@@ -446,7 +463,18 @@ const runRepositoryCommand = async (repository: RepositoryAsset, operation: Asse
 }
 
 const runRepositoryAssetOperation = (repository: RepositoryAsset, operation: AssetOperationDefinition) => {
-  if (operation.execution.kind === 'command') return runRepositoryCommand(repository, operation)
+  if (operation.execution.kind === 'command') {
+    if (operation.id === 'repository.create-worktree') {
+      const branch = window.prompt('请输入要创建工作树的现有分支名称')
+      if (branch === null) return
+      if (!branch.trim()) {
+        actionError.value = '请输入要创建工作树的分支名称'
+        return
+      }
+      return runRepositoryCommand(repository, operation, { branch })
+    }
+    return runRepositoryCommand(repository, operation)
+  }
   if (operation.id === 'repository.edit') return openRepository(repository)
   if (operation.id === 'repository.delete') {
     return removeRecord('repository', repository.id, repository.name, repository.referenceCount)

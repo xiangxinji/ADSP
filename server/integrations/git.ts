@@ -21,6 +21,16 @@ type UpdateGitRepositoryOptions = GitCommandOptions & {
   expectedUrl: string
 }
 
+type CreateGitWorktreeOptions = UpdateGitRepositoryOptions & {
+  branch: string
+  destination: string
+}
+
+type GitRepositoryVerificationMessages = {
+  missing: string
+  mismatched: string
+}
+
 const gitErrorDetail = (value: string, secrets: string[]) => {
   const redacted = secrets.reduce((result, secret) => result.replaceAll(secret, '[REDACTED]'), value)
   return redacted
@@ -87,23 +97,78 @@ const runGit = (arguments_: string[], options: GitCommandOptions = {}) => new Pr
 
 const normalizedRemoteUrl = (value: string) => value.trim().replace(/\/+$/, '').replace(/\.git$/i, '')
 
+const originUrl = async (options: UpdateGitRepositoryOptions) => {
+  try {
+    return await runGit(['-C', options.directory, 'remote', 'get-url', 'origin'])
+  } catch (error) {
+    if ((error as { statusCode?: number }).statusCode === 500) throw error
+    return null
+  }
+}
+
+const assertMatchingGitRepository = async (
+  options: UpdateGitRepositoryOptions,
+  messages: GitRepositoryVerificationMessages = {
+    missing: '对应目录不是可用的 Git 仓库',
+    mismatched: '对应目录的 origin 与当前仓库资产不一致，已停止操作',
+  },
+) => {
+  const value = await originUrl(options)
+  if (!value) {
+    throw createError({ statusCode: 409, statusMessage: messages.missing })
+  }
+  if (normalizedRemoteUrl(value) !== normalizedRemoteUrl(options.expectedUrl)) {
+    throw createError({ statusCode: 409, statusMessage: messages.mismatched })
+  }
+}
+
+const gitRefExists = async (directory: string, ref: string, options: GitCommandOptions) => {
+  try {
+    await runGit(['-C', directory, 'show-ref', '--verify', '--quiet', ref], options)
+    return true
+  } catch (error) {
+    if ((error as { statusCode?: number }).statusCode === 500) throw error
+    return false
+  }
+}
+
 export const cloneGitRepository = async (options: CloneGitRepositoryOptions) => {
   await runGit(['clone', '--', options.url, options.destination], options)
 }
 
 export const updateGitRepository = async (options: UpdateGitRepositoryOptions) => {
-  let originUrl: string
-  try {
-    originUrl = await runGit(['-C', options.directory, 'remote', 'get-url', 'origin'])
-  } catch (error) {
-    if ((error as { statusCode?: number }).statusCode === 500) throw error
-    throw createError({ statusCode: 409, statusMessage: '对应目录不是可更新的 Git 仓库' })
-  }
-
-  if (normalizedRemoteUrl(originUrl) !== normalizedRemoteUrl(options.expectedUrl)) {
-    throw createError({ statusCode: 409, statusMessage: '对应目录的 origin 与当前仓库资产不一致，已停止更新' })
-  }
+  await assertMatchingGitRepository(options, {
+    missing: '对应目录不是可更新的 Git 仓库',
+    mismatched: '对应目录的 origin 与当前仓库资产不一致，已停止更新',
+  })
 
   await runGit(['-C', options.directory, 'remote', 'update', '--prune'], options)
   await runGit(['-C', options.directory, 'pull', '--ff-only'], options)
+}
+
+export const hasGitRepositoryWorkingCopy = async (options: UpdateGitRepositoryOptions) => {
+  const value = await originUrl(options)
+  return Boolean(value && normalizedRemoteUrl(value) === normalizedRemoteUrl(options.expectedUrl))
+}
+
+export const createGitWorktree = async (options: CreateGitWorktreeOptions) => {
+  await assertMatchingGitRepository(options)
+  await runGit(['-C', options.directory, 'fetch', '--prune', 'origin'], options)
+
+  if (await gitRefExists(options.directory, `refs/heads/${options.branch}`, options)) {
+    await runGit(['-C', options.directory, 'worktree', 'add', options.destination, options.branch], options)
+    return
+  }
+
+  if (await gitRefExists(options.directory, `refs/remotes/origin/${options.branch}`, options)) {
+    await runGit([
+      '-C', options.directory,
+      'worktree', 'add', '--track', '-b', options.branch,
+      options.destination,
+      `origin/${options.branch}`,
+    ], options)
+    return
+  }
+
+  throw createError({ statusCode: 404, statusMessage: `指定分支不存在：${options.branch}` })
 }

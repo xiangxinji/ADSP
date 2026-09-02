@@ -19,7 +19,9 @@ import type {
   ProjectWorkspace,
   RepositoryAsset,
   RepositoryCloneResult,
+  RepositoryLocalCloneStatusResult,
   RepositoryUpdateResult,
+  RepositoryWorktreeResult,
   Requirement,
   RequirementStatus,
   RequirementVersion,
@@ -340,10 +342,21 @@ const routeCases: ApiRouteCase[] = [
         body: { provider: 'github', url: pathToFileURL(repositoryRemotePath).href },
       })
 
+      repositoryWorkingCopyPath = join(dirname(harness.databasePath), 'local-workspace', 'projects', projectId, 'repositories', 'forgepilot-api-test')
+      const localCloneStatus = await harness.request<RepositoryLocalCloneStatusResult>(
+        `/api/assets/repository/${repositoryId}/operations/repository.local-clone-status`,
+        { method: 'POST' },
+      )
+      expect(localCloneStatus.status).toBe(200)
+      expect(localCloneStatus.data).toEqual({
+        repositoryId,
+        cloned: false,
+        path: repositoryWorkingCopyPath,
+      })
+
       const response = await harness.request<RepositoryCloneResult>(`/api/repositories/${repositoryId}/clone`, {
         method: 'POST',
       })
-      repositoryWorkingCopyPath = join(dirname(harness.databasePath), 'local-workspace', 'projects', projectId, 'repositories', 'forgepilot-api-test')
       expect(response.status).toBe(201)
       expect(response.data).toEqual({ repositoryId, path: repositoryWorkingCopyPath })
       expect(existsSync(join(repositoryWorkingCopyPath, '.git'))).toBe(true)
@@ -408,6 +421,58 @@ const routeCases: ApiRouteCase[] = [
       )
       expect(response.status).toBe(200)
       expect(response.data).toEqual({ repositoryId, path: repositoryWorkingCopyPath })
+
+      const localCloneStatus = await harness.request<RepositoryLocalCloneStatusResult>(
+        `/api/assets/repository/${repositoryId}/operations/repository.local-clone-status`,
+        { method: 'POST' },
+      )
+      expect(localCloneStatus.status).toBe(200)
+      expect(localCloneStatus.data).toEqual({
+        repositoryId,
+        cloned: true,
+        path: repositoryWorkingCopyPath,
+      })
+
+      const missingBranch = await harness.request(
+        `/api/assets/repository/${repositoryId}/operations/repository.create-worktree`,
+        { method: 'POST' },
+      )
+      expect(missingBranch.status).toBe(400)
+
+      await run('git', ['-C', repositorySourcePath, 'checkout', '-b', 'feature/worktree'])
+      await writeFile(join(repositorySourcePath, 'worktree.txt'), 'feature branch\n')
+      await run('git', ['-C', repositorySourcePath, 'add', 'worktree.txt'])
+      await run('git', ['-C', repositorySourcePath, 'commit', '-m', 'test: add worktree branch'])
+      await run('git', ['-C', repositorySourcePath, 'push', '-u', 'origin', 'feature/worktree'])
+      await run('git', ['-C', repositorySourcePath, 'checkout', 'main'])
+
+      const worktree = await harness.request<RepositoryWorktreeResult>(
+        `/api/assets/repository/${repositoryId}/operations/repository.create-worktree`,
+        { method: 'POST', body: { branch: 'feature/worktree' } },
+      )
+      const repositoryWorktreePath = join(
+        dirname(harness.databasePath),
+        'local-workspace',
+        'projects',
+        projectId,
+        'repositories',
+        'worktrees',
+        'forgepilot-api-test_feature-worktree',
+      )
+      expect(worktree.status).toBe(200)
+      expect(worktree.data).toEqual({
+        repositoryId,
+        branch: 'feature/worktree',
+        path: repositoryWorktreePath,
+      })
+      expect(existsSync(join(repositoryWorktreePath, '.git'))).toBe(true)
+      expect((await readFile(join(repositoryWorktreePath, 'worktree.txt'), 'utf8')).trim()).toBe('feature branch')
+
+      const duplicateWorktree = await harness.request(
+        `/api/assets/repository/${repositoryId}/operations/repository.create-worktree`,
+        { method: 'POST', body: { branch: 'feature/worktree' } },
+      )
+      expect(duplicateWorktree.status).toBe(409)
 
       const clientOnly = await harness.request(
         `/api/assets/repository/${repositoryId}/operations/repository.edit`,

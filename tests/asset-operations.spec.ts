@@ -23,10 +23,16 @@ describe('asset operation configuration', () => {
     expect(workflowOperations.map(operation => operation.id)).toEqual([
       'repository.clone',
       'repository.update',
+      'repository.local-clone-status',
+      'repository.create-worktree',
     ])
     expect(workflowOperations.every(operation => operation.execution.kind === 'command')).toBe(true)
     expect(findAssetOperation('repository', 'repository.clone')).toMatchObject({
       execution: { kind: 'command', command: 'repository.clone' },
+      workflow: { enabled: true },
+    })
+    expect(findAssetOperation('repository', 'repository.create-worktree')).toMatchObject({
+      execution: { kind: 'command', command: 'repository.create-worktree' },
       workflow: { enabled: true },
     })
     expect(findAssetOperation('environment', 'repository.clone')).toBeUndefined()

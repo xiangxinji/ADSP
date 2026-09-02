@@ -81,8 +81,10 @@ The current local preview has one global local-workspace directory. Repository w
 copies are cloned into a project-specific `repositories/` child directory, while task
 files and generated filesystem artifacts also stay beneath this operator-selected root.
 Each project owns its filesystem namespace, so repository copies use
-`<workspace>/projects/<project-id>/repositories/`. Every other project-owned filesystem
-operation is likewise constrained to `<workspace>/projects/<project-id>/`. ForgePilot
+`<workspace>/projects/<project-id>/repositories/`. Additional Git worktrees use the
+same project's `repositories/worktrees/` directory and are named
+`<repository-name>_<branch-name>`. Every other project-owned filesystem operation is
+likewise constrained to `<workspace>/projects/<project-id>/`. ForgePilot
 validates the global directory before saving it; application data and encrypted
 credentials remain separate control-plane state.
 

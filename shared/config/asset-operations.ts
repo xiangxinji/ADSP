@@ -29,6 +29,22 @@ export const assetOperationConfig = {
           workflow: { enabled: true },
         },
         {
+          id: 'repository.local-clone-status',
+          label: '检查本地克隆',
+          description: '确认当前项目中是否已有与仓库资产匹配的本地克隆。',
+          icon: 'check',
+          execution: { kind: 'command', command: 'repository.local-clone-status' },
+          workflow: { enabled: true },
+        },
+        {
+          id: 'repository.create-worktree',
+          label: '创建工作树',
+          description: '基于指定的现有分支，在项目隔离目录中创建 Git worktree。',
+          icon: 'repository',
+          execution: { kind: 'command', command: 'repository.create-worktree' },
+          workflow: { enabled: true },
+        },
+        {
           id: 'repository.edit',
           label: '编辑',
           description: '维护仓库地址、托管平台和分支策略。',

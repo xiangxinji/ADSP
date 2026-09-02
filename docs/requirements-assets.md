@@ -100,3 +100,7 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 31. `repository.clone` and `repository.update` execute through the generic asset-operation
     service and are marked workflow-ready; client-only operations are rejected by the
     server execution endpoint.
+32. `repository.local-clone-status` reports whether the fixed project-local clone path is
+    a Git working copy with an `origin` matching the repository asset, and
+    `repository.create-worktree` creates a worktree for an existing supplied branch under
+    `repositories/worktrees/<repository-name>_<branch-name>` without overwriting a path.

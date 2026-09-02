@@ -113,10 +113,17 @@ Existing repository records default to the `multi-version` branch strategy durin
 The repository asset does not persist a default branch; integrations query provider-owned branch metadata when needed.
 
 The versioned operation registry lives in `shared/config/asset-operations.ts`. The
-generic operation route currently accepts `repository.clone` and `repository.update`
-for the `repository` asset type. Client-only operations such as editing or deleting
-metadata return `404` from this route and are not available to workflow execution.
-Operation IDs are stable contracts intended for later workflow-step configuration.
+generic operation route accepts `repository.clone`, `repository.update`,
+`repository.local-clone-status`, and `repository.create-worktree` for the `repository`
+asset type. `repository.local-clone-status` returns
+`{ "repositoryId": string, "cloned": boolean, "path": string }`. Create a worktree
+with body `{ "branch": string }`; the branch must already exist locally or on `origin`,
+and the result is `{ "repositoryId": string, "branch": string, "path": string }`.
+Its path is fixed below `repositories/worktrees/` as
+`<repository-name>_<branch-name>` (branch slashes render as `-`). Client-only operations
+such as editing or deleting metadata return `404` from this route and are not available
+to workflow execution. Operation IDs are stable contracts intended for later
+workflow-step configuration.
 
 ## Global GitLab Settings
 
