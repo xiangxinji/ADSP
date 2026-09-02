@@ -7,7 +7,7 @@ import {
 
 describe('knowledge asset reference syntax', () => {
   test('creates the stable token inserted by the knowledge slash menu', () => {
-    expect(createKnowledgeReferenceToken('知识', 'knowledge-1')).toBe('[[知识：knowledge-1]]')
+    expect(createKnowledgeReferenceToken('知识', 'knowledge-1')).toBe('[[知识:knowledge-1]]')
   })
 
   test('splits references while preserving the authored token', () => {
