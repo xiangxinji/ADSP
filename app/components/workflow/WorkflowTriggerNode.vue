@@ -20,14 +20,13 @@ const emit = defineEmits<{ selectSource: [] }>()
     <div><small>根触发器 · 必须</small><strong>{{ data.label }}</strong><p>{{ data.description }}</p></div>
     <span v-if="data.configured && !data.connected" class="workflow-node-warning">待连线</span>
     <Handle
-      v-if="data.configured"
       type="source"
       :position="Position.Bottom"
-      :connectable="data.configured"
+      :connectable="true"
       :class="{ 'click-source-active': data.connectionSource }"
       role="button"
       tabindex="0"
-      aria-label="选择根触发器作为连线起点"
+      aria-label="选择根节点作为连线起点"
       @click.stop="emit('selectSource')"
       @keydown.enter.stop.prevent="emit('selectSource')"
       @keydown.space.stop.prevent="emit('selectSource')"
