@@ -18,6 +18,12 @@ This is a Nuxt 4 application. Code lives in `app/`, routes in `app/pages/`, shar
 
 Whenever any new asset type is added, update the Markdown editor shortcuts in the same change so the new asset type is available from the editor's shortcut UI.
 
+## Frontend Component Architecture — Hard Requirement
+
+Keep Vue single-file components focused and reviewable. Any `.vue` file that exceeds 300 physical lines or 10 KB must be treated as oversized and split by stable UI or domain responsibility before the feature is considered complete. Extract independently meaningful sections into named components under `app/components/`, and move reusable client state or orchestration into focused composables under `app/composables/`.
+
+Do not evade the limit by compressing templates or scripts into long lines. Componentization must reduce responsibility as well as file size: avoid empty wrapper components that only forward a large set of props and events without owning a coherent UI section or behavior. After frontend changes, audit all `.vue` files against both limits and verify the result with `npm run build`.
+
 ## Backend API Architecture — Hard Requirement
 
 High cohesion and low coupling are mandatory for every backend API change. A change that violates the rules below is incomplete and must not be committed or merged.
