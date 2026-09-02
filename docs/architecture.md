@@ -136,6 +136,12 @@ success, or failure state, timestamps, and failure message. This lets an operato
 refresh the project workspace and recover visibility into a long-running local action
 without relying on browser-only state.
 
+Every workflow-ready command additionally defines its input fields, output fields, and
+expected exception codes in the same versioned registry. The Asset Operation Catalog
+renders this contract for operators. Runtime API failures return the declared stable
+code in `data.code`, allowing future workflows to validate bindings and choose error
+paths without coupling to human-readable labels or translated messages.
+
 The SQLite bootstrap creates the environment, account, and knowledge tables idempotently for existing installations. Existing projects and assets require no data rewrite; their environment and knowledge collections begin empty.
 
 The ForgePilot rebrand preserves legacy database identifiers and the default `.data/asdp.sqlite` path. During bootstrap, only the untouched `project-asdp` sample project with its exact former default name and description is renamed; user-edited project records are never overwritten.

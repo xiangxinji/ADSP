@@ -12,6 +12,25 @@ export type AssetOperationIcon =
   | 'settings'
 
 export type AssetOperationPlacement = 'primary' | 'more'
+export type AssetOperationValueType = 'string' | 'boolean' | 'path'
+
+export type AssetOperationField = {
+  name: string
+  type: AssetOperationValueType
+  description: string
+  required?: boolean
+}
+
+export type AssetOperationException = {
+  code: string
+  description: string
+}
+
+export type AssetOperationContract = {
+  input: readonly AssetOperationField[]
+  output: readonly AssetOperationField[]
+  exceptions: readonly AssetOperationException[]
+}
 
 export type AssetOperationBase = {
   id: string
@@ -30,6 +49,7 @@ export type AssetCommandOperation = AssetOperationBase & {
   workflow: {
     enabled: true
   }
+  contract: AssetOperationContract
 }
 
 export type AssetClientOperation = AssetOperationBase & {
@@ -50,6 +70,6 @@ export type AssetOperationModule = {
 }
 
 export type AssetOperationConfig = {
-  schemaVersion: 2
+  schemaVersion: 3
   modules: readonly AssetOperationModule[]
 }

@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process'
 import { Buffer } from 'node:buffer'
-import { createError } from 'h3'
+import { createAssetOperationError } from '../utils/asset-operation-error'
 
 type GitHttpAuthorization = {
   baseUrl: string
@@ -27,8 +27,14 @@ type CreateGitWorktreeOptions = UpdateGitRepositoryOptions & {
 }
 
 type GitRepositoryVerificationMessages = {
-  missing: string
-  mismatched: string
+  missing: {
+    code: string
+    message: string
+  }
+  mismatched: {
+    code: string
+    message: string
+  }
 }
 
 const gitErrorDetail = (value: string, secrets: string[]) => {
@@ -78,20 +84,21 @@ const runGit = (arguments_: string[], options: GitCommandOptions = {}) => new Pr
   })
   child.on('error', error => {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      reject(createError({ statusCode: 500, statusMessage: '未检测到 Git，请先在 ForgePilot 运行环境中安装 Git' }))
+      reject(createAssetOperationError(500, 'repository.git-unavailable', '未检测到 Git，请先在 ForgePilot 运行环境中安装 Git'))
       return
     }
-    reject(createError({ statusCode: 500, statusMessage: '无法启动 Git 进程', cause: error }))
+    reject(createAssetOperationError(500, 'repository.git-command-failed', '无法启动 Git 进程', error))
   })
   child.on('close', code => {
     if (code === 0) {
       resolve(standardOutput.trim())
       return
     }
-    reject(createError({
-      statusCode: 502,
-      statusMessage: `Git 命令执行失败：${gitErrorDetail(standardError, secrets)}`,
-    }))
+    reject(createAssetOperationError(
+      502,
+      'repository.git-command-failed',
+      `Git 命令执行失败：${gitErrorDetail(standardError, secrets)}`,
+    ))
   })
 })
 
@@ -109,16 +116,16 @@ const originUrl = async (options: UpdateGitRepositoryOptions) => {
 const assertMatchingGitRepository = async (
   options: UpdateGitRepositoryOptions,
   messages: GitRepositoryVerificationMessages = {
-    missing: '对应目录不是可用的 Git 仓库',
-    mismatched: '对应目录的 origin 与当前仓库资产不一致，已停止操作',
+    missing: { code: 'repository.local-copy-missing', message: '对应目录不是可用的 Git 仓库' },
+    mismatched: { code: 'repository.remote-mismatch', message: '对应目录的 origin 与当前仓库资产不一致，已停止操作' },
   },
 ) => {
   const value = await originUrl(options)
   if (!value) {
-    throw createError({ statusCode: 409, statusMessage: messages.missing })
+    throw createAssetOperationError(409, messages.missing.code, messages.missing.message)
   }
   if (normalizedRemoteUrl(value) !== normalizedRemoteUrl(options.expectedUrl)) {
-    throw createError({ statusCode: 409, statusMessage: messages.mismatched })
+    throw createAssetOperationError(409, messages.mismatched.code, messages.mismatched.message)
   }
 }
 
@@ -138,8 +145,8 @@ export const cloneGitRepository = async (options: CloneGitRepositoryOptions) => 
 
 export const updateGitRepository = async (options: UpdateGitRepositoryOptions) => {
   await assertMatchingGitRepository(options, {
-    missing: '对应目录不是可更新的 Git 仓库',
-    mismatched: '对应目录的 origin 与当前仓库资产不一致，已停止更新',
+    missing: { code: 'repository.local-copy-missing', message: '对应目录不是可更新的 Git 仓库' },
+    mismatched: { code: 'repository.remote-mismatch', message: '对应目录的 origin 与当前仓库资产不一致，已停止更新' },
   })
 
   await runGit(['-C', options.directory, 'remote', 'update', '--prune'], options)
@@ -170,5 +177,5 @@ export const createGitWorktree = async (options: CreateGitWorktreeOptions) => {
     return
   }
 
-  throw createError({ statusCode: 404, statusMessage: `指定分支不存在：${options.branch}` })
+  throw createAssetOperationError(404, 'repository.branch-not-found', `指定分支不存在：${options.branch}`)
 }

@@ -32,6 +32,23 @@ High cohesion and low coupling are mandatory for every backend API change. A cha
 - Reuse small transport primitives from `server/utils/http-input.ts`, but keep domain payload validation in focused files under `server/validation/`.
 - Update `docs/architecture.md` whenever these boundaries or their dependency direction change, and verify every backend change with `npm run build`.
 
+## Asset Operation Contract — Hard Requirement
+
+Every workflow-ready asset command must declare its stable operation contract in
+`shared/config/asset-operations.ts`; do not create separate client, API, and workflow
+descriptions. The contract must define every input and output field with its stable
+name, type, requirement status, and description, plus every expected exception with a
+stable machine-readable code and operator-facing description. `AssetOperationCatalog`
+must render this shared contract so users can inspect an operation before running it.
+
+Command implementations must return the declared output shape. Expected runtime
+failures must be constructed with `createAssetOperationError` from
+`server/utils/asset-operation-error.ts`, which returns the same stable code in the HTTP
+error `data.code`; workflows must branch on that code rather than translated error
+text. New workflow-ready commands are incomplete without contract tests, success and
+error-response API tests, and documentation updates. Client-only asset actions remain
+outside workflow contracts.
+
 ## Project Filesystem Boundary — Hard Requirement
 
 All filesystem operations performed for a project must stay inside that project's dedicated directory at `<global-workspace>/projects/<project-id>/`. Repository working copies belong at `<global-workspace>/projects/<project-id>/repositories/<repository-name>/`. Never place project-owned files directly under the global workspace root, never read or write another project's directory, and never allow relative traversal or absolute paths to escape the owning project directory.

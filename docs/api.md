@@ -125,6 +125,13 @@ such as editing or deleting metadata return `404` from this route and are not av
 to workflow execution. Operation IDs are stable contracts intended for later
 workflow-step configuration.
 
+Every workflow-ready command carries a versioned operation contract in that registry:
+its required inputs, outputs, and expected exceptions all have stable names and types.
+Exceptions have a stable code such as `repository.local-copy-exists`; an operation
+failure returns the same code in `{ "data": { "code": string } }`, alongside the
+standard HTTP status and `statusMessage`. Workflow definitions must use these fields
+and codes rather than button text or translated error messages.
+
 Every repository asset response includes `localOperation`, either `null` or the most
 recent local operation: `{ "operationId", "status", "startedAt", "finishedAt",
 "error" }`. `status` is `running`, `succeeded`, or `failed`. ForgePilot records

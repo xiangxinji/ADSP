@@ -1,6 +1,5 @@
 import { lstat, mkdir, realpath } from 'node:fs/promises'
 import { relative } from 'node:path'
-import { createError } from 'h3'
 import type {
   RepositoryCloneResult,
   RepositoryLocalCloneStatusResult,
@@ -14,7 +13,7 @@ import {
   updateGitRepository,
 } from '../integrations/git'
 import { resolveWithinWorkspace } from '../utils/workspace-path'
-import { conflict } from './errors'
+import { createAssetOperationError } from '../utils/asset-operation-error'
 import { getStoredGitLabCredentials } from './gitlab'
 import {
   requireLocalWorkspaceRoot,
@@ -29,10 +28,10 @@ const repositoryDirectoryName = (repositoryUrl: string) => {
   try {
     url = new URL(repositoryUrl)
   } catch {
-    throw createError({ statusCode: 400, statusMessage: '仓库地址无效，无法确定克隆目录' })
+    throw createAssetOperationError(400, 'repository.invalid-local-directory', '仓库地址无效，无法确定克隆目录')
   }
   if (url.password) {
-    throw createError({ statusCode: 400, statusMessage: '仓库地址不能包含密码或 Token' })
+    throw createAssetOperationError(400, 'repository.invalid-local-directory', '仓库地址不能包含密码或 Token')
   }
 
   const encodedName = url.pathname.split('/').filter(Boolean).at(-1) || ''
@@ -40,7 +39,7 @@ const repositoryDirectoryName = (repositoryUrl: string) => {
   try {
     name = decodeURIComponent(encodedName).replace(/\.git$/i, '')
   } catch {
-    throw createError({ statusCode: 400, statusMessage: '仓库地址包含无效的路径编码' })
+    throw createAssetOperationError(400, 'repository.invalid-local-directory', '仓库地址包含无效的路径编码')
   }
 
   if (!name
@@ -50,7 +49,7 @@ const repositoryDirectoryName = (repositoryUrl: string) => {
     || /[<>:"/\\|?*\u0000-\u001f]/.test(name)
     || /[. ]$/.test(name)
     || windowsReservedName.test(name)) {
-    throw createError({ statusCode: 400, statusMessage: '仓库地址无法生成安全的本地目录名' })
+    throw createAssetOperationError(400, 'repository.invalid-local-directory', '仓库地址无法生成安全的本地目录名')
   }
   return name
 }
@@ -109,7 +108,7 @@ const resolveRepositoryWorkingCopyLocation = async (
 const worktreeDirectoryName = (repositoryUrl: string, branch: string) => {
   const name = `${repositoryDirectoryName(repositoryUrl)}_${branch.replaceAll('/', '-')}`
   if (name.length > 255) {
-    throw createError({ statusCode: 400, statusMessage: 'branch 生成的工作树目录名称过长' })
+    throw createAssetOperationError(400, 'repository.worktree-path-too-long', 'branch 生成的工作树目录名称过长')
   }
   return name
 }
@@ -127,10 +126,10 @@ const cloneAuthorization = (repositoryUrl: string) => {
 }
 
 export const cloneRepository = async (id: string): Promise<RepositoryCloneResult> => {
-  const repository = getRepository(id)
+  const repository = getRepository(id, 'repository.not-found')
   const location = await resolveRepositoryWorkingCopyLocation(repository, true)
   if (!location.canonicalRepositoriesRoot) {
-    throw conflict('项目 repositories 路径不是可用的仓库目录')
+    throw createAssetOperationError(409, 'repository.repositories-directory-unavailable', '项目 repositories 路径不是可用的仓库目录')
   }
   const destinationStat = await pathStat(location.destination)
   const authorization = repository.provider === 'gitlab'
@@ -138,7 +137,7 @@ export const cloneRepository = async (id: string): Promise<RepositoryCloneResult
     : undefined
 
   if (destinationStat) {
-    throw conflict(`本地目录已存在：${location.destination}`)
+    throw createAssetOperationError(409, 'repository.local-copy-exists', `本地目录已存在：${location.destination}`)
   }
 
   await cloneGitRepository({
@@ -150,14 +149,14 @@ export const cloneRepository = async (id: string): Promise<RepositoryCloneResult
 }
 
 export const updateRepositoryWorkingCopy = async (id: string): Promise<RepositoryUpdateResult> => {
-  const repository = getRepository(id)
+  const repository = getRepository(id, 'repository.not-found')
   const location = await resolveRepositoryWorkingCopyLocation(repository)
   if (!location.canonicalRepositoriesRoot) {
-    throw conflict('项目 repositories 目录不存在，请先克隆仓库')
+    throw createAssetOperationError(409, 'repository.local-copy-missing', '项目 repositories 目录不存在，请先克隆仓库')
   }
   const destinationStat = await pathStat(location.destination)
   if (!destinationStat?.isDirectory() || destinationStat.isSymbolicLink()) {
-    throw conflict(`对应仓库目录不存在，请先克隆：${location.destination}`)
+    throw createAssetOperationError(409, 'repository.local-copy-missing', `对应仓库目录不存在，请先克隆：${location.destination}`)
   }
 
   const canonicalDestination = await realpath(location.destination)
@@ -176,7 +175,7 @@ export const updateRepositoryWorkingCopy = async (id: string): Promise<Repositor
 }
 
 export const getRepositoryLocalCloneStatus = async (id: string): Promise<RepositoryLocalCloneStatusResult> => {
-  const repository = getRepository(id)
+  const repository = getRepository(id, 'repository.not-found')
   const location = await resolveRepositoryWorkingCopyLocation(repository)
   if (!location.canonicalRepositoriesRoot) {
     return { repositoryId: repository.id, cloned: false, path: location.destination }
@@ -203,16 +202,16 @@ export const createRepositoryWorktree = async (
   id: string,
   branch: string,
 ): Promise<RepositoryWorktreeResult> => {
-  const repository = getRepository(id)
+  const repository = getRepository(id, 'repository.not-found')
   const worktreeName = worktreeDirectoryName(repository.url, branch)
   const location = await resolveRepositoryWorkingCopyLocation(repository)
   if (!location.canonicalRepositoriesRoot) {
-    throw conflict('项目 repositories 目录不存在，请先克隆仓库')
+    throw createAssetOperationError(409, 'repository.local-copy-missing', '项目 repositories 目录不存在，请先克隆仓库')
   }
 
   const destinationStat = await pathStat(location.destination)
   if (!destinationStat?.isDirectory() || destinationStat.isSymbolicLink()) {
-    throw conflict(`对应仓库目录不存在，请先克隆：${location.destination}`)
+    throw createAssetOperationError(409, 'repository.local-copy-missing', `对应仓库目录不存在，请先克隆：${location.destination}`)
   }
 
   const canonicalDestination = await realpath(location.destination)
@@ -225,7 +224,7 @@ export const createRepositoryWorktree = async (
   await mkdir(worktreesRoot, { recursive: true })
   const worktreesRootStat = await pathStat(worktreesRoot)
   if (!worktreesRootStat?.isDirectory() || worktreesRootStat.isSymbolicLink()) {
-    throw conflict('项目 worktrees 路径不是可用的仓库目录')
+    throw createAssetOperationError(409, 'repository.worktrees-directory-unavailable', '项目 worktrees 路径不是可用的仓库目录')
   }
 
   const canonicalWorktreesRoot = await realpath(worktreesRoot)
@@ -238,7 +237,7 @@ export const createRepositoryWorktree = async (
     worktreeName,
   )
   if (await pathStat(worktreePath)) {
-    throw conflict(`工作树目录已存在：${worktreePath}`)
+    throw createAssetOperationError(409, 'repository.worktree-exists', `工作树目录已存在：${worktreePath}`)
   }
 
   await createGitWorktree({

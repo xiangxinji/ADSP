@@ -35,6 +35,13 @@ type ApiRouteCase = {
   run: () => Promise<void>
 }
 
+type AssetOperationErrorResponse = {
+  data?: {
+    code?: string
+  }
+  statusMessage: string
+}
+
 const discoverApiRoutes = () => {
   const apiRoot = join(process.cwd(), 'server', 'api')
   const files = (directory: string, prefix = ''): string[] => readdirSync(directory, { withFileTypes: true })
@@ -379,8 +386,9 @@ const routeCases: ApiRouteCase[] = [
       expect(clonedRepository?.localOperation?.startedAt).toEqual(expect.any(String))
       expect(clonedRepository?.localOperation?.finishedAt).toEqual(expect.any(String))
 
-      const duplicate = await harness.request(`/api/repositories/${repositoryId}/clone`, { method: 'POST' })
+      const duplicate = await harness.request<AssetOperationErrorResponse>(`/api/repositories/${repositoryId}/clone`, { method: 'POST' })
       expect(duplicate.status).toBe(409)
+      expect(duplicate.data.data?.code).toBe('repository.local-copy-exists')
 
       const failedCloneWorkspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
       expect(failedCloneWorkspace.data.repositories.find(repository => repository.id === repositoryId)?.localOperation)
@@ -420,8 +428,9 @@ const routeCases: ApiRouteCase[] = [
     route: 'POST /api/repositories/:id/update',
     run: async () => {
       await run('git', ['-C', repositoryWorkingCopyPath, 'remote', 'set-url', 'origin', 'https://example.com/unrelated.git'])
-      const mismatched = await harness.request(`/api/repositories/${repositoryId}/update`, { method: 'POST' })
+      const mismatched = await harness.request<AssetOperationErrorResponse>(`/api/repositories/${repositoryId}/update`, { method: 'POST' })
       expect(mismatched.status).toBe(409)
+      expect(mismatched.data.data?.code).toBe('repository.remote-mismatch')
       const failedUpdateWorkspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
       expect(failedUpdateWorkspace.data.repositories.find(repository => repository.id === repositoryId)?.localOperation)
         .toMatchObject({
@@ -468,11 +477,19 @@ const routeCases: ApiRouteCase[] = [
         path: repositoryWorkingCopyPath,
       })
 
-      const missingBranch = await harness.request(
+      const missingBranch = await harness.request<AssetOperationErrorResponse>(
         `/api/assets/repository/${repositoryId}/operations/repository.create-worktree`,
         { method: 'POST' },
       )
       expect(missingBranch.status).toBe(400)
+      expect(missingBranch.data.data?.code).toBe('repository.worktree-branch-required')
+
+      const invalidWorktreeInput = await harness.request<AssetOperationErrorResponse>(
+        `/api/assets/repository/${repositoryId}/operations/repository.create-worktree`,
+        { method: 'POST', body: [] },
+      )
+      expect(invalidWorktreeInput.status).toBe(400)
+      expect(invalidWorktreeInput.data.data?.code).toBe('repository.invalid-worktree-input')
 
       await run('git', ['-C', repositorySourcePath, 'checkout', '-b', 'feature/worktree'])
       await writeFile(join(repositorySourcePath, 'worktree.txt'), 'feature branch\n')
@@ -507,11 +524,12 @@ const routeCases: ApiRouteCase[] = [
       expect(worktreeWorkspace.data.repositories.find(repository => repository.id === repositoryId)?.localOperation)
         .toMatchObject({ operationId: 'repository.create-worktree', status: 'succeeded', error: null })
 
-      const duplicateWorktree = await harness.request(
+      const duplicateWorktree = await harness.request<AssetOperationErrorResponse>(
         `/api/assets/repository/${repositoryId}/operations/repository.create-worktree`,
         { method: 'POST', body: { branch: 'feature/worktree' } },
       )
       expect(duplicateWorktree.status).toBe(409)
+      expect(duplicateWorktree.data.data?.code).toBe('repository.worktree-exists')
       const failedWorktreeWorkspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
       expect(failedWorktreeWorkspace.data.repositories.find(repository => repository.id === repositoryId)?.localOperation)
         .toMatchObject({

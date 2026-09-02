@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   }
   const operationId = routeParameter(event, 'operationId')
   const input = assetType === 'repository' && operationId === 'repository.create-worktree'
-    ? repositoryWorktreePayload(await readBody(event))
+    ? repositoryWorktreePayload((await readBody(event)) || {})
     : undefined
 
   return executeAssetOperation(

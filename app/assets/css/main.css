@@ -301,13 +301,22 @@ button:focus-visible, a:focus-visible { outline: 3px solid var(--focus-ring); ou
 .asset-operation-catalog-heading span { color: var(--text-subtle); font-size: 8px; }
 .asset-operation-catalog-heading > small { padding: 3px 6px; border-radius: 4px; color: var(--success); background: var(--success-soft); font-size: 7px; font-weight: 700; }
 .asset-operation-catalog-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 12px; }
-.asset-operation-summary { min-width: 0; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+.asset-operation-summary { min-width: 0; display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: start; gap: 8px; }
 .asset-operation-summary-icon { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 7px; color: var(--blue); background: var(--blue-soft); }
 .asset-operation-summary-copy { min-width: 0; }
 .asset-operation-summary-copy strong, .asset-operation-summary-copy small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .asset-operation-summary-copy strong { color: var(--text-strong); font-size: 9px; }
 .asset-operation-summary-copy small { margin-top: 2px; color: var(--muted); font-size: 8px; }
 .asset-operation-summary > em { color: var(--success); font-size: 7px; font-style: normal; font-weight: 700; }
+.asset-operation-contract { margin-top: 6px; color: var(--text-secondary); font-size: 8px; }
+.asset-operation-contract summary { color: var(--blue); cursor: pointer; font-weight: 700; }
+.asset-operation-contract-section { margin-top: 7px; }
+.asset-operation-contract-section > b { display: block; margin-bottom: 3px; color: var(--text-strong); font-size: 8px; }
+.asset-operation-contract-section ul { display: flex; flex-direction: column; gap: 3px; margin: 0; padding: 0; list-style: none; }
+.asset-operation-contract-section li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 5px; }
+.asset-operation-contract-section code { color: var(--purple); font-family: "Cascadia Code", Consolas, monospace; font-size: 7px; overflow-wrap: anywhere; }
+.asset-operation-contract-section em { padding: 1px 3px; border-radius: 3px; color: var(--warning); background: var(--warning-soft); font-size: 7px; font-style: normal; font-weight: 700; }
+.asset-operation-contract-section span { color: var(--muted); font-size: 7px; }
 .asset-record-list { width: min(920px, 100%); display: flex; flex-direction: column; gap: var(--space-2); }
 .asset-record-list:focus-visible { outline: 2px solid var(--focus-border); outline-offset: 3px; border-radius: var(--radius-lg); }
 .asset-card { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 11px; margin-bottom: 9px; padding: 14px; }

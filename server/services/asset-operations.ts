@@ -18,6 +18,10 @@ import {
   finishRepositoryLocalOperation,
   startRepositoryLocalOperation,
 } from './repository-assets'
+import {
+  assetOperationErrorCode,
+  createAssetOperationError,
+} from '../utils/asset-operation-error'
 
 type AssetOperationResult =
   | RepositoryCloneResult
@@ -37,13 +41,31 @@ const localOperationError = (error: unknown) => {
   return '本地操作执行失败'
 }
 
+const normalizedOperationError = (error: unknown) => {
+  if (assetOperationErrorCode(error)) return error
+
+  const statusCode = error && typeof error === 'object' && 'statusCode' in error
+    ? Number(error.statusCode)
+    : 500
+  const statusMessage = localOperationError(error)
+  if (statusMessage === '请先在全局设置中配置本地工作空间') {
+    return createAssetOperationError(409, 'repository.workspace-not-configured', statusMessage)
+  }
+  return createAssetOperationError(
+    Number.isInteger(statusCode) ? statusCode : 500,
+    'repository.local-operation-failed',
+    statusMessage,
+    error,
+  )
+}
+
 const operationHandlers = {
   'repository.clone': (assetId: string) => cloneRepository(assetId),
   'repository.update': (assetId: string) => updateRepositoryWorkingCopy(assetId),
   'repository.local-clone-status': (assetId: string) => getRepositoryLocalCloneStatus(assetId),
   'repository.create-worktree': (assetId: string, input?: CreateRepositoryWorktreeInput) => {
     if (!input) {
-      throw createError({ statusCode: 400, statusMessage: '创建工作树需要指定 branch' })
+      throw createAssetOperationError(400, 'repository.worktree-branch-required', '创建工作树需要指定 branch')
     }
     return createRepositoryWorktree(assetId, input.branch)
   },
@@ -71,8 +93,9 @@ export const executeAssetOperation = async (
     finishRepositoryLocalOperation(assetId, localOperation, 'succeeded')
     return result
   } catch (error) {
-    finishRepositoryLocalOperation(assetId, localOperation, 'failed', localOperationError(error))
-    throw error
+    const operationError = normalizedOperationError(error)
+    finishRepositoryLocalOperation(assetId, localOperation, 'failed', localOperationError(operationError))
+    throw operationError
   }
 }
 

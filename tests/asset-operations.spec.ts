@@ -9,7 +9,7 @@ import { assetModuleIds } from '../shared/types/asset-operations'
 
 describe('asset operation configuration', () => {
   test('defines operations for every asset module with unique stable IDs', () => {
-    expect(assetOperationConfig.schemaVersion).toBe(2)
+    expect(assetOperationConfig.schemaVersion).toBe(3)
     expect(assetOperationConfig.modules.map(module => module.id)).toEqual(assetModuleIds)
 
     const operations = assetOperationConfig.modules.flatMap(module => module.operations)
@@ -34,10 +34,33 @@ describe('asset operation configuration', () => {
     expect(findAssetOperation('repository', 'repository.clone')).toMatchObject({
       execution: { kind: 'command', command: 'repository.clone' },
       workflow: { enabled: true },
+      contract: {
+        input: [{ name: 'repositoryId', type: 'string', required: true }],
+        output: [
+          { name: 'repositoryId', type: 'string' },
+          { name: 'path', type: 'path' },
+        ],
+        exceptions: expect.arrayContaining([
+          expect.objectContaining({ code: 'repository.local-copy-exists' }),
+          expect.objectContaining({ code: 'repository.git-command-failed' }),
+        ]),
+      },
     })
     expect(findAssetOperation('repository', 'repository.create-worktree')).toMatchObject({
       execution: { kind: 'command', command: 'repository.create-worktree' },
       workflow: { enabled: true },
+      contract: {
+        input: expect.arrayContaining([
+          expect.objectContaining({ name: 'branch', type: 'string', required: true }),
+        ]),
+        output: expect.arrayContaining([
+          expect.objectContaining({ name: 'path', type: 'path' }),
+        ]),
+        exceptions: expect.arrayContaining([
+          expect.objectContaining({ code: 'repository.invalid-worktree-branch' }),
+          expect.objectContaining({ code: 'repository.branch-not-found' }),
+        ]),
+      },
     })
     expect(findAssetOperation('environment', 'repository.clone')).toBeUndefined()
   })

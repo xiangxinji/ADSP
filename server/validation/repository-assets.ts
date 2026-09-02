@@ -4,7 +4,7 @@ import type {
   UpdateRepositoryInput,
 } from '../../shared/types/asdp'
 import { repositoryBranchStrategies, repositoryProviders } from '../../shared/types/asdp'
-import { createError } from 'h3'
+import { createAssetOperationError } from '../utils/asset-operation-error'
 import { bodyObject, enumValue, optionalText, requiredText } from '../utils/http-input'
 
 export const repositoryPayload = (
@@ -31,7 +31,14 @@ export const repositoryPayload = (
 }
 
 export const repositoryWorktreePayload = (value: unknown): CreateRepositoryWorktreeInput => {
-  const branch = requiredText(bodyObject(value).branch, 'branch')
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw createAssetOperationError(400, 'repository.invalid-worktree-input', '请求体必须是 JSON 对象')
+  }
+  const branchValue = (value as Record<string, unknown>).branch
+  if (typeof branchValue !== 'string' || !branchValue.trim()) {
+    throw createAssetOperationError(400, 'repository.worktree-branch-required', 'branch is required')
+  }
+  const branch = branchValue.trim()
   if (branch.length > 255
     || branch === '@'
     || branch.startsWith('-')
@@ -44,7 +51,7 @@ export const repositoryWorktreePayload = (value: unknown): CreateRepositoryWorkt
     || branch.includes('//')
     || branch.includes('@{')
     || /[\x00-\x20~^:?*\[\]\\<>|"]/.test(branch)) {
-    throw createError({ statusCode: 400, statusMessage: 'branch 不是有效的 Git 分支名称' })
+    throw createAssetOperationError(400, 'repository.invalid-worktree-branch', 'branch 不是有效的 Git 分支名称')
   }
   return { branch }
 }

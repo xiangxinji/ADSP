@@ -13,10 +13,17 @@ import {
   updateRepositoryAssetRecord,
   updateRepositoryLocalOperationRecord,
 } from '../repositories/repository-assets'
+import { createAssetOperationError } from '../utils/asset-operation-error'
 import { getProject } from './projects'
 import { conflict, requireEntity } from './errors'
 
-export const getRepository = (id: string) => requireEntity(findRepositoryAsset(id), 'Repository not found')
+export const getRepository = (id: string, operationErrorCode?: string) => {
+  const repository = findRepositoryAsset(id)
+  if (!repository && operationErrorCode) {
+    throw createAssetOperationError(404, operationErrorCode, '代码仓库不存在')
+  }
+  return requireEntity(repository, 'Repository not found')
+}
 
 export const listProjectRepositories = (projectId: string) => listRepositoryAssets(projectId)
 
@@ -71,9 +78,13 @@ export const deleteRepository = (id: string) => {
 }
 
 export const startRepositoryLocalOperation = (id: string, operationId: string) => {
-  const repository = getRepository(id)
+  const repository = getRepository(id, 'repository.not-found')
   if (repository.localOperation?.status === 'running') {
-    throw conflict(`仓库本地操作正在进行：${repository.localOperation.operationId}`)
+    throw createAssetOperationError(
+      409,
+      'repository.operation-in-progress',
+      `仓库本地操作正在进行：${repository.localOperation.operationId}`,
+    )
   }
   const operation: RepositoryLocalOperation = {
     operationId,
