@@ -784,7 +784,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
             <article v-for="repository in workspace.repositories" :id="`asset-${repository.id}`" :key="repository.id" class="panel asset-card asset-record-card">
               <div class="asset-icon repository-icon"><AppIcon name="repository" :size="20" /></div>
               <div class="asset-copy"><strong>{{ repository.name }} <span class="provider-badge">{{ repositoryProviderLabel(repository.provider) }}</span></strong><a :href="repository.url" target="_blank" rel="noreferrer">{{ repository.url }}</a><span class="asset-note">版本分支策略：{{ repositoryBranchStrategyLabel(repository.branchStrategy) }}</span><span v-if="repository.note" class="asset-note">备注：{{ repository.note }}</span><small>被 {{ repository.referenceCount }} 条需求引用</small></div>
-              <div class="asset-actions"><AppButton v-for="operation in activeAssetOperations" :key="operation.id" :variant="operation.danger ? 'text-danger' : 'text'" :icon="operation.icon" :busy="repositoryOperation?.id === repository.id && repositoryOperation.operationId === operation.id" :busy-label="`${operation.label}中…`" :disabled="Boolean(repositoryOperation)" @click="runRepositoryAssetOperation(repository, operation)">{{ operation.label }}</AppButton></div>
+              <div class="asset-actions"><AssetActionMenu :operations="activeAssetOperations" :busy-operation-id="repositoryOperation?.id === repository.id ? repositoryOperation.operationId : null" :disabled="Boolean(repositoryOperation)" @select="runRepositoryAssetOperation(repository, $event)" /></div>
             </article>
           </div>
           <div v-else class="panel empty-state"><strong>还没有代码仓库</strong><span>添加仓库后，需求可以直接引用它。</span><AppButton icon="add" @click="openRepository()">添加第一个仓库</AppButton></div>
@@ -799,7 +799,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
             <article v-for="member in workspace.members" :id="`asset-${member.id}`" :key="member.id" class="panel asset-card asset-record-card">
               <div class="asset-icon member-icon">{{ member.user.name.slice(0, 1) }}</div>
               <div class="asset-copy"><strong>{{ member.user.name }}</strong><span>{{ member.user.email }}</span><small>{{ member.role }} · 被 {{ member.referenceCount }} 条需求引用</small></div>
-              <div class="asset-actions"><AppButton v-for="operation in activeAssetOperations" :key="operation.id" :variant="operation.danger ? 'text-danger' : 'text'" :icon="operation.icon" @click="runMemberAssetOperation(member, operation)">{{ operation.label }}</AppButton></div>
+              <div class="asset-actions"><AssetActionMenu :operations="activeAssetOperations" @select="runMemberAssetOperation(member, $event)" /></div>
             </article>
           </div>
           <div v-else class="panel empty-state"><strong>还没有项目成员</strong><span>从全局用户中选择成员，并为其设置项目角色。</span><AppButton icon="add" @click="openMember()">添加第一位成员</AppButton></div>
@@ -814,7 +814,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
             <article v-for="environment in workspace.environments" :id="`asset-${environment.id}`" :key="environment.id" class="panel asset-card asset-record-card">
               <div class="asset-icon environment-icon"><AppIcon name="environment" :size="20" /></div>
               <div class="asset-copy"><strong>项目环境 <span class="provider-badge environment-badge" :data-environment="environment.type">{{ environmentTypeLabel(environment.type) }}</span></strong><a :href="environment.address" target="_blank" rel="noreferrer">{{ environment.address }}</a><span v-if="environment.note" class="asset-note">备注：{{ environment.note }}</span><small v-for="account in environment.accounts" :key="account.account" class="environment-account">账号：{{ account.account }}　密码：{{ account.password || '未设置' }}</small></div>
-              <div class="asset-actions"><AppButton v-for="operation in activeAssetOperations" :key="operation.id" :variant="operation.danger ? 'text-danger' : 'text'" :icon="operation.icon" @click="runEnvironmentAssetOperation(environment, operation)">{{ operation.label }}</AppButton></div>
+              <div class="asset-actions"><AssetActionMenu :operations="activeAssetOperations" @select="runEnvironmentAssetOperation(environment, $event)" /></div>
             </article>
           </div>
           <div v-else class="panel empty-state"><strong>还没有项目环境</strong><span>登记环境地址，并可选择添加自助使用的测试账号。</span><AppButton icon="add" @click="openEnvironment()">添加第一个环境</AppButton></div>
@@ -839,7 +839,7 @@ const removeRecord = (kind: 'requirement' | 'repository' | 'member' | 'environme
                 </div>
                 <small>Markdown · {{ knowledge.references.length }} 个资产引用 · 更新于 {{ formatDate(knowledge.updatedAt) }}</small>
               </div>
-              <div class="asset-actions"><AppButton v-for="operation in activeAssetOperations" :key="operation.id" :variant="operation.danger ? 'text-danger' : 'text'" :icon="operation.icon" :to="knowledgeOperationTarget(knowledge.id, operation.id)" @click="runKnowledgeAssetOperation(knowledge, operation)">{{ operation.label }}</AppButton></div>
+              <div class="asset-actions"><AssetActionMenu :operations="activeAssetOperations" :operation-to="operation => knowledgeOperationTarget(knowledge.id, operation.id)" @select="runKnowledgeAssetOperation(knowledge, $event)" /></div>
             </article>
           </div>
           <div v-else class="panel empty-state"><strong>还没有项目知识</strong><span>先添加基本信息，再用全屏编辑器编写 Markdown 正文。</span><AppButton icon="add" :to="`${assetsPath}/knowledge/new`">添加第一篇知识</AppButton></div>

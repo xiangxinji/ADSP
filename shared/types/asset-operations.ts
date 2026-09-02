@@ -11,11 +11,14 @@ export type AssetOperationIcon =
   | 'refresh'
   | 'settings'
 
+export type AssetOperationPlacement = 'primary' | 'more'
+
 export type AssetOperationBase = {
   id: string
   label: string
   description: string
   icon: AssetOperationIcon
+  placement: AssetOperationPlacement
   danger?: boolean
 }
 
@@ -47,6 +50,6 @@ export type AssetOperationModule = {
 }
 
 export type AssetOperationConfig = {
-  schemaVersion: 1
+  schemaVersion: 2
   modules: readonly AssetOperationModule[]
 }

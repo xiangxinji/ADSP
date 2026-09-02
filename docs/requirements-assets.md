@@ -104,3 +104,6 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
     a Git working copy with an `origin` matching the repository asset, and
     `repository.create-worktree` creates a worktree for an existing supplied branch under
     `repositories/worktrees/<repository-name>_<branch-name>` without overwriting a path.
+33. Every asset operation declares a `primary` or `more` placement. A record card renders
+    no more than two primary actions; all remaining actions are available from its More
+    menu.

@@ -3,17 +3,21 @@ import {
   assetOperationConfig,
   assetOperationsForModule,
   findAssetOperation,
+  primaryAssetOperationLimit,
 } from '../shared/config/asset-operations'
 import { assetModuleIds } from '../shared/types/asset-operations'
 
 describe('asset operation configuration', () => {
   test('defines operations for every asset module with unique stable IDs', () => {
-    expect(assetOperationConfig.schemaVersion).toBe(1)
+    expect(assetOperationConfig.schemaVersion).toBe(2)
     expect(assetOperationConfig.modules.map(module => module.id)).toEqual(assetModuleIds)
 
     const operations = assetOperationConfig.modules.flatMap(module => module.operations)
     expect(new Set(operations.map(operation => operation.id)).size).toBe(operations.length)
     expect(assetModuleIds.every(moduleId => assetOperationsForModule(moduleId).length > 0)).toBe(true)
+    expect(assetOperationConfig.modules.every(module =>
+      module.operations.filter(operation => operation.placement === 'primary').length <= primaryAssetOperationLimit,
+    )).toBe(true)
   })
 
   test('marks only server commands as workflow-ready', () => {

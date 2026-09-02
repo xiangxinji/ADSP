@@ -124,6 +124,10 @@ focused domain use case. Future workflow definitions may reference the same stab
 without depending on button labels or provider payloads. Client-only navigation and
 management actions are explicitly excluded from workflow execution. Existing
 resource-specific API routes remain compatibility adapters over the same service.
+Record-level actions use the registry's `placement` contract: a card shows at most two
+`primary` operations, while every `more` operation (and any accidental excess primary
+operation) appears in a shared More menu. New operations must explicitly choose one of
+these placements; the component enforces the two-primary limit defensively.
 Repository commands include `repository.clone`, `repository.update`,
 `repository.local-clone-status`, and `repository.create-worktree`; all four are
 workflow-ready. The worktree command receives a branch name as input.
