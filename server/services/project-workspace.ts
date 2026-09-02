@@ -7,9 +7,11 @@ import { listProjectRepositories } from './repository-assets'
 import { listRequirementStatusesForProject } from './requirement-statuses'
 import { listRequirementVersionsForProject } from './requirement-versions'
 import { listRequirementsForProject } from './requirements'
+import { listProjectWorkflows } from './workflow-definitions'
 
 export const getProjectWorkspace = (projectId: string): ProjectWorkspace => ({
   project: getProject(projectId),
+  workflows: listProjectWorkflows(projectId),
   requirements: listRequirementsForProject(projectId),
   requirementStatuses: listRequirementStatusesForProject(projectId),
   requirementVersions: listRequirementVersionsForProject(projectId),

@@ -64,18 +64,20 @@ The first usable workflow starts from a project. A project is the context bounda
 
 ```text
 Project workspace
+├─ Assets
+│  ├─ code repositories
+│  ├─ project members selected from global users
+│  ├─ development, testing, and production environments
+│  └─ Markdown knowledge linked to project assets
+├─ Workflow definitions
+│  └─ root trigger and ordered asset-operation nodes
 ├─ Requirements
 │  └─ referenced repositories and participants
-   ├─ Assets
-   │  ├─ code repositories
-   │  ├─ project members selected from global users
-   │  ├─ development, testing, and production environments
-   │  └─ Markdown knowledge linked to project assets
 ├─ Workflow runs
 └─ Delivery records
 ```
 
-A project may contain multiple requirement versions, repositories, environment records, Markdown knowledge documents, and global users selected as project members with project-specific roles. Requirement versions are major-version lines displayed as `v{major}.x`; a requirement may target multiple version lines and the greatest configured major is always marked `latest`. Each repository selects either a multi-version branch strategy tied to those requirement versions or a development-production strategy limited to `dev` and `main`. Environments record an address, an optional note, a lifecycle type, and zero or more self-service test accounts whose passwords are optional. Any supplied non-sensitive test passwords are stored and displayed without masking; tokens, private keys, and production deployment credentials remain in CI/CD or the target infrastructure. Knowledge metadata is created in a focused form before its Markdown body is authored on a separate full-screen page. The live Milkdown editor preserves Markdown in the project database and renders stable project-asset references as editable inline controls. A requirement may reference multiple repositories and multiple project members. Assets and memberships are registered once at project level and reused across requirements. A requirement represents business intent; each execution attempt is a separate workflow run so failures and retries remain auditable.
+A project may contain multiple requirement versions, repositories, environment records, Markdown knowledge documents, reusable workflow definitions, and global users selected as project members with project-specific roles. Requirement versions are major-version lines displayed as `v{major}.x`; a requirement may target multiple version lines and the greatest configured major is always marked `latest`. Each repository selects either a multi-version branch strategy tied to those requirement versions or a development-production strategy limited to `dev` and `main`. Environments record an address, an optional note, a lifecycle type, and zero or more self-service test accounts whose passwords are optional. Any supplied non-sensitive test passwords are stored and displayed without masking; tokens, private keys, and production deployment credentials remain in CI/CD or the target infrastructure. Knowledge metadata is created in a focused form before its Markdown body is authored on a separate full-screen page. The live Milkdown editor preserves Markdown in the project database and renders stable project-asset references as editable inline controls. A requirement may reference multiple repositories and multiple project members. Assets and memberships are registered once at project level and reused across requirements and workflow definitions. A workflow definition describes a reusable trigger and asset-operation graph; it is not an execution record. A requirement represents business intent, and each execution attempt is a separate workflow run so failures and retries remain auditable.
 
 The current local preview has one global local-workspace directory. Repository working
 copies are cloned into a project-specific `repositories/` child directory, while task

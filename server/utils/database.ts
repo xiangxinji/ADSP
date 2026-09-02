@@ -170,6 +170,19 @@ const createDatabase = async () => {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS workflow_definitions (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      name TEXT NOT NULL,
+      note TEXT NOT NULL DEFAULT '',
+      trigger_kind TEXT CHECK(trigger_kind IN ('manual', 'requirement-created')),
+      trigger_x REAL,
+      trigger_y REAL,
+      nodes_json TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS integration_settings (
       provider TEXT PRIMARY KEY,
       base_url TEXT NOT NULL,
@@ -269,6 +282,7 @@ const createDatabase = async () => {
     CREATE INDEX IF NOT EXISTS idx_repositories_project ON repository_assets(project_id);
     CREATE INDEX IF NOT EXISTS idx_environments_project ON environment_assets(project_id);
     CREATE INDEX IF NOT EXISTS idx_knowledge_project ON knowledge_assets(project_id, updated_at);
+    CREATE INDEX IF NOT EXISTS idx_workflow_definitions_project ON workflow_definitions(project_id, updated_at);
     CREATE INDEX IF NOT EXISTS idx_people_project ON people(project_id);
     CREATE INDEX IF NOT EXISTS idx_project_members_project ON project_members(project_id);
     CREATE INDEX IF NOT EXISTS idx_project_members_user ON project_members(user_id);

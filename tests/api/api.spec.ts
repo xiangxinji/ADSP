@@ -27,6 +27,7 @@ import type {
   Requirement,
   RequirementStatus,
   RequirementVersion,
+  WorkflowDefinition,
 } from '../../shared/types/asdp'
 import { startApiTestHarness, type ApiTestHarness } from '../support/api-test-harness'
 
@@ -70,6 +71,7 @@ const discoverApiRoutes = () => {
 let harness: ApiTestHarness
 let projectId = ''
 let foreignProjectId = ''
+let foreignRepositoryId = ''
 let initialStatusId = ''
 let repositoryId = ''
 let memberId = ''
@@ -80,6 +82,7 @@ let customStatusId = ''
 let version2Id = ''
 let version3Id = ''
 let requirementId = ''
+let workflowId = ''
 let userId = ''
 let repositorySourcePath = ''
 let repositoryRemotePath = ''
@@ -116,6 +119,7 @@ const routeCases: ApiRouteCase[] = [
       const response = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
       expect(response.status).toBe(200)
       expect(response.data.project.id).toBe(projectId)
+      expect(response.data.workflows).toEqual([])
       expect(response.data.knowledge).toEqual([])
       expect(response.data.requirementVersions).toEqual([])
       expect(response.data.requirementStatuses).toHaveLength(6)
@@ -142,6 +146,35 @@ const routeCases: ApiRouteCase[] = [
       expect(response.status).toBe(200)
       expect(Array.isArray(response.data)).toBe(true)
       expect(response.data.every(user => typeof user.hasPassword === 'boolean')).toBe(true)
+    },
+  },
+  {
+    route: 'POST /api/projects/:id/workflows',
+    run: async () => {
+      const rejected = await harness.request(`/api/projects/${projectId}/workflows`, {
+        method: 'POST',
+        body: { name: '   ', note: '' },
+      })
+      expect(rejected.status).toBe(400)
+
+      const response = await harness.request<WorkflowDefinition>(`/api/projects/${projectId}/workflows`, {
+        method: 'POST',
+        body: { name: '持续交付', note: '验证工作流画板持久化' },
+      })
+      expect(response.status).toBe(201)
+      expect(response.data).toMatchObject({
+        projectId,
+        name: '持续交付',
+        note: '验证工作流画板持久化',
+        trigger: null,
+        nodes: [],
+      })
+      workflowId = response.data.id
+
+      const workspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
+      expect(workspace.data.workflows).toContainEqual(expect.objectContaining({ id: workflowId }))
+      const projects = await harness.request<ProjectSummary[]>('/api/projects')
+      expect(projects.data.find(project => project.id === projectId)?.workflowCount).toBe(1)
     },
   },
   {
@@ -327,6 +360,94 @@ const routeCases: ApiRouteCase[] = [
         note: '已更新的接口测试仓库',
       })
       expect(response.data).not.toHaveProperty('defaultBranch')
+    },
+  },
+  {
+    route: 'PATCH /api/workflows/:id',
+    run: async () => {
+      const operationNode = {
+        id: 'node-clone',
+        assetType: 'repository' as const,
+        assetId: repositoryId,
+        operationId: 'repository.clone',
+        inputs: { repositoryId },
+        position: { x: 360, y: 120 },
+      }
+      const missingTrigger = await harness.request(`/api/workflows/${workflowId}`, {
+        method: 'PATCH',
+        body: { nodes: [operationNode] },
+      })
+      expect(missingTrigger.status).toBe(400)
+
+      const foreignProject = await harness.request<Project>('/api/projects', {
+        method: 'POST',
+        body: { name: '外部项目', description: '用于验证项目边界' },
+      })
+      foreignProjectId = foreignProject.data.id
+      const foreignRepository = await harness.request<RepositoryAsset>(`/api/projects/${foreignProjectId}/repositories`, {
+        method: 'POST',
+        body: {
+          provider: 'github',
+          name: 'foreign-repository',
+          url: 'https://github.com/asdp/foreign-repository.git',
+        },
+      })
+      foreignRepositoryId = foreignRepository.data.id
+      const crossProject = await harness.request(`/api/workflows/${workflowId}`, {
+        method: 'PATCH',
+        body: {
+          trigger: { kind: 'manual', position: { x: 80, y: 120 } },
+          nodes: [{
+            ...operationNode,
+            assetId: foreignRepositoryId,
+            inputs: { repositoryId: foreignRepositoryId },
+          }],
+        },
+      })
+      expect(crossProject.status).toBe(400)
+
+      const clientOnlyOperation = await harness.request(`/api/workflows/${workflowId}`, {
+        method: 'PATCH',
+        body: {
+          trigger: { kind: 'manual', position: { x: 80, y: 120 } },
+          nodes: [{ ...operationNode, operationId: 'repository.edit' }],
+        },
+      })
+      expect(clientOnlyOperation.status).toBe(400)
+
+      const response = await harness.request<WorkflowDefinition>(`/api/workflows/${workflowId}`, {
+        method: 'PATCH',
+        body: {
+          name: '持续交付主流程',
+          trigger: { kind: 'manual', position: { x: 80, y: 120 } },
+          nodes: [
+            operationNode,
+            {
+              id: 'node-branch',
+              assetType: 'repository',
+              assetId: repositoryId,
+              operationId: 'repository.create-branch',
+              inputs: { repositoryId, branch: 'feature/workflow', source: 'main' },
+              position: { x: 640, y: 120 },
+            },
+          ],
+        },
+      })
+      expect(response.status).toBe(200)
+      expect(response.data).toMatchObject({
+        id: workflowId,
+        name: '持续交付主流程',
+        trigger: { kind: 'manual', position: { x: 80, y: 120 } },
+      })
+      expect(response.data.nodes).toHaveLength(2)
+      expect(response.data.nodes[1].inputs).toEqual({
+        repositoryId,
+        branch: 'feature/workflow',
+        source: 'main',
+      })
+
+      const workspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
+      expect(workspace.data.workflows[0].nodes[1].operationId).toBe('repository.create-branch')
     },
   },
   {
@@ -891,19 +1012,6 @@ const routeCases: ApiRouteCase[] = [
   {
     route: 'POST /api/projects/:id/requirements',
     run: async () => {
-      const foreignProject = await harness.request<Project>('/api/projects', {
-        method: 'POST',
-        body: { name: '外部项目', description: '用于验证项目边界' },
-      })
-      foreignProjectId = foreignProject.data.id
-      const foreignRepository = await harness.request<RepositoryAsset>(`/api/projects/${foreignProjectId}/repositories`, {
-        method: 'POST',
-        body: {
-          provider: 'github',
-          name: 'foreign-repository',
-          url: 'https://github.com/asdp/foreign-repository.git',
-        },
-      })
       const foreignVersion = await harness.request<RequirementVersion>(`/api/projects/${foreignProjectId}/requirement-versions`, {
         method: 'POST',
         body: { major: 9 },
@@ -917,7 +1025,7 @@ const routeCases: ApiRouteCase[] = [
           statusId: initialStatusId,
           priority: 'medium',
           versionIds: [foreignVersion.data.id],
-          repositoryIds: [foreignRepository.data.id],
+          repositoryIds: [foreignRepositoryId],
           memberIds: [memberId],
         },
       })
@@ -1035,6 +1143,17 @@ const routeCases: ApiRouteCase[] = [
     },
   },
   {
+    route: 'DELETE /api/workflows/:id',
+    run: async () => {
+      const response = await harness.request<null>(`/api/workflows/${workflowId}`, { method: 'DELETE' })
+      expect(response.status).toBe(204)
+      const workspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
+      expect(workspace.data.workflows).toEqual([])
+      const projects = await harness.request<ProjectSummary[]>('/api/projects')
+      expect(projects.data.find(project => project.id === projectId)?.workflowCount).toBe(0)
+    },
+  },
+  {
     route: 'DELETE /api/requirement-versions/:id',
     run: async () => {
       const version2 = await harness.request<null>(`/api/requirement-versions/${version2Id}`, { method: 'DELETE' })
@@ -1068,10 +1187,19 @@ const routeCases: ApiRouteCase[] = [
   {
     route: 'DELETE /api/projects/:id',
     run: async () => {
+      const cascadeWorkflow = await harness.request<WorkflowDefinition>(`/api/projects/${foreignProjectId}/workflows`, {
+        method: 'POST',
+        body: { name: '项目级联工作流', note: '' },
+      })
       const response = await harness.request<null>(`/api/projects/${projectId}`, { method: 'DELETE' })
       expect(response.status).toBe(204)
       const foreignResponse = await harness.request<null>(`/api/projects/${foreignProjectId}`, { method: 'DELETE' })
       expect(foreignResponse.status).toBe(204)
+      const missingWorkflow = await harness.request(`/api/workflows/${cascadeWorkflow.data.id}`, {
+        method: 'PATCH',
+        body: { note: 'should not exist' },
+      })
+      expect(missingWorkflow.status).toBe(404)
       const missing = await harness.request(`/api/projects/${projectId}`)
       expect(missing.status).toBe(404)
       const projects = await harness.request<ProjectSummary[]>('/api/projects')

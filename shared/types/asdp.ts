@@ -1,3 +1,5 @@
+import type { AssetType } from './asset-operations'
+
 export const requirementPriorities = ['low', 'medium', 'high', 'urgent'] as const
 export const repositoryProviders = ['gitlab', 'github'] as const
 export const repositoryBranchStrategies = ['multi-version', 'development-production'] as const
@@ -5,6 +7,7 @@ export const repositoryLocalOperationStatuses = ['running', 'succeeded', 'failed
 export const environmentTypes = ['development', 'testing', 'production'] as const
 export const knowledgeReferenceTypes = ['repository', 'member', 'environment', 'knowledge'] as const
 export const userRoles = ['administrator', 'member'] as const
+export const workflowTriggerKinds = ['manual', 'requirement-created'] as const
 
 export type RequirementPriority = typeof requirementPriorities[number]
 export type RepositoryProvider = typeof repositoryProviders[number]
@@ -13,6 +16,7 @@ export type RepositoryLocalOperationStatus = typeof repositoryLocalOperationStat
 export type EnvironmentType = typeof environmentTypes[number]
 export type KnowledgeReferenceType = typeof knowledgeReferenceTypes[number]
 export type UserRole = typeof userRoles[number]
+export type WorkflowTriggerKind = typeof workflowTriggerKinds[number]
 
 export type UserAccount = {
   id: string
@@ -37,6 +41,7 @@ export type Project = {
 
 export type ProjectSummary = Project & {
   requirementCount: number
+  workflowCount: number
   repositoryCount: number
   memberCount: number
   environmentCount: number
@@ -153,6 +158,38 @@ export type KnowledgeAsset = {
   updatedAt: string
 }
 
+export type WorkflowNodePosition = {
+  x: number
+  y: number
+}
+
+export type WorkflowTrigger = {
+  kind: WorkflowTriggerKind
+  position: WorkflowNodePosition
+}
+
+export type WorkflowOperationInputValue = string | boolean
+
+export type WorkflowOperationNode = {
+  id: string
+  assetType: AssetType
+  assetId: string
+  operationId: string
+  inputs: Record<string, WorkflowOperationInputValue>
+  position: WorkflowNodePosition
+}
+
+export type WorkflowDefinition = {
+  id: string
+  projectId: string
+  name: string
+  note: string
+  trigger: WorkflowTrigger | null
+  nodes: WorkflowOperationNode[]
+  createdAt: string
+  updatedAt: string
+}
+
 export type GitLabIdentity = {
   id: number
   name: string
@@ -250,6 +287,7 @@ export type Requirement = {
 
 export type ProjectWorkspace = {
   project: Project
+  workflows: WorkflowDefinition[]
   requirements: Requirement[]
   requirementStatuses: RequirementStatus[]
   requirementVersions: RequirementVersion[]
@@ -289,3 +327,5 @@ export type CreateRequirementInput = Pick<Requirement, 'title' | 'description' |
   statusId?: string
 }
 export type UpdateRequirementInput = Partial<CreateRequirementInput>
+export type CreateWorkflowInput = Pick<WorkflowDefinition, 'name' | 'note'>
+export type UpdateWorkflowInput = Partial<Pick<WorkflowDefinition, 'name' | 'note' | 'trigger' | 'nodes'>>

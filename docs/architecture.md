@@ -73,6 +73,7 @@ Organization 1─* Project
 Project      *─* User through ProjectMember
 Project      1─* RepositoryConnection
 Project      1─* Requirement
+Project      1─* WorkflowDefinition
 Project      1─* RequirementVersion
 Requirement  1─* WorkflowRun
 WorkflowRun  1─* AgentTask
@@ -97,6 +98,8 @@ Project 1─* RepositoryAsset
 Project 1─* ProjectMember *─1 User
 Project 1─* EnvironmentAsset 1─0..* EnvironmentAccount
 Project 1─* KnowledgeAsset
+Project 1─* WorkflowDefinition 1─0..1 WorkflowTrigger
+WorkflowDefinition 1─0..* WorkflowOperationNode
 
 Requirement *─1 RequirementStatus
 Requirement *─* RequirementVersion through Requirement.version_ids
@@ -104,6 +107,22 @@ Requirement *─* RepositoryAsset through RequirementRepository
 Requirement *─* ProjectMember through RequirementParticipant
 Requirement 1─* WorkflowRun
 ```
+
+`WorkflowDefinition` is reusable project configuration, while `WorkflowRun` remains an
+auditable execution attempt. The initial definition model is deliberately linear: it
+contains one required root trigger followed by ordered asset-operation nodes. A draft
+may exist without a trigger while its basic information is being created, but operation
+nodes cannot be persisted until the root trigger exists. Node positions are presentation
+metadata for the canvas; array order is the execution order reserved for the future
+orchestrator.
+
+Each operation node stores an asset type, a project-local asset ID, a stable operation ID,
+and input values. The workflow-definition service is the explicitly named cross-domain
+orchestration boundary that verifies asset ownership and the operation contract before
+writing. It reads workflow-ready commands from `shared/config/asset-operations.ts` and
+does not duplicate their inputs, outputs, exceptions, or provider-specific payloads.
+The current registry exposes repository commands; other asset types enter the canvas only
+after their own server commands declare workflow-ready contracts.
 
 `RequirementRepository` records how a repository participates, such as primary target, dependency, or read-only reference, together with branch or write-scope constraints. `RequirementParticipant` records responsibility such as requester, owner, contributor, reviewer, or approver.
 

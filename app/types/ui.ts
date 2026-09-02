@@ -3,6 +3,8 @@ export type AppIconName =
   | 'alert'
   | 'arrow-left'
   | 'check'
+  | 'chevron-down'
+  | 'chevron-up'
   | 'clone'
   | 'close'
   | 'delete'
@@ -22,6 +24,7 @@ export type AppIconName =
   | 'status'
   | 'sun'
   | 'versions'
+  | 'workflow'
 
 export type AppButtonVariant =
   | 'primary'

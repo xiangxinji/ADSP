@@ -48,6 +48,42 @@ Requirement body:
 requirement, the project's initial status is used. Priorities are `low`, `medium`,
 `high`, and `urgent`.
 
+## Workflow Definitions
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/api/projects/:id/workflows` | Create workflow basic information as a draft |
+| `PATCH` | `/api/workflows/:id` | Update metadata, root trigger, and ordered operation nodes |
+| `DELETE` | `/api/workflows/:id` | Delete a workflow definition |
+
+Create body: `{ "name": string, "note": string }`. The response starts with
+`trigger: null` and `nodes: []` so the client can navigate directly to the canvas.
+
+Patch requests may include `name`, `note`, `trigger`, or `nodes`. Supported initial
+triggers are `manual` and `requirement-created`. Each trigger and operation node stores
+finite canvas coordinates. An operation node has the following stable shape:
+
+```json
+{
+  "id": "node-uuid",
+  "assetType": "repository",
+  "assetId": "repository-uuid",
+  "operationId": "repository.create-branch",
+  "inputs": {
+    "repositoryId": "repository-uuid",
+    "branch": "feature/workflow",
+    "source": "main"
+  },
+  "position": { "x": 420, "y": 180 }
+}
+```
+
+Node array order is the future execution order. Operation nodes require a root trigger,
+must reference assets from the workflow's project, and may use only commands marked
+workflow-ready in `shared/config/asset-operations.ts`. Inputs are checked against that
+operation's shared contract, and the bound asset ID must match the selected asset.
+The first release persists definitions only; it does not execute triggers or workflows.
+
 ## Requirement Versions
 
 | Method | Path | Purpose |
@@ -266,6 +302,7 @@ rewrites the Markdown when a target is deleted.
 ```json
 {
   "project": {},
+  "workflows": [],
   "requirements": [],
   "requirementStatuses": [],
   "requirementVersions": [],
@@ -280,6 +317,8 @@ Each requirement contains `statusId`, expanded `status`, `versionIds`, `reposito
 `memberIds`, and expanded `versions`, `repositories`, and `members` arrays for direct display. Every member
 contains its project role and an expanded global `user`.
 Each knowledge record contains its stored Markdown and resolved reference metadata.
+Each workflow record contains its basic information, optional root trigger, and ordered
+asset-operation nodes with their canvas positions and contract inputs.
 
 ## Automated Verification
 
