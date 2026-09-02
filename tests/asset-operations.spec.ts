@@ -9,7 +9,7 @@ import { assetModuleIds } from '../shared/types/asset-operations'
 
 describe('asset operation configuration', () => {
   test('defines operations for every asset module with unique stable IDs', () => {
-    expect(assetOperationConfig.schemaVersion).toBe(3)
+    expect(assetOperationConfig.schemaVersion).toBe(4)
     expect(assetOperationConfig.modules.map(module => module.id)).toEqual(assetModuleIds)
 
     const operations = assetOperationConfig.modules.flatMap(module => module.operations)
@@ -29,6 +29,7 @@ describe('asset operation configuration', () => {
       'repository.update',
       'repository.local-clone-status',
       'repository.create-worktree',
+      'repository.create-branch',
     ])
     expect(workflowOperations.every(operation => operation.execution.kind === 'command')).toBe(true)
     expect(findAssetOperation('repository', 'repository.clone')).toMatchObject({
@@ -59,6 +60,27 @@ describe('asset operation configuration', () => {
         exceptions: expect.arrayContaining([
           expect.objectContaining({ code: 'repository.invalid-worktree-branch' }),
           expect.objectContaining({ code: 'repository.branch-not-found' }),
+        ]),
+      },
+    })
+    expect(findAssetOperation('repository', 'repository.create-branch')).toMatchObject({
+      execution: { kind: 'command', command: 'repository.create-branch' },
+      workflow: { enabled: true },
+      contract: {
+        input: expect.arrayContaining([
+          expect.objectContaining({ name: 'branch', type: 'string', required: true }),
+          expect.objectContaining({ name: 'source', type: 'string', required: true }),
+        ]),
+        output: expect.arrayContaining([
+          expect.objectContaining({ name: 'repositoryId', type: 'string' }),
+          expect.objectContaining({ name: 'branch', type: 'string' }),
+          expect.objectContaining({ name: 'source', type: 'string' }),
+        ]),
+        exceptions: expect.arrayContaining([
+          expect.objectContaining({ code: 'repository.source-required' }),
+          expect.objectContaining({ code: 'repository.provider-unsupported' }),
+          expect.objectContaining({ code: 'repository.source-not-found' }),
+          expect.objectContaining({ code: 'repository.branch-already-exists' }),
         ]),
       },
     })

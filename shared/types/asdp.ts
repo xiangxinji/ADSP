@@ -92,6 +92,17 @@ export type RepositoryWorktreeResult = {
   path: string
 }
 
+export type CreateRepositoryBranchInput = {
+  branch: string
+  source: string
+}
+
+export type RepositoryBranchResult = {
+  repositoryId: string
+  branch: string
+  source: string
+}
+
 export type EnvironmentAccount = {
   account: string
   password: string

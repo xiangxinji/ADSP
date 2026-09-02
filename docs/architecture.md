@@ -129,12 +129,15 @@ Record-level actions use the registry's `placement` contract: a card shows at mo
 operation) appears in a shared More menu. New operations must explicitly choose one of
 these placements; the component enforces the two-primary limit defensively.
 Repository commands include `repository.clone`, `repository.update`,
-`repository.local-clone-status`, and `repository.create-worktree`; all four are
-workflow-ready. The worktree command receives a branch name as input. Repository assets
+`repository.local-clone-status`, `repository.create-worktree`, and
+`repository.create-branch`; all five are workflow-ready. The worktree command receives
+a branch name as input. The remote branch command receives the new `branch` and its
+`source`, then delegates creation to the repository provider API. Repository assets
 persist the current or most recent local command, including its operation ID, running,
-success, or failure state, timestamps, and failure message. This lets an operator
-refresh the project workspace and recover visibility into a long-running local action
-without relying on browser-only state.
+success, or failure state, timestamps, and failure message. Remote provider commands do
+not overwrite this local-operation state. This lets an operator refresh the project
+workspace and recover visibility into a long-running local action without relying on
+browser-only state.
 
 Every workflow-ready command additionally defines its input fields, output fields, and
 expected exception codes in the same versioned registry. The Asset Operation Catalog
@@ -182,6 +185,12 @@ Integration code must be isolated behind adapters. GitLab-specific payloads must
 The current single-tenant preview provides one global GitLab connection. An operator configures the GitLab base URL and a scoped Personal Access Token; ForgePilot validates it through the GitLab user API before saving it. The token is encrypted with AES-256-GCM using `FORGEPILOT_CREDENTIAL_ENCRYPTION_KEY`, or a generated local key under `.data` for development. Legacy `ASDP_*` configuration names remain supported for existing deployments. Read APIs return only connection metadata and a masked token hint. The browser never receives the saved token, and GitLab requests remain inside the server-side adapter.
 
 Repository discovery uses this connection to list membership projects. Importing a result creates a ForgePilot `RepositoryAsset` with its GitLab project ID as `external_id`; it does not copy or replace the GitLab repository. The global credential is an initial operating model for local or controlled deployments. Organization-scoped ownership, administrator authorization, OAuth, token rotation policy, and per-project credentials remain required before a multi-tenant production release.
+
+The `repository.create-branch` operation uses the stored GitLab project ID and encrypted
+connection to call GitLab's repository-branches API. Its core input and output remain
+provider-neutral (`branch` and `source`); GitLab response payloads and failure messages
+are translated inside the integration adapter into stable asset-operation error codes.
+Repositories from providers without a configured server adapter are rejected explicitly.
 
 ## Local Workspace Boundary
 

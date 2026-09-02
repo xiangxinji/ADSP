@@ -70,6 +70,6 @@ export type AssetOperationModule = {
 }
 
 export type AssetOperationConfig = {
-  schemaVersion: 3
+  schemaVersion: 4
   modules: readonly AssetOperationModule[]
 }

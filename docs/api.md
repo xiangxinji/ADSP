@@ -114,8 +114,9 @@ The repository asset does not persist a default branch; integrations query provi
 
 The versioned operation registry lives in `shared/config/asset-operations.ts`. The
 generic operation route accepts `repository.clone`, `repository.update`,
-`repository.local-clone-status`, and `repository.create-worktree` for the `repository`
-asset type. `repository.local-clone-status` returns
+`repository.local-clone-status`, `repository.create-worktree`, and
+`repository.create-branch` for the `repository` asset type.
+`repository.local-clone-status` returns
 `{ "repositoryId": string, "cloned": boolean, "path": string }`. Create a worktree
 with body `{ "branch": string }`; the branch must already exist locally or on `origin`,
 and the result is `{ "repositoryId": string, "branch": string, "path": string }`.
@@ -124,6 +125,14 @@ Its path is fixed below `repositories/worktrees/` as
 such as editing or deleting metadata return `404` from this route and are not available
 to workflow execution. Operation IDs are stable contracts intended for later
 workflow-step configuration.
+
+Create a remote branch with body `{ "branch": string, "source": string }`, where
+`branch` is the new branch and `source` is the existing original branch. The result is
+`{ "repositoryId": string, "branch": string, "source": string }`. The current server
+adapter supports GitLab repository assets imported with an external project ID and uses
+the saved GitLab connection to call the repository-branches API. Unsupported providers,
+missing external IDs, missing source branches, duplicate target branches, and provider
+failures return the stable codes declared by the operation contract.
 
 Every workflow-ready command carries a versioned operation contract in that registry:
 its required inputs, outputs, and expected exceptions all have stable names and types.

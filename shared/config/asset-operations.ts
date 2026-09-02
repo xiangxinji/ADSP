@@ -25,7 +25,7 @@ const repositoryOperationExceptions = [
 ] as const
 
 export const assetOperationConfig = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   modules: [
     {
       id: 'repositories',
@@ -120,6 +120,47 @@ export const assetOperationConfig = {
               { code: 'repository.worktrees-directory-unavailable', description: '项目 worktrees 目录不可用。' },
               { code: 'repository.worktree-exists', description: '目标工作树目录已存在。' },
               { code: 'repository.branch-not-found', description: '指定分支不存在。' },
+            ],
+          },
+        },
+        {
+          id: 'repository.create-branch',
+          label: '新建远程分支',
+          description: '通过仓库托管平台 API，基于指定原分支创建新的远程分支。',
+          icon: 'repository',
+          placement: 'more',
+          execution: { kind: 'command', command: 'repository.create-branch' },
+          workflow: { enabled: true },
+          contract: {
+            input: [
+              ...repositoryInput,
+              { name: 'branch', type: 'string', required: true, description: '要创建的新远程分支名称。' },
+              { name: 'source', type: 'string', required: true, description: '新分支所基于的原分支名称。' },
+            ],
+            output: [
+              { name: 'repositoryId', type: 'string', description: '所属的仓库资产 ID。' },
+              { name: 'branch', type: 'string', description: '已创建的新远程分支名称。' },
+              { name: 'source', type: 'string', description: '创建新分支时使用的原分支名称。' },
+            ],
+            exceptions: [
+              { code: 'repository.not-found', description: '仓库资产不存在。' },
+              { code: 'repository.invalid-create-branch-input', description: '请求体不是 JSON 对象。' },
+              { code: 'repository.branch-required', description: '未提供 branch 参数。' },
+              { code: 'repository.source-required', description: '未提供 source 参数。' },
+              { code: 'repository.invalid-branch', description: 'branch 不是有效的 Git 分支名称。' },
+              { code: 'repository.invalid-source', description: 'source 不是有效的 Git 分支名称。' },
+              { code: 'repository.provider-unsupported', description: '仓库托管平台尚不支持通过 API 创建分支。' },
+              { code: 'repository.external-id-required', description: '仓库资产没有可用于调用托管平台 API 的外部 ID。' },
+              { code: 'repository.gitlab-not-configured', description: '尚未配置全局 GitLab 连接。' },
+              { code: 'repository.gitlab-credentials-unavailable', description: '已保存的 GitLab 凭据无法使用。' },
+              { code: 'repository.gitlab-unreachable', description: '无法连接 GitLab。' },
+              { code: 'repository.gitlab-authentication-failed', description: 'GitLab Access Token 无效或已过期。' },
+              { code: 'repository.gitlab-permission-denied', description: 'GitLab Access Token 没有创建分支的权限。' },
+              { code: 'repository.remote-repository-not-found', description: 'GitLab 仓库不存在或当前凭据不可见。' },
+              { code: 'repository.source-not-found', description: '指定的原分支不存在。' },
+              { code: 'repository.branch-already-exists', description: '要创建的远程分支已经存在。' },
+              { code: 'repository.gitlab-api-failed', description: 'GitLab API 未能完成分支创建。' },
+              { code: 'repository.remote-operation-failed', description: '未能归类的远程仓库操作失败。' },
             ],
           },
         },

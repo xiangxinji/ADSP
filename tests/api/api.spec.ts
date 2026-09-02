@@ -18,6 +18,7 @@ import type {
   ProjectSummary,
   ProjectWorkspace,
   RepositoryAsset,
+  RepositoryBranchResult,
   RepositoryCloneResult,
   RepositoryLocalCloneStatusResult,
   RepositoryUpdateResult,
@@ -459,6 +460,67 @@ const routeCases: ApiRouteCase[] = [
   {
     route: 'POST /api/assets/:assetType/:id/operations/:operationId',
     run: async () => {
+      const unsupportedProvider = await harness.request<AssetOperationErrorResponse>(
+        `/api/assets/repository/${repositoryId}/operations/repository.create-branch`,
+        { method: 'POST', body: { branch: 'feature/remote-branch', source: 'main' } },
+      )
+      expect(unsupportedProvider.status).toBe(409)
+      expect(unsupportedProvider.data.data?.code).toBe('repository.provider-unsupported')
+
+      await harness.request<RepositoryAsset>(`/api/repositories/${repositoryId}`, {
+        method: 'PATCH',
+        body: {
+          provider: 'gitlab',
+          externalId: '101',
+          url: 'https://gitlab.example.com/forgepilot/forgepilot-api',
+        },
+      })
+
+      const missingSourceInput = await harness.request<AssetOperationErrorResponse>(
+        `/api/assets/repository/${repositoryId}/operations/repository.create-branch`,
+        { method: 'POST', body: { branch: 'feature/remote-branch' } },
+      )
+      expect(missingSourceInput.status).toBe(400)
+      expect(missingSourceInput.data.data?.code).toBe('repository.source-required')
+
+      const missingSource = await harness.request<AssetOperationErrorResponse>(
+        `/api/assets/repository/${repositoryId}/operations/repository.create-branch`,
+        { method: 'POST', body: { branch: 'feature/remote-branch', source: 'missing' } },
+      )
+      expect(missingSource.status).toBe(404)
+      expect(missingSource.data.data?.code).toBe('repository.source-not-found')
+
+      const createdBranch = await harness.request<RepositoryBranchResult>(
+        `/api/assets/repository/${repositoryId}/operations/repository.create-branch`,
+        { method: 'POST', body: { branch: 'feature/remote-branch', source: 'main' } },
+      )
+      expect(createdBranch.status).toBe(200)
+      expect(createdBranch.data).toEqual({
+        repositoryId,
+        branch: 'feature/remote-branch',
+        source: 'main',
+      })
+      const remoteBranchWorkspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
+      expect(remoteBranchWorkspace.data.repositories.find(repository => repository.id === repositoryId)?.localOperation)
+        .toMatchObject({ operationId: 'repository.update', status: 'succeeded' })
+      expect(harness.gitLabRequests.at(-1)).toMatchObject({
+        method: 'POST',
+        pathname: '/api/v4/projects/101/repository/branches',
+        query: { branch: 'feature/remote-branch', ref: 'main' },
+      })
+
+      const duplicateBranch = await harness.request<AssetOperationErrorResponse>(
+        `/api/assets/repository/${repositoryId}/operations/repository.create-branch`,
+        { method: 'POST', body: { branch: 'feature/remote-branch', source: 'main' } },
+      )
+      expect(duplicateBranch.status).toBe(409)
+      expect(duplicateBranch.data.data?.code).toBe('repository.branch-already-exists')
+
+      await harness.request<RepositoryAsset>(`/api/repositories/${repositoryId}`, {
+        method: 'PATCH',
+        body: { provider: 'github', externalId: null, url: pathToFileURL(repositoryRemotePath).href },
+      })
+
       const response = await harness.request<RepositoryUpdateResult>(
         `/api/assets/repository/${repositoryId}/operations/repository.update`,
         { method: 'POST' },

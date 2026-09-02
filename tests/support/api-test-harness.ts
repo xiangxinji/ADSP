@@ -16,6 +16,7 @@ export type ApiResponse<T> = {
 }
 
 export type GitLabRequest = {
+  method: string
   pathname: string
   query: Record<string, string>
   token: string
@@ -57,10 +58,12 @@ const availablePort = async () => {
 
 const startGitLabMock = async () => {
   const requests: GitLabRequest[] = []
+  const branches = new Set(['main'])
   const server = createServer((request, response) => {
     const url = new URL(request.url || '/', `http://${request.headers.host}`)
     const token = String(request.headers['private-token'] || '')
     requests.push({
+      method: request.method || 'GET',
       pathname: url.pathname,
       query: Object.fromEntries(url.searchParams.entries()),
       token,
@@ -91,6 +94,25 @@ const startGitLabMock = async () => {
         visibility: 'private',
         archived: false,
       }]))
+      return
+    }
+
+    if (url.pathname === '/api/v4/projects/101/repository/branches' && request.method === 'POST') {
+      const branch = url.searchParams.get('branch') || ''
+      const source = url.searchParams.get('ref') || ''
+      if (branches.has(branch)) {
+        response.statusCode = 400
+        response.end(JSON.stringify({ message: 'Branch already exists' }))
+        return
+      }
+      if (!branches.has(source)) {
+        response.statusCode = 400
+        response.end(JSON.stringify({ message: 'Invalid reference name' }))
+        return
+      }
+      branches.add(branch)
+      response.statusCode = 201
+      response.end(JSON.stringify({ name: branch }))
       return
     }
 

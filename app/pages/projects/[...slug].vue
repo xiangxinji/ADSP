@@ -18,6 +18,7 @@ import type {
   ProjectWorkspace,
   ProjectMember,
   RepositoryAsset,
+  RepositoryBranchResult,
   RepositoryBranchStrategy,
   RepositoryCloneResult,
   RepositoryLocalCloneStatusResult,
@@ -25,6 +26,8 @@ import type {
   RepositoryProvider,
   RepositoryUpdateResult,
   RepositoryWorktreeResult,
+  CreateRepositoryBranchInput,
+  CreateRepositoryWorktreeInput,
   Requirement,
   RequirementPriority,
   RequirementStatus,
@@ -433,6 +436,7 @@ const selectGitLabRepository = (repository: GitLabRepository) => {
 }
 
 type RepositoryOperationResult =
+  | RepositoryBranchResult
   | RepositoryCloneResult
   | RepositoryLocalCloneStatusResult
   | RepositoryUpdateResult
@@ -450,7 +454,7 @@ const repositoryOperationStatusLabel = (status: RepositoryLocalOperationStatus) 
 const runRepositoryCommand = async (
   repository: RepositoryAsset,
   operation: AssetOperationDefinition,
-  body?: { branch: string },
+  body?: CreateRepositoryBranchInput | CreateRepositoryWorktreeInput,
 ) => {
   if (operation.execution.kind !== 'command') return
   repositoryOperation.value = { id: repository.id, operationId: operation.id as AssetOperationId }
@@ -464,7 +468,9 @@ const runRepositoryCommand = async (
       ? result.cloned
         ? `本地已克隆：${result.path}`
         : `本地尚未克隆：${result.path}`
-      : `${operation.label}完成：${result.path}`)
+      : 'source' in result
+        ? `远程分支已创建：${result.branch}（基于 ${result.source}）`
+        : `${operation.label}完成：${result.path}`)
   } catch (requestError) {
     actionError.value = errorMessage(requestError)
   } finally {
@@ -483,6 +489,21 @@ const runRepositoryAssetOperation = (repository: RepositoryAsset, operation: Ass
         return
       }
       return runRepositoryCommand(repository, operation, { branch })
+    }
+    if (operation.id === 'repository.create-branch') {
+      const source = window.prompt('请输入原分支名称')
+      if (source === null) return
+      if (!source.trim()) {
+        actionError.value = '请输入原分支名称'
+        return
+      }
+      const branch = window.prompt('请输入要创建的新远程分支名称')
+      if (branch === null) return
+      if (!branch.trim()) {
+        actionError.value = '请输入新远程分支名称'
+        return
+      }
+      return runRepositoryCommand(repository, operation, { branch, source })
     }
     return runRepositoryCommand(repository, operation)
   }

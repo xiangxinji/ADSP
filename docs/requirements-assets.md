@@ -107,3 +107,8 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
 33. Every asset operation declares a `primary` or `more` placement. A record card renders
     no more than two primary actions; all remaining actions are available from its More
     menu.
+34. `repository.create-branch` accepts a new `branch` and existing `source`, creates the
+    remote branch through the repository provider API, returns a provider-neutral result,
+    and exposes stable workflow exception codes. The current adapter supports GitLab
+    repository assets with an external project ID and does not overwrite local-operation
+    status.

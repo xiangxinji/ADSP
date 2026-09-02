@@ -1,4 +1,5 @@
 import type {
+  CreateRepositoryBranchInput,
   CreateRepositoryInput,
   CreateRepositoryWorktreeInput,
   UpdateRepositoryInput,
@@ -35,8 +36,25 @@ export const repositoryWorktreePayload = (value: unknown): CreateRepositoryWorkt
     throw createAssetOperationError(400, 'repository.invalid-worktree-input', '请求体必须是 JSON 对象')
   }
   const branchValue = (value as Record<string, unknown>).branch
+  return {
+    branch: gitBranchName(
+      branchValue,
+      'repository.worktree-branch-required',
+      'repository.invalid-worktree-branch',
+      'branch',
+    ),
+  }
+}
+
+const gitBranchName = (
+  value: unknown,
+  requiredCode: string,
+  invalidCode: string,
+  field: string,
+) => {
+  const branchValue = value
   if (typeof branchValue !== 'string' || !branchValue.trim()) {
-    throw createAssetOperationError(400, 'repository.worktree-branch-required', 'branch is required')
+    throw createAssetOperationError(400, requiredCode, `${field} is required`)
   }
   const branch = branchValue.trim()
   if (branch.length > 255
@@ -51,7 +69,18 @@ export const repositoryWorktreePayload = (value: unknown): CreateRepositoryWorkt
     || branch.includes('//')
     || branch.includes('@{')
     || /[\x00-\x20~^:?*\[\]\\<>|"]/.test(branch)) {
-    throw createAssetOperationError(400, 'repository.invalid-worktree-branch', 'branch 不是有效的 Git 分支名称')
+    throw createAssetOperationError(400, invalidCode, `${field} 不是有效的 Git 分支名称`)
   }
-  return { branch }
+  return branch
+}
+
+export const repositoryCreateBranchPayload = (value: unknown): CreateRepositoryBranchInput => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw createAssetOperationError(400, 'repository.invalid-create-branch-input', '请求体必须是 JSON 对象')
+  }
+  const body = value as Record<string, unknown>
+  return {
+    branch: gitBranchName(body.branch, 'repository.branch-required', 'repository.invalid-branch', 'branch'),
+    source: gitBranchName(body.source, 'repository.source-required', 'repository.invalid-source', 'source'),
+  }
 }

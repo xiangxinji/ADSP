@@ -2,12 +2,15 @@ import { createError } from 'h3'
 import { findAssetOperation } from '../../shared/config/asset-operations'
 import type { AssetType } from '../../shared/types/asset-operations'
 import type {
+  CreateRepositoryBranchInput,
   CreateRepositoryWorktreeInput,
+  RepositoryBranchResult,
   RepositoryCloneResult,
   RepositoryLocalCloneStatusResult,
   RepositoryUpdateResult,
   RepositoryWorktreeResult,
 } from '../../shared/types/asdp'
+import { createRepositoryBranch } from './repository-branch-creation'
 import {
   cloneRepository,
   createRepositoryWorktree,
@@ -24,14 +27,23 @@ import {
 } from '../utils/asset-operation-error'
 
 type AssetOperationResult =
+  | RepositoryBranchResult
   | RepositoryCloneResult
   | RepositoryLocalCloneStatusResult
   | RepositoryUpdateResult
   | RepositoryWorktreeResult
+type AssetOperationInput = CreateRepositoryBranchInput | CreateRepositoryWorktreeInput
 type AssetOperationHandler = (
   assetId: string,
-  input?: CreateRepositoryWorktreeInput,
+  input?: AssetOperationInput,
 ) => Promise<AssetOperationResult>
+
+const localRepositoryOperationIds = new Set([
+  'repository.clone',
+  'repository.update',
+  'repository.local-clone-status',
+  'repository.create-worktree',
+])
 
 const localOperationError = (error: unknown) => {
   if (error && typeof error === 'object' && 'statusMessage' in error) {
@@ -63,11 +75,17 @@ const operationHandlers = {
   'repository.clone': (assetId: string) => cloneRepository(assetId),
   'repository.update': (assetId: string) => updateRepositoryWorkingCopy(assetId),
   'repository.local-clone-status': (assetId: string) => getRepositoryLocalCloneStatus(assetId),
-  'repository.create-worktree': (assetId: string, input?: CreateRepositoryWorktreeInput) => {
+  'repository.create-worktree': (assetId: string, input?: AssetOperationInput) => {
     if (!input) {
       throw createAssetOperationError(400, 'repository.worktree-branch-required', '创建工作树需要指定 branch')
     }
     return createRepositoryWorktree(assetId, input.branch)
+  },
+  'repository.create-branch': (assetId: string, input?: AssetOperationInput) => {
+    if (!input || !('source' in input)) {
+      throw createAssetOperationError(400, 'repository.source-required', '创建远程分支需要指定 source')
+    }
+    return createRepositoryBranch(assetId, input)
   },
 } satisfies Record<string, AssetOperationHandler>
 
@@ -75,7 +93,7 @@ export const executeAssetOperation = async (
   assetType: AssetType,
   assetId: string,
   operationId: string,
-  input?: CreateRepositoryWorktreeInput,
+  input?: CreateRepositoryBranchInput | CreateRepositoryWorktreeInput,
 ): Promise<AssetOperationResult> => {
   const operation = findAssetOperation(assetType, operationId)
   if (!operation || operation.execution.kind !== 'command') {
@@ -87,14 +105,27 @@ export const executeAssetOperation = async (
     throw createError({ statusCode: 501, statusMessage: '资产操作尚未接入执行器' })
   }
 
-  const localOperation = startRepositoryLocalOperation(assetId, operation.id)
+  const localOperation = localRepositoryOperationIds.has(operation.id)
+    ? startRepositoryLocalOperation(assetId, operation.id)
+    : null
   try {
     const result = await handler(assetId, input)
-    finishRepositoryLocalOperation(assetId, localOperation, 'succeeded')
+    if (localOperation) finishRepositoryLocalOperation(assetId, localOperation, 'succeeded')
     return result
   } catch (error) {
-    const operationError = normalizedOperationError(error)
-    finishRepositoryLocalOperation(assetId, localOperation, 'failed', localOperationError(operationError))
+    const operationError = assetOperationErrorCode(error)
+      ? error
+      : localOperation
+        ? normalizedOperationError(error)
+        : createAssetOperationError(
+            500,
+            'repository.remote-operation-failed',
+            localOperationError(error),
+            error,
+          )
+    if (localOperation) {
+      finishRepositoryLocalOperation(assetId, localOperation, 'failed', localOperationError(operationError))
+    }
     throw operationError
   }
 }

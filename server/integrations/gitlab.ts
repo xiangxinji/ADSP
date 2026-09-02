@@ -1,5 +1,6 @@
 import { createError } from 'h3'
 import type { GitLabIdentity, GitLabRepository, GitLabRepositoryPage } from '../../shared/types/asdp'
+import { createAssetOperationError } from '../utils/asset-operation-error'
 
 export type GitLabCredentials = {
   baseUrl: string
@@ -21,6 +22,17 @@ type GitLabProjectResponse = {
   default_branch: string | null
   visibility: string
   archived: boolean
+}
+
+type GitLabBranchResponse = {
+  name: string
+}
+
+type GitLabRequestOptions = {
+  method?: 'GET' | 'POST'
+  query?: Record<string, string>
+  onConnectionError?: () => never
+  onResponseError?: (status: number, detail: string) => never
 }
 
 const responseMessage = async (response: Response) => {
@@ -50,23 +62,30 @@ export const normalizeGitLabBaseUrl = (value: string) => {
   return url.toString().replace(/\/$/, '')
 }
 
-const gitLabRequest = async <T>(credentials: GitLabCredentials, path: string, query?: Record<string, string>) => {
+const gitLabRequest = async <T>(
+  credentials: GitLabCredentials,
+  path: string,
+  options: GitLabRequestOptions = {},
+) => {
   const url = new URL(`${credentials.baseUrl}/api/v4/${path.replace(/^\//, '')}`)
-  Object.entries(query || {}).forEach(([key, value]) => url.searchParams.set(key, value))
+  Object.entries(options.query || {}).forEach(([key, value]) => url.searchParams.set(key, value))
 
   let response: Response
   try {
     response = await fetch(url, {
+      method: options.method || 'GET',
       headers: { 'Private-Token': credentials.token },
       redirect: 'error',
       signal: AbortSignal.timeout(15000),
     })
   } catch {
+    if (options.onConnectionError) options.onConnectionError()
     throw createError({ statusCode: 502, statusMessage: '无法连接 GitLab，请检查地址和网络' })
   }
 
   if (!response.ok) {
     const detail = await responseMessage(response)
+    if (options.onResponseError) options.onResponseError(response.status, detail)
     if (response.status === 401) {
       throw createError({ statusCode: 401, statusMessage: 'GitLab Access Token 无效或已过期' })
     }
@@ -89,14 +108,16 @@ export const listGitLabRepositories = async (
   options: { search?: string, page: number, perPage: number },
 ): Promise<GitLabRepositoryPage> => {
   const { data, headers } = await gitLabRequest<GitLabProjectResponse[]>(credentials, 'projects', {
-    membership: 'true',
-    simple: 'true',
-    archived: 'false',
-    order_by: 'last_activity_at',
-    sort: 'desc',
-    page: String(options.page),
-    per_page: String(options.perPage),
-    ...(options.search ? { search: options.search } : {}),
+    query: {
+      membership: 'true',
+      simple: 'true',
+      archived: 'false',
+      order_by: 'last_activity_at',
+      sort: 'desc',
+      page: String(options.page),
+      per_page: String(options.perPage),
+      ...(options.search ? { search: options.search } : {}),
+    },
   })
 
   const totalHeader = headers.get('x-total')
@@ -119,4 +140,42 @@ export const listGitLabRepositories = async (
     total: totalHeader ? Number(totalHeader) : null,
     nextPage: nextPageHeader ? Number(nextPageHeader) : null,
   }
+}
+
+export const createGitLabRepositoryBranch = async (
+  credentials: GitLabCredentials,
+  repositoryExternalId: string,
+  input: { branch: string, source: string },
+) => {
+  const { data } = await gitLabRequest<GitLabBranchResponse>(
+    credentials,
+    `projects/${encodeURIComponent(repositoryExternalId)}/repository/branches`,
+    {
+      method: 'POST',
+      query: { branch: input.branch, ref: input.source },
+      onConnectionError: () => {
+        throw createAssetOperationError(502, 'repository.gitlab-unreachable', '无法连接 GitLab，请检查地址和网络')
+      },
+      onResponseError: (status, detail) => {
+        const normalizedDetail = detail.toLowerCase()
+        if (status === 401) {
+          throw createAssetOperationError(401, 'repository.gitlab-authentication-failed', 'GitLab Access Token 无效或已过期')
+        }
+        if (status === 403) {
+          throw createAssetOperationError(403, 'repository.gitlab-permission-denied', 'GitLab Access Token 没有创建分支的权限')
+        }
+        if (status === 404) {
+          throw createAssetOperationError(404, 'repository.remote-repository-not-found', 'GitLab 仓库不存在或当前凭据不可见')
+        }
+        if (status === 400 && normalizedDetail.includes('already exists')) {
+          throw createAssetOperationError(409, 'repository.branch-already-exists', `远程分支已存在：${input.branch}`)
+        }
+        if (status === 400) {
+          throw createAssetOperationError(404, 'repository.source-not-found', `原分支不存在：${input.source}`)
+        }
+        throw createAssetOperationError(502, 'repository.gitlab-api-failed', `GitLab API 创建分支失败：${detail}`)
+      },
+    },
+  )
+  return data.name
 }
