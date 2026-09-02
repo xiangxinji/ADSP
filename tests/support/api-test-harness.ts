@@ -59,6 +59,7 @@ const availablePort = async () => {
 const startGitLabMock = async () => {
   const requests: GitLabRequest[] = []
   const branches = new Set(['main'])
+  const mergeRequests = new Set<string>()
   const server = createServer((request, response) => {
     const url = new URL(request.url || '/', `http://${request.headers.host}`)
     const token = String(request.headers['private-token'] || '')
@@ -113,6 +114,39 @@ const startGitLabMock = async () => {
       branches.add(branch)
       response.statusCode = 201
       response.end(JSON.stringify({ name: branch }))
+      return
+    }
+
+    if (url.pathname === '/api/v4/projects/101/merge_requests' && request.method === 'POST') {
+      const source = url.searchParams.get('source_branch') || ''
+      const target = url.searchParams.get('target_branch') || ''
+      const title = url.searchParams.get('title') || ''
+      if (!branches.has(source)) {
+        response.statusCode = 400
+        response.end(JSON.stringify({ message: { source_branch: ['does not exist'] } }))
+        return
+      }
+      if (!branches.has(target)) {
+        response.statusCode = 400
+        response.end(JSON.stringify({ message: { target_branch: ['does not exist'] } }))
+        return
+      }
+      const mergeRequestKey = `${source}:${target}`
+      if (mergeRequests.has(mergeRequestKey)) {
+        response.statusCode = 409
+        response.end(JSON.stringify({ message: ['Another open merge request already exists for this source branch'] }))
+        return
+      }
+      mergeRequests.add(mergeRequestKey)
+      response.statusCode = 201
+      response.end(JSON.stringify({
+        id: 9001,
+        iid: 7,
+        title,
+        source_branch: source,
+        target_branch: target,
+        web_url: 'https://gitlab.example.com/forgepilot/forgepilot-api/-/merge_requests/7',
+      }))
       return
     }
 

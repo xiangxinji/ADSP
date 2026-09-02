@@ -130,14 +130,15 @@ operation) appears in a shared More menu. New operations must explicitly choose 
 these placements; the component enforces the two-primary limit defensively.
 Repository commands include `repository.clone`, `repository.update`,
 `repository.local-clone-status`, `repository.create-worktree`, and
-`repository.create-branch`; all five are workflow-ready. The worktree command receives
-a branch name as input. The remote branch command receives the new `branch` and its
-`source`, then delegates creation to the repository provider API. Repository assets
-persist the current or most recent local command, including its operation ID, running,
-success, or failure state, timestamps, and failure message. Remote provider commands do
-not overwrite this local-operation state. This lets an operator refresh the project
-workspace and recover visibility into a long-running local action without relying on
-browser-only state.
+`repository.create-branch` plus `repository.create-merge-request`; all six are
+workflow-ready. The worktree command receives a branch name as input. The remote branch
+command receives the new `branch` and its `source`, while the merge-request command
+receives `source`, `target`, and `title`; both delegate creation to the repository
+provider API. Repository assets persist the current or most recent local command,
+including its operation ID, running, success, or failure state, timestamps, and failure
+message. Remote provider commands do not overwrite this local-operation state. This lets
+an operator refresh the project workspace and recover visibility into a long-running
+local action without relying on browser-only state.
 
 Every workflow-ready command additionally defines its input fields, output fields, and
 expected exception codes in the same versioned registry. The Asset Operation Catalog
@@ -191,6 +192,12 @@ connection to call GitLab's repository-branches API. Its core input and output r
 provider-neutral (`branch` and `source`); GitLab response payloads and failure messages
 are translated inside the integration adapter into stable asset-operation error codes.
 Repositories from providers without a configured server adapter are rejected explicitly.
+
+The `repository.create-merge-request` operation uses the same provider-operation context
+to call GitLab's merge-requests API. The adapter translates GitLab IDs, project-local IID,
+branch names, title, and Web URL into the provider-neutral operation result. Missing
+branches, duplicate open merge requests, empty comparisons, and provider failures remain
+stable machine-readable exceptions rather than workflow branches based on GitLab text.
 
 ## Local Workspace Boundary
 

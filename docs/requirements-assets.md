@@ -112,3 +112,7 @@ This iteration includes a Nuxt server API and SQLite persistence. The browser ac
     and exposes stable workflow exception codes. The current adapter supports GitLab
     repository assets with an external project ID and does not overwrite local-operation
     status.
+35. `repository.create-merge-request` accepts `source`, `target`, and `title`, creates a
+    GitLab merge request through the provider adapter, and returns stable external ID,
+    repository-local number, branch, title, and Web URL fields without leaking the GitLab
+    response shape or overwriting local-operation status.

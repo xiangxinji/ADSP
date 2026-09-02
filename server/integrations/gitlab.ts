@@ -28,6 +28,15 @@ type GitLabBranchResponse = {
   name: string
 }
 
+type GitLabMergeRequestResponse = {
+  id: number
+  iid: number
+  title: string
+  source_branch: string
+  target_branch: string
+  web_url: string
+}
+
 type GitLabRequestOptions = {
   method?: 'GET' | 'POST'
   query?: Record<string, string>
@@ -35,11 +44,26 @@ type GitLabRequestOptions = {
   onResponseError?: (status: number, detail: string) => never
 }
 
+const responseValueMessage = (value: unknown): string => {
+  if (typeof value === 'string') return value
+  if (Array.isArray(value)) return value.map(responseValueMessage).filter(Boolean).join(', ')
+  if (value && typeof value === 'object') {
+    return Object.entries(value)
+      .map(([key, detail]) => {
+        const message = responseValueMessage(detail)
+        return message ? `${key}: ${message}` : ''
+      })
+      .filter(Boolean)
+      .join(', ')
+  }
+  return ''
+}
+
 const responseMessage = async (response: Response) => {
   try {
     const body = await response.json() as { message?: unknown, error_description?: unknown }
-    if (typeof body.message === 'string') return body.message
-    if (typeof body.error_description === 'string') return body.error_description
+    const message = responseValueMessage(body.message) || responseValueMessage(body.error_description)
+    if (message) return message
   } catch {
     // GitLab may return an empty or non-JSON error response.
   }
@@ -157,7 +181,7 @@ export const createGitLabRepositoryBranch = async (
         throw createAssetOperationError(502, 'repository.gitlab-unreachable', '无法连接 GitLab，请检查地址和网络')
       },
       onResponseError: (status, detail) => {
-        const normalizedDetail = detail.toLowerCase()
+        const normalizedDetail = detail.toLowerCase().replaceAll('_', ' ')
         if (status === 401) {
           throw createAssetOperationError(401, 'repository.gitlab-authentication-failed', 'GitLab Access Token 无效或已过期')
         }
@@ -178,4 +202,62 @@ export const createGitLabRepositoryBranch = async (
     },
   )
   return data.name
+}
+
+export const createGitLabMergeRequest = async (
+  credentials: GitLabCredentials,
+  repositoryExternalId: string,
+  input: { source: string, target: string, title: string },
+) => {
+  const { data } = await gitLabRequest<GitLabMergeRequestResponse>(
+    credentials,
+    `projects/${encodeURIComponent(repositoryExternalId)}/merge_requests`,
+    {
+      method: 'POST',
+      query: {
+        source_branch: input.source,
+        target_branch: input.target,
+        title: input.title,
+      },
+      onConnectionError: () => {
+        throw createAssetOperationError(502, 'repository.gitlab-unreachable', '无法连接 GitLab，请检查地址和网络')
+      },
+      onResponseError: (status, detail) => {
+        const normalizedDetail = detail.toLowerCase().replaceAll('_', ' ')
+        if (status === 401) {
+          throw createAssetOperationError(401, 'repository.gitlab-authentication-failed', 'GitLab Access Token 无效或已过期')
+        }
+        if (status === 403) {
+          throw createAssetOperationError(403, 'repository.gitlab-permission-denied', 'GitLab Access Token 没有创建合并请求的权限')
+        }
+        if (status === 404) {
+          throw createAssetOperationError(404, 'repository.remote-repository-not-found', 'GitLab 仓库不存在或当前凭据不可见')
+        }
+        if (normalizedDetail.includes('source branch') && normalizedDetail.includes('does not exist')) {
+          throw createAssetOperationError(404, 'repository.source-not-found', `源分支不存在：${input.source}`)
+        }
+        if (normalizedDetail.includes('target branch') && normalizedDetail.includes('does not exist')) {
+          throw createAssetOperationError(404, 'repository.target-not-found', `目标分支不存在：${input.target}`)
+        }
+        if (normalizedDetail.includes('already exists')) {
+          throw createAssetOperationError(409, 'repository.merge-request-already-exists', '相同分支间的打开合并请求已存在')
+        }
+        if (normalizedDetail.includes('no commits')) {
+          throw createAssetOperationError(409, 'repository.merge-request-no-changes', '源分支没有可合并到目标分支的更改')
+        }
+        if (status === 400 || status === 409) {
+          throw createAssetOperationError(400, 'repository.merge-request-rejected', `GitLab 拒绝创建合并请求：${detail}`)
+        }
+        throw createAssetOperationError(502, 'repository.gitlab-api-failed', `GitLab API 创建合并请求失败：${detail}`)
+      },
+    },
+  )
+  return {
+    mergeRequestId: String(data.id),
+    mergeRequestNumber: String(data.iid),
+    title: data.title,
+    source: data.source_branch,
+    target: data.target_branch,
+    webUrl: data.web_url,
+  }
 }

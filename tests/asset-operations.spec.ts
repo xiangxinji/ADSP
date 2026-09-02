@@ -9,7 +9,7 @@ import { assetModuleIds } from '../shared/types/asset-operations'
 
 describe('asset operation configuration', () => {
   test('defines operations for every asset module with unique stable IDs', () => {
-    expect(assetOperationConfig.schemaVersion).toBe(4)
+    expect(assetOperationConfig.schemaVersion).toBe(5)
     expect(assetOperationConfig.modules.map(module => module.id)).toEqual(assetModuleIds)
 
     const operations = assetOperationConfig.modules.flatMap(module => module.operations)
@@ -30,6 +30,7 @@ describe('asset operation configuration', () => {
       'repository.local-clone-status',
       'repository.create-worktree',
       'repository.create-branch',
+      'repository.create-merge-request',
     ])
     expect(workflowOperations.every(operation => operation.execution.kind === 'command')).toBe(true)
     expect(findAssetOperation('repository', 'repository.clone')).toMatchObject({
@@ -81,6 +82,29 @@ describe('asset operation configuration', () => {
           expect.objectContaining({ code: 'repository.provider-unsupported' }),
           expect.objectContaining({ code: 'repository.source-not-found' }),
           expect.objectContaining({ code: 'repository.branch-already-exists' }),
+        ]),
+      },
+    })
+    expect(findAssetOperation('repository', 'repository.create-merge-request')).toMatchObject({
+      execution: { kind: 'command', command: 'repository.create-merge-request' },
+      workflow: { enabled: true },
+      contract: {
+        input: expect.arrayContaining([
+          expect.objectContaining({ name: 'source', type: 'string', required: true }),
+          expect.objectContaining({ name: 'target', type: 'string', required: true }),
+          expect.objectContaining({ name: 'title', type: 'string', required: true }),
+        ]),
+        output: expect.arrayContaining([
+          expect.objectContaining({ name: 'mergeRequestId', type: 'string' }),
+          expect.objectContaining({ name: 'mergeRequestNumber', type: 'string' }),
+          expect.objectContaining({ name: 'webUrl', type: 'string' }),
+        ]),
+        exceptions: expect.arrayContaining([
+          expect.objectContaining({ code: 'repository.merge-request-title-required' }),
+          expect.objectContaining({ code: 'repository.merge-request-branches-equal' }),
+          expect.objectContaining({ code: 'repository.source-not-found' }),
+          expect.objectContaining({ code: 'repository.target-not-found' }),
+          expect.objectContaining({ code: 'repository.merge-request-already-exists' }),
         ]),
       },
     })

@@ -21,6 +21,7 @@ import type {
   RepositoryBranchResult,
   RepositoryCloneResult,
   RepositoryLocalCloneStatusResult,
+  RepositoryMergeRequestResult,
   RepositoryUpdateResult,
   RepositoryWorktreeResult,
   Requirement,
@@ -515,6 +516,74 @@ const routeCases: ApiRouteCase[] = [
       )
       expect(duplicateBranch.status).toBe(409)
       expect(duplicateBranch.data.data?.code).toBe('repository.branch-already-exists')
+
+      const missingMergeRequestTitle = await harness.request<AssetOperationErrorResponse>(
+        `/api/assets/repository/${repositoryId}/operations/repository.create-merge-request`,
+        { method: 'POST', body: { source: 'feature/remote-branch', target: 'main' } },
+      )
+      expect(missingMergeRequestTitle.status).toBe(400)
+      expect(missingMergeRequestTitle.data.data?.code).toBe('repository.merge-request-title-required')
+
+      const equalMergeRequestBranches = await harness.request<AssetOperationErrorResponse>(
+        `/api/assets/repository/${repositoryId}/operations/repository.create-merge-request`,
+        { method: 'POST', body: { source: 'main', target: 'main', title: 'Invalid MR' } },
+      )
+      expect(equalMergeRequestBranches.status).toBe(400)
+      expect(equalMergeRequestBranches.data.data?.code).toBe('repository.merge-request-branches-equal')
+
+      const missingMergeRequestSource = await harness.request<AssetOperationErrorResponse>(
+        `/api/assets/repository/${repositoryId}/operations/repository.create-merge-request`,
+        { method: 'POST', body: { source: 'missing', target: 'main', title: 'Missing source' } },
+      )
+      expect(missingMergeRequestSource.status).toBe(404)
+      expect(missingMergeRequestSource.data.data?.code).toBe('repository.source-not-found')
+
+      const missingMergeRequestTarget = await harness.request<AssetOperationErrorResponse>(
+        `/api/assets/repository/${repositoryId}/operations/repository.create-merge-request`,
+        { method: 'POST', body: { source: 'feature/remote-branch', target: 'missing', title: 'Missing target' } },
+      )
+      expect(missingMergeRequestTarget.status).toBe(404)
+      expect(missingMergeRequestTarget.data.data?.code).toBe('repository.target-not-found')
+
+      const createdMergeRequest = await harness.request<RepositoryMergeRequestResult>(
+        `/api/assets/repository/${repositoryId}/operations/repository.create-merge-request`,
+        {
+          method: 'POST',
+          body: { source: 'feature/remote-branch', target: 'main', title: 'Merge remote branch' },
+        },
+      )
+      expect(createdMergeRequest.status).toBe(200)
+      expect(createdMergeRequest.data).toEqual({
+        repositoryId,
+        mergeRequestId: '9001',
+        mergeRequestNumber: '7',
+        title: 'Merge remote branch',
+        source: 'feature/remote-branch',
+        target: 'main',
+        webUrl: 'https://gitlab.example.com/forgepilot/forgepilot-api/-/merge_requests/7',
+      })
+      const mergeRequestWorkspace = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
+      expect(mergeRequestWorkspace.data.repositories.find(repository => repository.id === repositoryId)?.localOperation)
+        .toMatchObject({ operationId: 'repository.update', status: 'succeeded' })
+      expect(harness.gitLabRequests.at(-1)).toMatchObject({
+        method: 'POST',
+        pathname: '/api/v4/projects/101/merge_requests',
+        query: {
+          source_branch: 'feature/remote-branch',
+          target_branch: 'main',
+          title: 'Merge remote branch',
+        },
+      })
+
+      const duplicateMergeRequest = await harness.request<AssetOperationErrorResponse>(
+        `/api/assets/repository/${repositoryId}/operations/repository.create-merge-request`,
+        {
+          method: 'POST',
+          body: { source: 'feature/remote-branch', target: 'main', title: 'Duplicate MR' },
+        },
+      )
+      expect(duplicateMergeRequest.status).toBe(409)
+      expect(duplicateMergeRequest.data.data?.code).toBe('repository.merge-request-already-exists')
 
       await harness.request<RepositoryAsset>(`/api/repositories/${repositoryId}`, {
         method: 'PATCH',

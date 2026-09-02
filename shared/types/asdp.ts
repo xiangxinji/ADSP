@@ -103,6 +103,22 @@ export type RepositoryBranchResult = {
   source: string
 }
 
+export type CreateRepositoryMergeRequestInput = {
+  source: string
+  target: string
+  title: string
+}
+
+export type RepositoryMergeRequestResult = {
+  repositoryId: string
+  mergeRequestId: string
+  mergeRequestNumber: string
+  title: string
+  source: string
+  target: string
+  webUrl: string
+}
+
 export type EnvironmentAccount = {
   account: string
   password: string

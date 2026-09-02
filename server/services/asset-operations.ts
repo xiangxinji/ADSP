@@ -3,14 +3,17 @@ import { findAssetOperation } from '../../shared/config/asset-operations'
 import type { AssetType } from '../../shared/types/asset-operations'
 import type {
   CreateRepositoryBranchInput,
+  CreateRepositoryMergeRequestInput,
   CreateRepositoryWorktreeInput,
   RepositoryBranchResult,
   RepositoryCloneResult,
   RepositoryLocalCloneStatusResult,
+  RepositoryMergeRequestResult,
   RepositoryUpdateResult,
   RepositoryWorktreeResult,
 } from '../../shared/types/asdp'
 import { createRepositoryBranch } from './repository-branch-creation'
+import { createRepositoryMergeRequest } from './repository-merge-request-creation'
 import {
   cloneRepository,
   createRepositoryWorktree,
@@ -30,9 +33,13 @@ type AssetOperationResult =
   | RepositoryBranchResult
   | RepositoryCloneResult
   | RepositoryLocalCloneStatusResult
+  | RepositoryMergeRequestResult
   | RepositoryUpdateResult
   | RepositoryWorktreeResult
-type AssetOperationInput = CreateRepositoryBranchInput | CreateRepositoryWorktreeInput
+type AssetOperationInput =
+  | CreateRepositoryBranchInput
+  | CreateRepositoryMergeRequestInput
+  | CreateRepositoryWorktreeInput
 type AssetOperationHandler = (
   assetId: string,
   input?: AssetOperationInput,
@@ -87,13 +94,19 @@ const operationHandlers = {
     }
     return createRepositoryBranch(assetId, input)
   },
+  'repository.create-merge-request': (assetId: string, input?: AssetOperationInput) => {
+    if (!input || !('target' in input) || !('title' in input)) {
+      throw createAssetOperationError(400, 'repository.merge-request-title-required', '创建合并请求需要指定 source、target 和 title')
+    }
+    return createRepositoryMergeRequest(assetId, input)
+  },
 } satisfies Record<string, AssetOperationHandler>
 
 export const executeAssetOperation = async (
   assetType: AssetType,
   assetId: string,
   operationId: string,
-  input?: CreateRepositoryBranchInput | CreateRepositoryWorktreeInput,
+  input?: AssetOperationInput,
 ): Promise<AssetOperationResult> => {
   const operation = findAssetOperation(assetType, operationId)
   if (!operation || operation.execution.kind !== 'command') {

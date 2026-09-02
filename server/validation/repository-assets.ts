@@ -1,6 +1,7 @@
 import type {
   CreateRepositoryBranchInput,
   CreateRepositoryInput,
+  CreateRepositoryMergeRequestInput,
   CreateRepositoryWorktreeInput,
   UpdateRepositoryInput,
 } from '../../shared/types/asdp'
@@ -83,4 +84,24 @@ export const repositoryCreateBranchPayload = (value: unknown): CreateRepositoryB
     branch: gitBranchName(body.branch, 'repository.branch-required', 'repository.invalid-branch', 'branch'),
     source: gitBranchName(body.source, 'repository.source-required', 'repository.invalid-source', 'source'),
   }
+}
+
+export const repositoryCreateMergeRequestPayload = (value: unknown): CreateRepositoryMergeRequestInput => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw createAssetOperationError(400, 'repository.invalid-create-merge-request-input', '请求体必须是 JSON 对象')
+  }
+  const body = value as Record<string, unknown>
+  const source = gitBranchName(body.source, 'repository.source-required', 'repository.invalid-source', 'source')
+  const target = gitBranchName(body.target, 'repository.target-required', 'repository.invalid-target', 'target')
+  if (source === target) {
+    throw createAssetOperationError(400, 'repository.merge-request-branches-equal', 'source 和 target 不能相同')
+  }
+  if (typeof body.title !== 'string' || !body.title.trim()) {
+    throw createAssetOperationError(400, 'repository.merge-request-title-required', 'title is required')
+  }
+  const title = body.title.trim()
+  if (title.length > 255) {
+    throw createAssetOperationError(400, 'repository.invalid-merge-request-title', 'title 不能超过 255 个字符')
+  }
+  return { source, target, title }
 }

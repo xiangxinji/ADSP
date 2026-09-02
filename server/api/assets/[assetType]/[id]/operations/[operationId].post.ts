@@ -1,6 +1,7 @@
 import { executeAssetOperation } from '../../../../../services/asset-operations'
 import {
   repositoryCreateBranchPayload,
+  repositoryCreateMergeRequestPayload,
   repositoryWorktreePayload,
 } from '../../../../../validation/repository-assets'
 import { assetTypes, type AssetType } from '../../../../../../shared/types/asset-operations'
@@ -18,6 +19,9 @@ export default defineEventHandler(async (event) => {
   }
   if (assetType === 'repository' && operationId === 'repository.create-branch') {
     input = repositoryCreateBranchPayload((await readBody(event)) || {})
+  }
+  if (assetType === 'repository' && operationId === 'repository.create-merge-request') {
+    input = repositoryCreateMergeRequestPayload((await readBody(event)) || {})
   }
 
   return executeAssetOperation(

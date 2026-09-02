@@ -23,10 +23,12 @@ import type {
   RepositoryCloneResult,
   RepositoryLocalCloneStatusResult,
   RepositoryLocalOperationStatus,
+  RepositoryMergeRequestResult,
   RepositoryProvider,
   RepositoryUpdateResult,
   RepositoryWorktreeResult,
   CreateRepositoryBranchInput,
+  CreateRepositoryMergeRequestInput,
   CreateRepositoryWorktreeInput,
   Requirement,
   RequirementPriority,
@@ -439,6 +441,7 @@ type RepositoryOperationResult =
   | RepositoryBranchResult
   | RepositoryCloneResult
   | RepositoryLocalCloneStatusResult
+  | RepositoryMergeRequestResult
   | RepositoryUpdateResult
   | RepositoryWorktreeResult
 
@@ -454,7 +457,7 @@ const repositoryOperationStatusLabel = (status: RepositoryLocalOperationStatus) 
 const runRepositoryCommand = async (
   repository: RepositoryAsset,
   operation: AssetOperationDefinition,
-  body?: CreateRepositoryBranchInput | CreateRepositoryWorktreeInput,
+  body?: CreateRepositoryBranchInput | CreateRepositoryMergeRequestInput | CreateRepositoryWorktreeInput,
 ) => {
   if (operation.execution.kind !== 'command') return
   repositoryOperation.value = { id: repository.id, operationId: operation.id as AssetOperationId }
@@ -464,13 +467,15 @@ const runRepositoryCommand = async (
       method: 'POST',
       body,
     })
-    success('cloned' in result
-      ? result.cloned
-        ? `本地已克隆：${result.path}`
-        : `本地尚未克隆：${result.path}`
-      : 'source' in result
-        ? `远程分支已创建：${result.branch}（基于 ${result.source}）`
-        : `${operation.label}完成：${result.path}`)
+    success('mergeRequestId' in result
+      ? `合并请求 !${result.mergeRequestNumber} 已创建：${result.title}`
+      : 'cloned' in result
+        ? result.cloned
+          ? `本地已克隆：${result.path}`
+          : `本地尚未克隆：${result.path}`
+        : 'source' in result
+          ? `远程分支已创建：${result.branch}（基于 ${result.source}）`
+          : `${operation.label}完成：${result.path}`)
   } catch (requestError) {
     actionError.value = errorMessage(requestError)
   } finally {
@@ -504,6 +509,27 @@ const runRepositoryAssetOperation = (repository: RepositoryAsset, operation: Ass
         return
       }
       return runRepositoryCommand(repository, operation, { branch, source })
+    }
+    if (operation.id === 'repository.create-merge-request') {
+      const source = window.prompt('请输入合并请求的源分支名称')
+      if (source === null) return
+      if (!source.trim()) {
+        actionError.value = '请输入合并请求的源分支名称'
+        return
+      }
+      const target = window.prompt('请输入合并请求的目标分支名称')
+      if (target === null) return
+      if (!target.trim()) {
+        actionError.value = '请输入合并请求的目标分支名称'
+        return
+      }
+      const title = window.prompt('请输入合并请求标题')
+      if (title === null) return
+      if (!title.trim()) {
+        actionError.value = '请输入合并请求标题'
+        return
+      }
+      return runRepositoryCommand(repository, operation, { source, target, title })
     }
     return runRepositoryCommand(repository, operation)
   }

@@ -115,7 +115,8 @@ The repository asset does not persist a default branch; integrations query provi
 The versioned operation registry lives in `shared/config/asset-operations.ts`. The
 generic operation route accepts `repository.clone`, `repository.update`,
 `repository.local-clone-status`, `repository.create-worktree`, and
-`repository.create-branch` for the `repository` asset type.
+`repository.create-branch` plus `repository.create-merge-request` for the `repository`
+asset type.
 `repository.local-clone-status` returns
 `{ "repositoryId": string, "cloned": boolean, "path": string }`. Create a worktree
 with body `{ "branch": string }`; the branch must already exist locally or on `origin`,
@@ -133,6 +134,16 @@ adapter supports GitLab repository assets imported with an external project ID a
 the saved GitLab connection to call the repository-branches API. Unsupported providers,
 missing external IDs, missing source branches, duplicate target branches, and provider
 failures return the stable codes declared by the operation contract.
+
+Create a merge request with body
+`{ "source": string, "target": string, "title": string }`. `source` contains the
+changes and must differ from `target`; `title` is limited to 255 characters. The result
+is `{ "repositoryId": string, "mergeRequestId": string, "mergeRequestNumber": string,
+"title": string, "source": string, "target": string, "webUrl": string }`. GitLab's
+global ID and project-local IID are normalized to strings so the workflow contract does
+not depend on provider numeric types. Missing branches, duplicate open merge requests,
+empty comparisons, and provider rejection use the stable exception codes declared in
+the operation registry.
 
 Every workflow-ready command carries a versioned operation contract in that registry:
 its required inputs, outputs, and expected exceptions all have stable names and types.
