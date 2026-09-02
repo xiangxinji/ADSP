@@ -426,7 +426,16 @@
   color: var(--ink);
   background: var(--surface);
   box-shadow: 0 8px 24px var(--panel-shadow);
+  cursor: default;
   transition: border-color .18s ease, box-shadow .18s ease;
+}
+
+.vue-flow__node.draggable .workflow-flow-node {
+  cursor: grab;
+}
+
+.vue-flow__node.dragging .workflow-flow-node {
+  cursor: grabbing;
 }
 
 .workflow-flow-node:hover,
@@ -528,6 +537,9 @@
   border: 2px solid var(--surface);
   background: var(--blue);
   cursor: crosshair;
+  pointer-events: all !important;
+  touch-action: none;
+  z-index: 4;
   transition: transform .15s ease, background .15s ease;
 }
 
