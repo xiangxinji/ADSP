@@ -100,6 +100,7 @@ Project 1─* EnvironmentAsset 1─0..* EnvironmentAccount
 Project 1─* KnowledgeAsset
 Project 1─* WorkflowDefinition 1─0..1 WorkflowTrigger
 WorkflowDefinition 1─0..* WorkflowOperationNode
+WorkflowDefinition 1─0..* WorkflowEdge
 
 Requirement *─1 RequirementStatus
 Requirement *─* RequirementVersion through Requirement.version_ids
@@ -110,11 +111,11 @@ Requirement 1─* WorkflowRun
 
 `WorkflowDefinition` is reusable project configuration, while `WorkflowRun` remains an
 auditable execution attempt. The initial definition model is deliberately linear: it
-contains one required root trigger followed by ordered asset-operation nodes. A draft
+contains one required root trigger and manually connected asset-operation nodes. A draft
 may exist without a trigger while its basic information is being created, but operation
 nodes cannot be persisted until the root trigger exists. Node positions are presentation
-metadata for the canvas; array order is the execution order reserved for the future
-orchestrator.
+metadata for the canvas. Stable directed edges are persisted with the definition and are
+the source of execution order reserved for the future orchestrator.
 
 Each operation node stores an asset type, a project-local asset ID, a stable operation ID,
 and input values. The workflow-definition service is the explicitly named cross-domain
@@ -123,6 +124,10 @@ writing. It reads workflow-ready commands from `shared/config/asset-operations.t
 does not duplicate their inputs, outputs, exceptions, or provider-specific payloads.
 The current registry exposes repository commands; other asset types enter the canvas only
 after their own server commands declare workflow-ready contracts.
+The first release accepts only one connected, acyclic chain: the trigger and every
+operation may have at most one downstream edge, every operation has exactly one upstream
+edge, and every operation must be reachable from the trigger. The canvas supports manual
+connection and edge deletion; branching and parallel execution remain later capabilities.
 
 `RequirementRepository` records how a repository participates, such as primary target, dependency, or read-only reference, together with branch or write-scope constraints. `RequirementParticipant` records responsibility such as requester, owner, contributor, reviewer, or approver.
 

@@ -179,6 +179,7 @@ const createDatabase = async () => {
       trigger_x REAL,
       trigger_y REAL,
       nodes_json TEXT NOT NULL DEFAULT '[]',
+      edges_json TEXT NOT NULL DEFAULT '[]',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL
     );
@@ -395,6 +396,11 @@ const createDatabase = async () => {
   const environmentAccountColumns = persistentDatabase.prepare('PRAGMA table_info(environment_accounts)').all() as { name: string }[]
   if (!environmentAccountColumns.some(column => column.name === 'password')) {
     persistentDatabase.exec("ALTER TABLE environment_accounts ADD COLUMN password TEXT NOT NULL DEFAULT ''")
+  }
+
+  const workflowColumns = persistentDatabase.prepare('PRAGMA table_info(workflow_definitions)').all() as { name: string }[]
+  if (!workflowColumns.some(column => column.name === 'edges_json')) {
+    persistentDatabase.exec("ALTER TABLE workflow_definitions ADD COLUMN edges_json TEXT NOT NULL DEFAULT '[]'")
   }
 
   const versionColumns = persistentDatabase.prepare('PRAGMA table_info(requirement_versions)').all() as { name: string }[]

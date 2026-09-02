@@ -53,13 +53,13 @@ requirement, the project's initial status is used. Priorities are `low`, `medium
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/api/projects/:id/workflows` | Create workflow basic information as a draft |
-| `PATCH` | `/api/workflows/:id` | Update metadata, root trigger, and ordered operation nodes |
+| `PATCH` | `/api/workflows/:id` | Update metadata, trigger, operation nodes, and directed edges |
 | `DELETE` | `/api/workflows/:id` | Delete a workflow definition |
 
 Create body: `{ "name": string, "note": string }`. The response starts with
-`trigger: null` and `nodes: []` so the client can navigate directly to the canvas.
+`trigger: null`, `nodes: []`, and `edges: []` so the client can navigate directly to the canvas.
 
-Patch requests may include `name`, `note`, `trigger`, or `nodes`. Supported initial
+Patch requests may include `name`, `note`, `trigger`, `nodes`, or `edges`. Supported initial
 triggers are `manual` and `requirement-created`. Each trigger and operation node stores
 finite canvas coordinates. An operation node has the following stable shape:
 
@@ -78,10 +78,23 @@ finite canvas coordinates. An operation node has the following stable shape:
 }
 ```
 
-Node array order is the future execution order. Operation nodes require a root trigger,
+Edges persist the connections created on the canvas:
+
+```json
+{
+  "id": "edge-uuid",
+  "source": "workflow-trigger",
+  "target": "node-uuid"
+}
+```
+
+The connected path from `workflow-trigger` determines execution order; the service
+normalizes the returned node array to that order. Operation nodes require a root trigger,
 must reference assets from the workflow's project, and may use only commands marked
 workflow-ready in `shared/config/asset-operations.ts`. Inputs are checked against that
-operation's shared contract, and the bound asset ID must match the selected asset.
+operation's shared contract, and the bound asset ID must match the selected asset. The
+initial graph must be one connected acyclic chain: no self-connections, duplicate edges,
+branching, multiple upstream nodes, cycles, or disconnected operation nodes are accepted.
 The first release persists definitions only; it does not execute triggers or workflows.
 
 ## Requirement Versions
@@ -317,8 +330,8 @@ Each requirement contains `statusId`, expanded `status`, `versionIds`, `reposito
 `memberIds`, and expanded `versions`, `repositories`, and `members` arrays for direct display. Every member
 contains its project role and an expanded global `user`.
 Each knowledge record contains its stored Markdown and resolved reference metadata.
-Each workflow record contains its basic information, optional root trigger, and ordered
-asset-operation nodes with their canvas positions and contract inputs.
+Each workflow record contains its basic information, optional root trigger, operation
+nodes with their canvas positions and contract inputs, and stable directed edges.
 
 ## Automated Verification
 

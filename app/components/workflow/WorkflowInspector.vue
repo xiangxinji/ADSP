@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { findAssetOperation } from '#shared/config/asset-operations'
 import type { ProjectWorkspace, WorkflowDefinition, WorkflowOperationInputValue, WorkflowOperationNode } from '#shared/types/asdp'
+import { workflowTriggerNodeId } from '#shared/utils/workflow-graph'
 
 const props = defineProps<{
   workflow: WorkflowDefinition
@@ -12,7 +13,7 @@ const emit = defineEmits<{
   updateName: [value: string]
   updateNote: [value: string]
   updateInput: [name: string, value: WorkflowOperationInputValue]
-  moveNode: [direction: -1 | 1]
+  setUpstream: [sourceId: string]
   removeNode: []
 }>()
 
@@ -25,6 +26,18 @@ const inputFields = computed(() => operation.value?.workflow.enabled
 const selectedIndex = computed(() => props.selectedNode
   ? props.workflow.nodes.findIndex(node => node.id === props.selectedNode?.id)
   : -1)
+const upstreamId = computed(() => props.workflow.edges.find(edge => edge.target === props.selectedNode?.id)?.source || '')
+const sourceDisabled = (sourceId: string) => {
+  if (!props.selectedNode || sourceId === upstreamId.value) return false
+  if (props.workflow.edges.some(edge => edge.source === sourceId)) return true
+  let cursor: string | undefined = props.selectedNode.id
+  while (cursor) {
+    cursor = props.workflow.edges.find(edge => edge.source === cursor)?.target
+    if (cursor === sourceId) return true
+  }
+  return false
+}
+const nodeLabel = (node: WorkflowOperationNode) => findAssetOperation(node.assetType, node.operationId)?.label || node.operationId
 
 const assetLabel = computed(() => {
   if (!props.selectedNode) return ''
@@ -49,10 +62,17 @@ const assetLabel = computed(() => {
       </AppFormField>
     </section>
     <section class="workflow-inspector-section node-inspector">
-      <div class="workflow-library-title"><strong>操作节点</strong><span>{{ selectedNode ? `第 ${selectedIndex + 1} 步` : '未选择' }}</span></div>
+      <div class="workflow-library-title"><strong>操作节点</strong><span>{{ selectedNode ? `节点 ${selectedIndex + 1} · 连线决定顺序` : '未选择' }}</span></div>
       <template v-if="selectedNode && operation?.workflow.enabled">
         <div class="workflow-selected-summary"><span><AppIcon name="repository" :size="16" /></span><div><strong>{{ operation.label }}</strong><small>{{ assetLabel || '资产已不存在' }}</small></div></div>
         <p class="workflow-operation-help">{{ operation.description }}</p>
+        <AppFormField field-id="workflow-upstream" label="上游节点" hint="可用下拉框连接，也可直接拖动画板端口。">
+          <AppSelect id="workflow-upstream" :model-value="upstreamId" @update:model-value="emit('setUpstream', String($event || ''))">
+            <option value="">未连接</option>
+            <option :value="workflowTriggerNodeId" :disabled="sourceDisabled(workflowTriggerNodeId)">根触发器</option>
+            <option v-for="node in workflow.nodes.filter(item => item.id !== selectedNode?.id)" :key="node.id" :value="node.id" :disabled="sourceDisabled(node.id)">{{ nodeLabel(node) }}</option>
+          </AppSelect>
+        </AppFormField>
         <template v-if="inputFields.length">
           <AppFormField v-for="field in inputFields" :key="field.name" :field-id="`workflow-input-${field.name}`" :label="field.name" :hint="field.description">
             <label v-if="field.type === 'boolean'" class="workflow-boolean-input">
@@ -63,8 +83,6 @@ const assetLabel = computed(() => {
         </template>
         <p v-else class="workflow-library-empty compact">该操作无需额外参数。</p>
         <div class="workflow-node-actions">
-          <AppButton variant="secondary" icon="chevron-up" :disabled="selectedIndex <= 0" @click="emit('moveNode', -1)">前移</AppButton>
-          <AppButton variant="secondary" icon="chevron-down" :disabled="selectedIndex >= workflow.nodes.length - 1" @click="emit('moveNode', 1)">后移</AppButton>
           <AppButton variant="danger-outline" icon="delete" @click="emit('removeNode')">删除节点</AppButton>
         </div>
       </template>

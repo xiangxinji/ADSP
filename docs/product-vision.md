@@ -70,7 +70,7 @@ Project workspace
 │  ├─ development, testing, and production environments
 │  └─ Markdown knowledge linked to project assets
 ├─ Workflow definitions
-│  └─ root trigger and ordered asset-operation nodes
+│  └─ root trigger and connected asset-operation nodes
 ├─ Requirements
 │  └─ referenced repositories and participants
 ├─ Workflow runs

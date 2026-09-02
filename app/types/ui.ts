@@ -3,8 +3,6 @@ export type AppIconName =
   | 'alert'
   | 'arrow-left'
   | 'check'
-  | 'chevron-down'
-  | 'chevron-up'
   | 'clone'
   | 'close'
   | 'delete'

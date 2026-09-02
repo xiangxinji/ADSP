@@ -1,4 +1,5 @@
-import type { WorkflowDefinition, WorkflowOperationNode, WorkflowTriggerKind } from '../../shared/types/asdp'
+import type { WorkflowDefinition, WorkflowEdge, WorkflowOperationNode, WorkflowTriggerKind } from '../../shared/types/asdp'
+import { workflowTriggerNodeId } from '../../shared/utils/workflow-graph'
 import { useDatabase } from '../utils/database'
 
 type WorkflowDefinitionRow = {
@@ -10,23 +11,35 @@ type WorkflowDefinitionRow = {
   trigger_x: number | null
   trigger_y: number | null
   nodes_json: string
+  edges_json: string
   created_at: string
   updated_at: string
 }
 
-const workflowFromRow = (row: WorkflowDefinitionRow): WorkflowDefinition => ({
-  id: row.id,
-  projectId: row.project_id,
-  name: row.name,
-  note: row.note,
-  trigger: row.trigger_kind === null ? null : {
+const workflowFromRow = (row: WorkflowDefinitionRow): WorkflowDefinition => {
+  const nodes = JSON.parse(row.nodes_json) as WorkflowOperationNode[]
+  const storedEdges = JSON.parse(row.edges_json || '[]') as WorkflowEdge[]
+  const trigger = row.trigger_kind === null ? null : {
     kind: row.trigger_kind,
     position: { x: Number(row.trigger_x), y: Number(row.trigger_y) },
-  },
-  nodes: JSON.parse(row.nodes_json) as WorkflowOperationNode[],
-  createdAt: row.created_at,
-  updatedAt: row.updated_at,
-})
+  }
+  const edges = storedEdges.length || !trigger || !nodes.length ? storedEdges : nodes.map((node, index) => ({
+    id: `workflow-edge-legacy-${index}`,
+    source: index === 0 ? workflowTriggerNodeId : nodes[index - 1].id,
+    target: node.id,
+  }))
+  return {
+    id: row.id,
+    projectId: row.project_id,
+    name: row.name,
+    note: row.note,
+    trigger,
+    nodes,
+    edges,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  }
+}
 
 export const findWorkflowDefinition = (id: string) => {
   const row = useDatabase().prepare('SELECT * FROM workflow_definitions WHERE id = ?')
@@ -42,8 +55,8 @@ export const listWorkflowDefinitions = (projectId: string) => (useDatabase().pre
 export const insertWorkflowDefinition = (workflow: WorkflowDefinition) => {
   useDatabase().prepare(`
     INSERT INTO workflow_definitions
-      (id, project_id, name, note, trigger_kind, trigger_x, trigger_y, nodes_json, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (id, project_id, name, note, trigger_kind, trigger_x, trigger_y, nodes_json, edges_json, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     workflow.id,
     workflow.projectId,
@@ -53,6 +66,7 @@ export const insertWorkflowDefinition = (workflow: WorkflowDefinition) => {
     workflow.trigger?.position.x ?? null,
     workflow.trigger?.position.y ?? null,
     JSON.stringify(workflow.nodes),
+    JSON.stringify(workflow.edges),
     workflow.createdAt,
     workflow.updatedAt,
   )
@@ -61,7 +75,7 @@ export const insertWorkflowDefinition = (workflow: WorkflowDefinition) => {
 export const updateWorkflowDefinitionRecord = (workflow: WorkflowDefinition) => {
   useDatabase().prepare(`
     UPDATE workflow_definitions
-    SET name = ?, note = ?, trigger_kind = ?, trigger_x = ?, trigger_y = ?, nodes_json = ?, updated_at = ?
+    SET name = ?, note = ?, trigger_kind = ?, trigger_x = ?, trigger_y = ?, nodes_json = ?, edges_json = ?, updated_at = ?
     WHERE id = ?
   `).run(
     workflow.name,
@@ -70,6 +84,7 @@ export const updateWorkflowDefinitionRecord = (workflow: WorkflowDefinition) => 
     workflow.trigger?.position.x ?? null,
     workflow.trigger?.position.y ?? null,
     JSON.stringify(workflow.nodes),
+    JSON.stringify(workflow.edges),
     workflow.updatedAt,
     workflow.id,
   )

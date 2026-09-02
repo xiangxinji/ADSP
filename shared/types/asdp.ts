@@ -179,6 +179,12 @@ export type WorkflowOperationNode = {
   position: WorkflowNodePosition
 }
 
+export type WorkflowEdge = {
+  id: string
+  source: string
+  target: string
+}
+
 export type WorkflowDefinition = {
   id: string
   projectId: string
@@ -186,6 +192,7 @@ export type WorkflowDefinition = {
   note: string
   trigger: WorkflowTrigger | null
   nodes: WorkflowOperationNode[]
+  edges: WorkflowEdge[]
   createdAt: string
   updatedAt: string
 }
@@ -328,4 +335,4 @@ export type CreateRequirementInput = Pick<Requirement, 'title' | 'description' |
 }
 export type UpdateRequirementInput = Partial<CreateRequirementInput>
 export type CreateWorkflowInput = Pick<WorkflowDefinition, 'name' | 'note'>
-export type UpdateWorkflowInput = Partial<Pick<WorkflowDefinition, 'name' | 'note' | 'trigger' | 'nodes'>>
+export type UpdateWorkflowInput = Partial<Pick<WorkflowDefinition, 'name' | 'note' | 'trigger' | 'nodes' | 'edges'>>

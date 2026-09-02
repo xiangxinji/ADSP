@@ -30,6 +30,7 @@ import type {
   WorkflowDefinition,
 } from '../../shared/types/asdp'
 import { startApiTestHarness, type ApiTestHarness } from '../support/api-test-harness'
+import { workflowTriggerNodeId } from '../../shared/utils/workflow-graph'
 
 type ApiMethod = 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT'
 type ApiRoute = `${ApiMethod} /api/${string}`
@@ -168,6 +169,7 @@ const routeCases: ApiRouteCase[] = [
         note: '验证工作流画板持久化',
         trigger: null,
         nodes: [],
+        edges: [],
       })
       workflowId = response.data.id
 
@@ -415,21 +417,33 @@ const routeCases: ApiRouteCase[] = [
       })
       expect(clientOnlyOperation.status).toBe(400)
 
+      const disconnected = await harness.request(`/api/workflows/${workflowId}`, {
+        method: 'PATCH',
+        body: {
+          trigger: { kind: 'manual', position: { x: 80, y: 120 } },
+          nodes: [operationNode],
+          edges: [],
+        },
+      })
+      expect(disconnected.status).toBe(400)
+
+      const branchNode = {
+        id: 'node-branch',
+        assetType: 'repository' as const,
+        assetId: repositoryId,
+        operationId: 'repository.create-branch',
+        inputs: { repositoryId, branch: 'feature/workflow', source: 'main' },
+        position: { x: 640, y: 120 },
+      }
       const response = await harness.request<WorkflowDefinition>(`/api/workflows/${workflowId}`, {
         method: 'PATCH',
         body: {
           name: '持续交付主流程',
           trigger: { kind: 'manual', position: { x: 80, y: 120 } },
-          nodes: [
-            operationNode,
-            {
-              id: 'node-branch',
-              assetType: 'repository',
-              assetId: repositoryId,
-              operationId: 'repository.create-branch',
-              inputs: { repositoryId, branch: 'feature/workflow', source: 'main' },
-              position: { x: 640, y: 120 },
-            },
+          nodes: [branchNode, operationNode],
+          edges: [
+            { id: 'edge-root', source: workflowTriggerNodeId, target: operationNode.id },
+            { id: 'edge-next', source: operationNode.id, target: branchNode.id },
           ],
         },
       })
@@ -440,6 +454,11 @@ const routeCases: ApiRouteCase[] = [
         trigger: { kind: 'manual', position: { x: 80, y: 120 } },
       })
       expect(response.data.nodes).toHaveLength(2)
+      expect(response.data.nodes.map(node => node.id)).toEqual(['node-clone', 'node-branch'])
+      expect(response.data.edges).toEqual([
+        { id: 'edge-root', source: workflowTriggerNodeId, target: 'node-clone' },
+        { id: 'edge-next', source: 'node-clone', target: 'node-branch' },
+      ])
       expect(response.data.nodes[1].inputs).toEqual({
         repositoryId,
         branch: 'feature/workflow',

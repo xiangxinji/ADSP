@@ -5,10 +5,12 @@ import {
   type CreateWorkflowInput,
   type UpdateWorkflowInput,
   type WorkflowDefinition,
+  type WorkflowEdge,
   type WorkflowOperationInputValue,
   type WorkflowOperationNode,
   type WorkflowTrigger,
 } from '../../shared/types/asdp'
+import { analyzeWorkflowGraph } from '../../shared/utils/workflow-graph'
 import {
   findWorkflowDefinition,
   insertWorkflowDefinition,
@@ -102,13 +104,24 @@ const validateDefinition = (
   projectId: string,
   trigger: WorkflowTrigger | null,
   nodes: WorkflowOperationNode[],
+  edges: WorkflowEdge[],
 ) => {
   if (nodes.length > workflowNodeLimit) throw badRequest(`Workflow supports at most ${workflowNodeLimit} operation nodes`)
   if (nodes.length && !trigger) throw badRequest('A root trigger is required before adding operation nodes')
   if (new Set(nodes.map(node => node.id)).size !== nodes.length) throw badRequest('Workflow node ids must be unique')
+  const validatedNodes = nodes.map(node => validateNode(projectId, node))
+  const validatedEdges = edges.map(edge => ({
+    id: edge.id.trim(),
+    source: edge.source.trim(),
+    target: edge.target.trim(),
+  }))
+  const graph = analyzeWorkflowGraph(validatedNodes.map(node => node.id), validatedEdges, Boolean(trigger))
+  if (graph.message) throw badRequest(graph.message)
+  const nodesById = new Map(validatedNodes.map(node => [node.id, node]))
   return {
     trigger: validateTrigger(trigger),
-    nodes: nodes.map(node => validateNode(projectId, node)),
+    nodes: graph.orderedNodeIds.map(nodeId => nodesById.get(nodeId) as WorkflowOperationNode),
+    edges: validatedEdges,
   }
 }
 
@@ -126,6 +139,7 @@ export const createWorkflow = (projectId: string, input: CreateWorkflowInput) =>
     note: input.note,
     trigger: null,
     nodes: [],
+    edges: [],
     createdAt: timestamp,
     updatedAt: timestamp,
   }
@@ -139,6 +153,7 @@ export const updateWorkflow = (id: string, input: UpdateWorkflowInput) => {
     current.projectId,
     input.trigger === undefined ? current.trigger : input.trigger,
     input.nodes ?? current.nodes,
+    input.edges ?? current.edges,
   )
   updateWorkflowDefinitionRecord({
     ...current,

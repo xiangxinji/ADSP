@@ -2,6 +2,7 @@ import {
   workflowTriggerKinds,
   type CreateWorkflowInput,
   type UpdateWorkflowInput,
+  type WorkflowEdge,
   type WorkflowOperationInputValue,
   type WorkflowOperationNode,
   type WorkflowTrigger,
@@ -69,6 +70,20 @@ const nodesPayload = (value: unknown) => {
   return value.map(nodePayload)
 }
 
+const edgePayload = (value: unknown): WorkflowEdge => {
+  const edge = bodyObject(value)
+  return {
+    id: requiredText(edge.id, 'edge.id'),
+    source: requiredText(edge.source, 'edge.source'),
+    target: requiredText(edge.target, 'edge.target'),
+  }
+}
+
+const edgesPayload = (value: unknown) => {
+  if (!Array.isArray(value)) throw createError({ statusCode: 400, statusMessage: 'edges must be an array' })
+  return value.map(edgePayload)
+}
+
 export const createWorkflowPayload = (value: unknown): CreateWorkflowInput => {
   const body = bodyObject(value)
   return { name: workflowName(body.name), note: workflowNote(body.note) }
@@ -81,5 +96,6 @@ export const updateWorkflowPayload = (value: unknown): UpdateWorkflowInput => {
     note: body.note === undefined ? undefined : workflowNote(body.note),
     trigger: body.trigger === undefined ? undefined : triggerPayload(body.trigger),
     nodes: body.nodes === undefined ? undefined : nodesPayload(body.nodes),
+    edges: body.edges === undefined ? undefined : edgesPayload(body.edges),
   }
 }

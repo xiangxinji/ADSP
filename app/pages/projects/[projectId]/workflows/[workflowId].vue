@@ -2,6 +2,7 @@
 import { findAssetOperation } from '#shared/config/asset-operations'
 import type { AssetType } from '#shared/types/asset-operations'
 import type { ProjectWorkspace, WorkflowDefinition, WorkflowOperationInputValue, WorkflowTriggerKind } from '#shared/types/asdp'
+import { analyzeWorkflowGraph } from '#shared/utils/workflow-graph'
 
 const route = useRoute()
 const projectId = String(route.params.projectId || '')
@@ -21,6 +22,7 @@ const cloneWorkflow = (workflow: WorkflowDefinition): WorkflowDefinition => ({
     inputs: { ...node.inputs },
     position: { ...node.position },
   })),
+  edges: workflow.edges.map(edge => ({ ...edge })),
 })
 
 const draft = ref<WorkflowDefinition | null>(sourceWorkflow ? cloneWorkflow(sourceWorkflow) : null)
@@ -32,6 +34,7 @@ const { success } = useAppToast()
 
 const selectedNode = computed(() => draft.value?.nodes.find(node => node.id === selectedNodeId.value) || null)
 const dirty = computed(() => Boolean(draft.value && JSON.stringify(draft.value) !== savedSnapshot.value))
+const { connectEdge, removeEdge, setUpstream } = useWorkflowConnections(draft, selectedNode, actionError)
 
 const assetExists = (assetType: AssetType, assetId: string) => {
   if (!workspace.value) return false
@@ -51,7 +54,11 @@ const validationMessage = computed(() => {
     const missing = operation.contract.input.find(field => field.required && (node.inputs[field.name] === undefined || node.inputs[field.name] === ''))
     if (missing) return `节点“${operation.label}”缺少参数 ${missing.name}。`
   }
-  return ''
+  return analyzeWorkflowGraph(
+    draft.value.nodes.map(node => node.id),
+    draft.value.edges,
+    Boolean(draft.value.trigger),
+  ).message
 })
 
 const selectTrigger = (kind: WorkflowTriggerKind) => {
@@ -93,23 +100,11 @@ const updateInput = (name: string, value: WorkflowOperationInputValue) => {
   if (selectedNode.value) selectedNode.value.inputs[name] = value
 }
 
-const moveNode = (direction: -1 | 1) => {
-  if (!draft.value || !selectedNode.value) return
-  const index = draft.value.nodes.findIndex(node => node.id === selectedNode.value?.id)
-  const targetIndex = index + direction
-  if (index < 0 || targetIndex < 0 || targetIndex >= draft.value.nodes.length) return
-  const current = draft.value.nodes[index]
-  const target = draft.value.nodes[targetIndex]
-  const currentPosition = current.position
-  current.position = target.position
-  target.position = currentPosition
-  draft.value.nodes.splice(index, 1, target)
-  draft.value.nodes.splice(targetIndex, 1, current)
-}
-
 const removeNode = () => {
   if (!draft.value || !selectedNode.value) return
+  const removedId = selectedNode.value.id
   draft.value.nodes = draft.value.nodes.filter(node => node.id !== selectedNode.value?.id)
+  draft.value.edges = draft.value.edges.filter(edge => edge.source !== removedId && edge.target !== removedId)
   selectedNodeId.value = null
 }
 
@@ -125,6 +120,7 @@ const save = async () => {
         note: draft.value.note,
         trigger: draft.value.trigger,
         nodes: draft.value.nodes,
+        edges: draft.value.edges,
       },
     })
     draft.value = cloneWorkflow(workflow)
@@ -160,8 +156,8 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
       </header>
       <div class="workflow-editor-layout">
         <WorkflowNodeLibrary :workspace="workspace" :trigger-kind="draft.trigger?.kind || null" @select-trigger="selectTrigger" @add-operation="addOperation" />
-        <WorkflowCanvas :trigger="draft.trigger" :nodes="draft.nodes" :workspace="workspace" :selected-node-id="selectedNodeId" @select-node="selectedNodeId = $event" @update-position="updatePosition" />
-        <WorkflowInspector :workflow="draft" :workspace="workspace" :selected-node="selectedNode" @update-name="draft.name = $event" @update-note="draft.note = $event" @update-input="updateInput" @move-node="moveNode" @remove-node="removeNode" />
+        <WorkflowCanvas :trigger="draft.trigger" :nodes="draft.nodes" :edges="draft.edges" :workspace="workspace" :selected-node-id="selectedNodeId" @select-node="selectedNodeId = $event" @update-position="updatePosition" @connect-edge="connectEdge" @remove-edge="removeEdge" />
+        <WorkflowInspector :workflow="draft" :workspace="workspace" :selected-node="selectedNode" @update-name="draft.name = $event" @update-note="draft.note = $event" @update-input="updateInput" @set-upstream="setUpstream" @remove-node="removeNode" />
       </div>
     </main>
     <main v-else id="main-content" class="page"><AppAsyncState :pending="status === 'pending'" :error-message="error?.statusMessage || '工作流不存在'" @retry="refresh" /></main>

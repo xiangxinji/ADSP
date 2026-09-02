@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { MarkerType, VueFlow, useVueFlow, type Edge, type Node } from '@vue-flow/core'
 import { findAssetOperation } from '#shared/config/asset-operations'
-import type { ProjectWorkspace, WorkflowOperationNode, WorkflowTrigger } from '#shared/types/asdp'
+import type { ProjectWorkspace, WorkflowEdge, WorkflowOperationNode, WorkflowTrigger } from '#shared/types/asdp'
+import { analyzeWorkflowGraph, workflowTriggerNodeId } from '#shared/utils/workflow-graph'
 
 const props = defineProps<{
   trigger: WorkflowTrigger | null
   nodes: WorkflowOperationNode[]
+  edges: WorkflowEdge[]
   workspace: ProjectWorkspace
   selectedNodeId: string | null
 }>()
@@ -13,9 +15,12 @@ const props = defineProps<{
 const emit = defineEmits<{
   selectNode: [id: string | null]
   updatePosition: [id: string, position: { x: number, y: number }]
+  connectEdge: [connection: Pick<WorkflowEdge, 'source' | 'target'>]
+  removeEdge: [id: string]
 }>()
 
 const { fitView, zoomIn, zoomOut } = useVueFlow({ id: 'workflow-definition-canvas' })
+const selectedEdgeId = ref<string | null>(null)
 const triggerLabels = {
   manual: { label: '手动触发', description: '由操作人员主动启动' },
   'requirement-created': { label: '需求创建时', description: '监听项目需求创建事件' },
@@ -30,15 +35,19 @@ const assetLabel = (node: WorkflowOperationNode) => {
 
 const nodeComplete = (node: WorkflowOperationNode) => {
   const operation = findAssetOperation(node.assetType, node.operationId)
-  return Boolean(assetLabel(node) && operation?.workflow.enabled && operation.contract.input.every(field =>
+  const connected = props.edges.some(edge => edge.target === node.id)
+  return Boolean(connected && assetLabel(node) && operation?.workflow.enabled && operation.contract.input.every(field =>
     !field.required || (node.inputs[field.name] !== undefined && node.inputs[field.name] !== ''),
   ))
 }
 
 const canvasNodes = computed<Node[]>(() => {
   const triggerDetails = props.trigger ? triggerLabels[props.trigger.kind] : null
+  const graph = analyzeWorkflowGraph(props.nodes.map(node => node.id), props.edges, Boolean(props.trigger))
+  const orderById = new Map(graph.orderedNodeIds.map((nodeId, index) => [nodeId, index + 1]))
+  const triggerConnected = !props.nodes.length || props.edges.some(edge => edge.source === workflowTriggerNodeId)
   return [{
-    id: 'workflow-trigger',
+    id: workflowTriggerNodeId,
     type: 'trigger',
     position: props.trigger?.position || { x: 260, y: 80 },
     draggable: Boolean(props.trigger),
@@ -47,6 +56,7 @@ const canvasNodes = computed<Node[]>(() => {
       label: triggerDetails?.label || '请选择触发器',
       description: triggerDetails?.description || '从左侧节点库选择根触发器',
       configured: Boolean(props.trigger),
+      connected: triggerConnected,
     },
   }, ...props.nodes.map((node, index) => {
     const operation = findAssetOperation(node.assetType, node.operationId)
@@ -60,26 +70,40 @@ const canvasNodes = computed<Node[]>(() => {
         assetLabel: assetLabel(node) || '资产已不存在',
         description: operation?.description || '',
         complete: nodeComplete(node),
-        order: index + 1,
+        order: orderById.get(node.id) || index + 1,
       },
     }
   })]
 })
 
-const canvasEdges = computed<Edge[]>(() => {
-  if (!props.trigger) return []
-  const ids = ['workflow-trigger', ...props.nodes.map(node => node.id)]
-  return ids.slice(0, -1).map((source, index) => ({
-    id: `workflow-edge-${index}`,
-    source,
-    target: ids[index + 1],
-    type: 'smoothstep',
-    markerEnd: MarkerType.ArrowClosed,
-    selectable: false,
-  }))
-})
+const canvasEdges = computed<Edge[]>(() => props.edges.map(edge => ({
+  ...edge,
+  type: 'smoothstep',
+  markerEnd: MarkerType.ArrowClosed,
+  selected: selectedEdgeId.value === edge.id,
+  selectable: true,
+})))
 
-const onNodeClick = ({ node }: { node: Node }) => emit('selectNode', node.id === 'workflow-trigger' ? null : node.id)
+const onNodeClick = ({ node }: { node: Node }) => {
+  selectedEdgeId.value = null
+  emit('selectNode', node.id === workflowTriggerNodeId ? null : node.id)
+}
+const onEdgeClick = ({ edge }: { edge: Edge }) => {
+  selectedEdgeId.value = edge.id
+  emit('selectNode', null)
+}
+const onConnect = (connection: { source?: string | null, target?: string | null }) => {
+  if (connection.source && connection.target) emit('connectEdge', { source: connection.source, target: connection.target })
+}
+const clearSelection = () => {
+  selectedEdgeId.value = null
+  emit('selectNode', null)
+}
+const removeSelectedEdge = () => {
+  if (!selectedEdgeId.value) return
+  emit('removeEdge', selectedEdgeId.value)
+  selectedEdgeId.value = null
+}
 const onNodeDragStop = ({ node }: { node: Node }) => emit('updatePosition', node.id, { x: node.position.x, y: node.position.y })
 let resizeTimer: ReturnType<typeof setTimeout> | undefined
 
@@ -93,6 +117,9 @@ watch(() => props.nodes.length, async () => {
   await nextTick()
   requestAnimationFrame(() => requestAnimationFrame(fitCanvas))
 })
+watch(() => props.edges, edges => {
+  if (selectedEdgeId.value && !edges.some(edge => edge.id === selectedEdgeId.value)) selectedEdgeId.value = null
+}, { deep: true })
 onMounted(() => {
   window.addEventListener('resize', onResize)
   requestAnimationFrame(() => requestAnimationFrame(fitCanvas))
@@ -106,10 +133,11 @@ onBeforeUnmount(() => {
 <template>
   <section class="workflow-canvas" aria-label="工作流画板">
     <ClientOnly>
-      <VueFlow id="workflow-definition-canvas" :nodes="canvasNodes" :edges="canvasEdges" :min-zoom="0.35" :max-zoom="1.6" :nodes-connectable="false" :edges-updatable="false" fit-view-on-init @node-click="onNodeClick" @node-drag-stop="onNodeDragStop" @pane-click="emit('selectNode', null)">
+      <VueFlow id="workflow-definition-canvas" :nodes="canvasNodes" :edges="canvasEdges" :min-zoom="0.35" :max-zoom="1.6" :nodes-connectable="Boolean(trigger)" :edges-updatable="false" :delete-key-code="null" fit-view-on-init @connect="onConnect" @node-click="onNodeClick" @edge-click="onEdgeClick" @node-drag-stop="onNodeDragStop" @pane-click="clearSelection">
         <template #node-trigger="slotProps"><WorkflowTriggerNode v-bind="slotProps" /></template>
         <template #node-operation="slotProps"><WorkflowOperationNode v-bind="slotProps" /></template>
         <div class="workflow-canvas-controls" aria-label="画板缩放工具">
+          <button v-if="selectedEdgeId" type="button" class="danger" aria-label="删除选中的连线" @click="removeSelectedEdge">删线</button>
           <button type="button" aria-label="缩小画板" @click="zoomOut()">−</button>
           <button type="button" aria-label="放大画板" @click="zoomIn()">＋</button>
           <button type="button" aria-label="适配全部节点" @click="fitView({ padding: 0.24 })">适配</button>

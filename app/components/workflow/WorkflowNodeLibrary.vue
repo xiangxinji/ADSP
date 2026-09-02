@@ -72,7 +72,7 @@ const addOperation = () => {
 
 <template>
   <aside class="workflow-sidebar workflow-library" aria-label="工作流节点库">
-    <div class="workflow-sidebar-heading"><p class="overline">NODE LIBRARY</p><h2>节点库</h2><span>先选择唯一的根触发器，再添加资产操作。</span></div>
+    <div class="workflow-sidebar-heading"><p class="overline">NODE LIBRARY</p><h2>节点库</h2><span>先选择根触发器，再添加操作并拖动端口完成连线。</span></div>
     <section class="workflow-library-section">
       <div class="workflow-library-title"><strong>1. 根触发器</strong><span>必须有且只能有一个</span></div>
       <div class="workflow-trigger-options">
@@ -83,6 +83,7 @@ const addOperation = () => {
     </section>
     <section class="workflow-library-section">
       <div class="workflow-library-title"><strong>2. 资产操作</strong><span>按共享操作契约生成节点</span></div>
+      <p class="workflow-connection-guide">添加节点后，从上游节点底部的蓝色端口拖到下游节点顶部端口。</p>
       <template v-if="assetOptions.length">
         <AppFormField field-id="workflow-asset" label="选择资产">
           <AppSelect id="workflow-asset" v-model="selectedAssetKey"><option value="">请选择资产</option><option v-for="asset in assetOptions" :key="asset.key" :value="asset.key">{{ asset.typeLabel }} · {{ asset.label }}</option></AppSelect>

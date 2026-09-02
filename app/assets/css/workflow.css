@@ -329,6 +329,16 @@
   line-height: 1.5;
 }
 
+.workflow-connection-guide {
+  margin: calc(var(--space-1) * -1) 0 var(--space-3);
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  color: var(--blue-dark);
+  background: var(--blue-soft);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
 .workflow-add-node {
   width: 100%;
 }
@@ -385,6 +395,17 @@
 .workflow-canvas .vue-flow__edge-path {
   stroke: var(--blue);
   stroke-width: 2;
+}
+
+.workflow-canvas .vue-flow__edge.selected .vue-flow__edge-path {
+  stroke: var(--purple);
+  stroke-width: 3;
+}
+
+.workflow-canvas .vue-flow__connection-path {
+  stroke: var(--purple);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
 }
 
 .workflow-canvas .vue-flow__edge marker path {
@@ -480,10 +501,18 @@
 }
 
 .workflow-flow-node .vue-flow__handle {
-  width: 9px;
-  height: 9px;
+  width: 13px;
+  height: 13px;
   border: 2px solid var(--surface);
   background: var(--blue);
+  cursor: crosshair;
+  transition: transform .15s ease, background .15s ease;
+}
+
+.workflow-flow-node .vue-flow__handle:hover,
+.workflow-flow-node .vue-flow__handle.connecting {
+  background: var(--purple);
+  transform: scale(1.25);
 }
 
 .workflow-canvas-controls {
@@ -518,6 +547,16 @@
 .workflow-canvas-controls button:hover {
   color: var(--blue);
   background: var(--blue-soft);
+}
+
+.workflow-canvas-controls button.danger {
+  color: var(--danger);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.workflow-canvas-controls button.danger:hover {
+  background: var(--danger-soft);
 }
 
 .workflow-canvas-loading {
@@ -572,12 +611,8 @@
 
 .workflow-node-actions {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: var(--space-2);
-}
-
-.workflow-node-actions .danger-outline {
-  grid-column: 1 / -1;
 }
 
 @media (max-width: 1180px) {

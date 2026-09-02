@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ProjectWorkspace, WorkflowDefinition, WorkflowTriggerKind } from '#shared/types/asdp'
+import { analyzeWorkflowGraph } from '#shared/utils/workflow-graph'
 
 defineProps<{ workspace: ProjectWorkspace, projectId: string }>()
 const emit = defineEmits<{ refresh: [] }>()
@@ -13,6 +14,11 @@ const triggerLabel = (kind?: WorkflowTriggerKind) => ({
   manual: '手动触发',
   'requirement-created': '需求创建时',
 })[kind || 'manual']
+const workflowConfigured = (workflow: WorkflowDefinition) => Boolean(workflow.trigger && !analyzeWorkflowGraph(
+  workflow.nodes.map(node => node.id),
+  workflow.edges,
+  true,
+).message)
 
 const formatDate = (value: string) => new Intl.DateTimeFormat('zh-CN', {
   month: 'short',
@@ -50,7 +56,7 @@ const removeWorkflow = async () => {
       <article v-for="workflow in workspace.workflows" :key="workflow.id" class="panel workflow-card">
         <div class="workflow-card-icon"><AppIcon name="workflow" :size="20" /></div>
         <div class="workflow-card-copy">
-          <div class="workflow-card-title"><strong>{{ workflow.name }}</strong><span :class="workflow.trigger ? 'configured' : 'draft'">{{ workflow.trigger ? '已配置' : '草稿' }}</span></div>
+          <div class="workflow-card-title"><strong>{{ workflow.name }}</strong><span :class="workflowConfigured(workflow) ? 'configured' : 'draft'">{{ workflowConfigured(workflow) ? '已配置' : '草稿' }}</span></div>
           <p>{{ workflow.note || '暂无备注' }}</p>
           <div class="workflow-card-meta"><span>{{ workflow.trigger ? triggerLabel(workflow.trigger.kind) : '未选择触发器' }}</span><span>{{ workflow.nodes.length }} 个操作节点</span><span>更新于 {{ formatDate(workflow.updatedAt) }}</span></div>
         </div>
