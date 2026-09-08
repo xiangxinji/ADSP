@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { ProjectWorkspace } from '#shared/types/asdp'
+import type { WorkflowNodeDropData } from '~/utils/workflow-node-drag'
 
 const route = useRoute()
 const projectId = String(route.params.projectId || '')
@@ -35,6 +36,10 @@ const runWorkflow = async () => {
   showRuns.value = true
   await startRun()
 }
+const addDroppedNode = (data: WorkflowNodeDropData) => {
+  if (data.type === 'async') addAsyncNode(data.position)
+  else addOperation(data.selection, data.position)
+}
 </script>
 
 <template>
@@ -69,6 +74,7 @@ const runWorkflow = async () => {
           @update-position="updatePosition" @connect-edge="connectEdge" @remove-edge="removeEdge"
           @add-async-branch="addAsyncBranch"
           @add-exception-port="addExceptionPort"
+          @drop-node="addDroppedNode"
         />
         <WorkflowRunPanel v-if="showRuns" :runs="runs" :run="selectedRun" :selected-node-id="runNodeId" :loading="runsLoading" :error="runsError" @select-run="selectedRunId = $event" @select-node="runNodeId = $event" @retry="refreshRuns" />
         <WorkflowInspector

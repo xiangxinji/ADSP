@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import type { WorkflowDefinition } from '#shared/types/asdp'
+import type { WorkflowDefinition, WorkflowNodePosition } from '#shared/types/asdp'
 import { workflowBranchLimit, workflowNodeLimit } from '#shared/utils/workflow-nodes'
 
 export const useWorkflowAsyncNodes = (
@@ -13,7 +13,7 @@ export const useWorkflowAsyncNodes = (
   }
   const newBranch = (label: string) => ({ id: globalThis.crypto.randomUUID(), label })
 
-  const addAsyncNode = () => {
+  const addAsyncNode = (position?: WorkflowNodePosition) => {
     if (!draft.value) return
     if (!draft.value.trigger || draft.value.nodes.length >= workflowNodeLimit) {
       actionError.value = !draft.value.trigger ? '请先选择根触发器。' : '工作流最多支持 50 个节点。'
@@ -23,7 +23,7 @@ export const useWorkflowAsyncNodes = (
     const node = {
       id: globalThis.crypto.randomUUID(), kind: 'async' as const, label: '异步执行',
       branches: [newBranch('子流程 1'), newBranch('子流程 2')],
-      position: { x: previous.x, y: previous.y + 220 },
+      position: position || { x: previous.x, y: previous.y + 220 },
     }
     draft.value.nodes.push(node)
     selectedNodeId.value = node.id

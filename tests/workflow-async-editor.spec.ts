@@ -22,9 +22,11 @@ const setup = () => {
 describe('async workflow editing', () => {
   test('adds a selected control node with stable, distinct child port IDs', () => {
     const editor = setup()
-    editor.addAsyncNode()
+    const droppedPosition = { x: 480, y: 320 }
+    editor.addAsyncNode(droppedPosition)
     const node = editor.draft.value!.nodes.at(-1)!
     expect(node.kind).toBe('async')
+    expect(node.position).toEqual(droppedPosition)
     if (node.kind !== 'async') throw new Error('Expected async node')
     expect(editor.selectedNodeId.value).toBe(node.id)
     expect(new Set(node.branches.map(branch => branch.id)).size).toBe(2)

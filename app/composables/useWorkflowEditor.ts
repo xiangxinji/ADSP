@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 import { findAssetOperation } from '#shared/config/asset-operations'
 import type { AssetType } from '#shared/types/asset-operations'
-import type { ProjectWorkspace, WorkflowDefinition, WorkflowOperationInputValue, WorkflowTriggerKind } from '#shared/types/asdp'
+import type { ProjectWorkspace, WorkflowDefinition, WorkflowNodePosition, WorkflowOperationInputValue, WorkflowTriggerKind } from '#shared/types/asdp'
 import { analyzeWorkflowGraph } from '#shared/utils/workflow-graph'
 import { validateAsyncWorkflowNode, workflowNodeLimit } from '#shared/utils/workflow-nodes'
 
@@ -54,7 +54,7 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
     draft.value.trigger = { kind, position: draft.value.trigger?.position || { x: 260, y: 80 } }
   }
 
-  const addOperation = (selection: { assetType: AssetType, assetId: string, operationId: string }) => {
+  const addOperation = (selection: { assetType: AssetType, assetId: string, operationId: string }, position?: WorkflowNodePosition) => {
     if (!draft.value) return
     if (draft.value.nodes.length >= workflowNodeLimit) {
       actionError.value = '工作流最多支持 50 个节点。'
@@ -70,7 +70,7 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
     const previousPosition = draft.value.nodes.at(-1)?.position
     const node = {
       id: globalThis.crypto.randomUUID(), ...selection, inputs,
-      position: previousPosition ? { x: previousPosition.x, y: previousPosition.y + 170 } : { x: 260, y: 250 },
+      position: position || (previousPosition ? { x: previousPosition.x, y: previousPosition.y + 170 } : { x: 260, y: 250 }),
     }
     draft.value.nodes.push(node)
     selectedNodeId.value = node.id

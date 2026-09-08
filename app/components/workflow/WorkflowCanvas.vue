@@ -5,6 +5,7 @@ import type { WorkflowRunStep } from '#shared/types/workflow-runs'
 import { workflowTriggerNodeId } from '#shared/utils/workflow-graph'
 import { workflowOutputPorts } from '#shared/utils/workflow-nodes'
 import type { WorkflowConnectionSource } from '~/composables/useWorkflowCanvasNodes'
+import { hasWorkflowNodeDragData, readWorkflowNodeDragData, type WorkflowNodeDropData } from '~/utils/workflow-node-drag'
 
 const props = defineProps<{
   trigger: WorkflowTrigger | null
@@ -22,10 +23,13 @@ const emit = defineEmits<{
   removeEdge: [id: string]
   addAsyncBranch: [nodeId: string]
   addExceptionPort: [nodeId: string]
+  dropNode: [data: WorkflowNodeDropData]
 }>()
-const { fitView, zoomIn, zoomOut } = useVueFlow({ id: 'workflow-definition-canvas' })
+const { fitView, screenToFlowCoordinate, zoomIn, zoomOut } = useVueFlow({ id: 'workflow-definition-canvas' })
 const selectedEdgeId = ref<string | null>(null)
 const pendingSource = ref<WorkflowConnectionSource | null>(null)
+const dragOver = ref(false)
+const skipNextNodeFit = ref(false)
 const canvasNodes = useWorkflowCanvasNodes(props, pendingSource)
 const canvasEdges = computed<Edge[]>(() => props.edges.map(edge => ({
   ...edge, type: 'smoothstep', markerEnd: MarkerType.ArrowClosed,
@@ -71,6 +75,31 @@ const removeSelectedEdge = () => {
 const onNodeDragStop = ({ node }: { node: Node }) => {
   if (!props.readOnly) emit('updatePosition', node.id, { x: node.position.x, y: node.position.y })
 }
+const acceptsNodeDrop = (event: DragEvent) => !props.readOnly && hasWorkflowNodeDragData(event.dataTransfer)
+const onDragOver = (event: DragEvent) => {
+  if (!acceptsNodeDrop(event)) return
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
+  dragOver.value = true
+}
+const onDragLeave = (event: DragEvent) => {
+  const canvas = event.currentTarget as HTMLElement
+  if (event.relatedTarget && canvas.contains(event.relatedTarget as globalThis.Node)) return
+  dragOver.value = false
+}
+const onDrop = (event: DragEvent) => {
+  dragOver.value = false
+  if (!acceptsNodeDrop(event)) return
+  const data = readWorkflowNodeDragData(event.dataTransfer)
+  if (!data) return
+  event.preventDefault()
+  const point = screenToFlowCoordinate({ x: event.clientX, y: event.clientY })
+  const position = { x: point.x - 114, y: point.y - 43 }
+  skipNextNodeFit.value = true
+  if (data.type === 'async') emit('dropNode', { type: 'async', position })
+  else emit('dropNode', { type: 'operation', selection: data.selection, position })
+  nextTick(() => { skipNextNodeFit.value = false })
+}
 let resizeTimer: ReturnType<typeof setTimeout> | undefined
 const fitCanvas = () => fitView({ padding: 0.24, duration: 200 })
 const onResize = () => {
@@ -78,6 +107,10 @@ const onResize = () => {
   resizeTimer = setTimeout(fitCanvas, 150)
 }
 watch(() => props.nodes.length, async () => {
+  if (skipNextNodeFit.value) {
+    skipNextNodeFit.value = false
+    return
+  }
   await nextTick()
   requestAnimationFrame(() => requestAnimationFrame(fitCanvas))
 })
@@ -101,7 +134,10 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section class="workflow-canvas" aria-label="工作流画板">
+  <section
+    class="workflow-canvas" :class="{ 'is-node-drag-over': dragOver }" aria-label="工作流画板"
+    @dragenter="onDragOver" @dragover="onDragOver" @dragleave="onDragLeave" @drop="onDrop"
+  >
     <ClientOnly>
       <VueFlow
         id="workflow-definition-canvas" :nodes="canvasNodes" :edges="canvasEdges" :min-zoom="0.35" :max-zoom="1.6"
@@ -119,6 +155,7 @@ onBeforeUnmount(() => {
         <template #node-async="slotProps">
           <WorkflowAsyncNode v-bind="slotProps" @select-source="selectConnectionSource(slotProps.id, $event)" @select-target="selectConnectionTarget(slotProps.id)" @add-branch="emit('addAsyncBranch', slotProps.id)" />
         </template>
+        <div v-if="dragOver" class="workflow-drop-indicator" role="status">松开以在此处添加节点</div>
         <div v-if="pendingSource" class="workflow-connection-status" role="status">已选择输出端点，请点击下游节点卡片或顶部圆点。<button type="button" @click="pendingSource = null">取消</button></div>
         <div class="workflow-canvas-controls" aria-label="画板缩放工具">
           <button v-if="selectedEdgeId" type="button" class="danger" aria-label="删除选中的连线" @click="removeSelectedEdge">删线</button>
