@@ -13,6 +13,7 @@ export type AppIconName =
   | 'knowledge'
   | 'members'
   | 'moon'
+  | 'play'
   | 'refresh'
   | 'repository'
   | 'save'

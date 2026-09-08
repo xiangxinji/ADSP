@@ -115,7 +115,7 @@ contains one required root trigger and manually connected asset-operation nodes.
 may exist without a trigger while its basic information is being created, but operation
 nodes cannot be persisted until the root trigger exists. Node positions are presentation
 metadata for the canvas. Stable directed edges are persisted with the definition and are
-the source of execution order reserved for the future orchestrator.
+the source of execution order for the manual-run orchestrator.
 
 Each operation node stores an asset type, a project-local asset ID, a stable operation ID,
 and input values. The workflow-definition service is the explicitly named cross-domain
@@ -128,6 +128,42 @@ The first release accepts only one connected, acyclic chain: the trigger and eve
 operation may have at most one downstream edge, every operation has exactly one upstream
 edge, and every operation must be reachable from the trigger. The canvas supports manual
 connection and edge deletion; branching and parallel execution remain later capabilities.
+
+### Manual Execution and Node History
+
+The editor exposes **Run workflow**, or **Save and run** for an edited definition.
+Only a configured `manual` trigger with at least one connected operation may start.
+`server/services/workflow-run-orchestration.ts` revalidates the complete saved definition,
+project-local asset ownership, shared operation contracts, and command-specific inputs
+before performing any side effects. It delegates commands to the existing asset-operation
+service; GitLab requests remain behind integrations and local repository commands retain
+the project-workspace containment primitive. No provider credentials enter run snapshots.
+
+Each attempt persists a `WorkflowRun` in SQLite with an immutable definition snapshot,
+overall status, timestamps, and ordered node results. Nodes transition from `pending` to
+`running` and then `succeeded` or `failed`. The executor persists a node's `running` state
+before invoking its command and its declared output after success. An expected failure
+retains the asset operation's stable machine-readable error code and operator message.
+Execution stops on the first failure and marks remaining nodes `skipped`; it never retries
+mutating commands automatically. Starting again creates a separate complete attempt.
+
+The start endpoint returns `202` with the initial record and keeps the in-process execution
+promise alive through Nitro's request lifecycle. The editor polls persisted records every
+second, highlights the active node on a read-only snapshot canvas, and lets users inspect
+each node's inputs, outputs, errors, and timestamps in any previous run. Closing the page
+does not cancel execution. Editing the definition does not alter existing run snapshots.
+The workflow-run repository owns all SQL and row mapping; the run-lifecycle service owns
+concurrency checks and interruption recovery. A unique active-run index prevents duplicate
+starts for a definition. Workflow/project deletion is blocked while a run is active;
+deleting an idle definition also removes its execution records.
+
+This preview executor supports one persistent Node server, not a distributed queue.
+On server startup, previously running attempts become failed with `workflow.interrupted`;
+completed node outputs are preserved and unstarted nodes are skipped. Operators must
+check external side effects before rerunning an interrupted attempt. Resume, cancellation,
+event-trigger dispatch, approval gates, and multi-worker scheduling remain future work.
+The additive `workflow_runs` table and indexes are created at database bootstrap without
+changing existing definitions or legacy `ASDP_*` configuration.
 
 `RequirementRepository` records how a repository participates, such as primary target, dependency, or read-only reference, together with branch or write-scope constraints. `RequirementParticipant` records responsibility such as requester, owner, contributor, reviewer, or approver.
 

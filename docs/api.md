@@ -55,9 +55,48 @@ requirement, the project's initial status is used. Priorities are `low`, `medium
 | `POST` | `/api/projects/:id/workflows` | Create workflow basic information as a draft |
 | `PATCH` | `/api/workflows/:id` | Update metadata, trigger, operation nodes, and directed edges |
 | `DELETE` | `/api/workflows/:id` | Delete a workflow definition |
+| `POST` | `/api/workflows/:id/runs` | Start the saved manual workflow; returns `202` |
+| `GET` | `/api/workflows/:id/runs` | Read execution history, newest first, with node results |
 
 Create body: `{ "name": string, "note": string }`. The response starts with
 `trigger: null`, `nodes: []`, and `edges: []` so the client can navigate directly to the canvas.
+
+### Manual Runs
+
+Start accepts no body or `{}`; it never accepts replacement project IDs, nodes, or inputs.
+Save edits through `PATCH` before starting. The saved definition must have a `manual`
+trigger, at least one operation, valid project-local assets, and a complete connected path.
+All command inputs are validated before creating a run or invoking any operation.
+
+The `202` response is a `WorkflowRun` (`shared/types/workflow-runs.ts`): `id`, `workflowId`,
+`workflow` (the complete definition snapshot), `status`, `steps`, `startedAt`, and
+`finishedAt`. Each ordered step includes `nodeId`, `status`, `startedAt`, `finishedAt`,
+`output` (the operation's declared result, or null), and `error` (null or `{ code, message }`).
+Run status is `running`, `succeeded`, or `failed`; steps additionally use `pending` and
+`skipped`. Times are ISO-8601 strings, or null before the corresponding event occurs.
+
+History returns the persisted `WorkflowRun[]` with `Cache-Control: no-store`. Polling once
+per second exposes the currently running node even before its command finishes. A failed
+operation preserves its shared contract error code, stops execution, and skips remaining
+nodes; it is a failed run rather than a failure of the already-accepted start request.
+Starting again creates a new attempt and re-executes the chain from the beginning.
+
+Start-time errors include `404` for missing workflows/assets, `400` for invalid definitions
+or command inputs (command validation retains its stable `data.code`), and these `409`s:
+
+| `data.code` | Meaning |
+|---|---|
+| `workflow.manual-trigger-required` | A manual trigger is required |
+| `workflow.empty` | At least one connected operation is required |
+| `workflow.already-running` | This definition already has an active attempt |
+
+Workflow/project deletion also returns `409` while a run is active. Idle deletion removes
+the associated run history. After a server restart, unfinished attempts become failed with
+`workflow.interrupted` on affected steps; completed results remain intact. The executor
+does not replay commands automatically. Unexpected command failures use
+`workflow.operation-failed` without exposing internal error details.
+
+### Definition Updates
 
 Patch requests may include `name`, `note`, `trigger`, `nodes`, or `edges`. Supported initial
 triggers are `manual` and `requirement-created`. Each trigger and operation node stores

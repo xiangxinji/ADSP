@@ -10,6 +10,7 @@ export default defineNuxtConfig({
     '@milkdown/crepe/theme/frame.css',
     '~/assets/css/main.css',
     '~/assets/css/workflow.css',
+    '~/assets/css/workflow-runs.css',
     '~/assets/css/markdown-editor.css',
   ],
   nitro: {

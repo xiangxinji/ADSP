@@ -470,6 +470,28 @@ const routeCases: ApiRouteCase[] = [
     },
   },
   {
+    route: 'POST /api/workflows/:id/runs',
+    run: async () => {
+      const missing = await harness.request('/api/workflows/missing/runs', { method: 'POST' })
+      expect(missing.status).toBe(404)
+      const started = await harness.request<{ status: string }>(`/api/workflows/${workflowId}/runs`, { method: 'POST' })
+      expect(started.status).toBe(202)
+      await expect.poll(async () => {
+        const history = await harness.request<{ status: string }[]>(`/api/workflows/${workflowId}/runs`)
+        return history.data[0].status
+      }).toBe('failed')
+    },
+  },
+  {
+    route: 'GET /api/workflows/:id/runs',
+    run: async () => {
+      const response = await harness.request<{ status: string }[]>(`/api/workflows/${workflowId}/runs`)
+      expect(response.status).toBe(200)
+      expect(response.data[0].status).toBe('failed')
+      expect(response.headers.get('cache-control')).toBe('no-store')
+    },
+  },
+  {
     route: 'POST /api/repositories/:id/clone',
     run: async () => {
       const remoteParent = join(dirname(harness.databasePath), 'remotes')

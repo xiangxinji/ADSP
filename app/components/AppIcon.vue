@@ -48,6 +48,9 @@ withDefaults(defineProps<{
       <path d="M5 3h12l2 2v16H5z" />
       <path d="M8 3v6h8V3M8 21v-7h8v7" />
     </template>
+    <template v-else-if="name === 'play'">
+      <path d="m8 4 12 8-12 8z" />
+    </template>
     <template v-else-if="name === 'search'">
       <circle cx="11" cy="11" r="7" />
       <path d="m20 20-4-4" />

@@ -90,6 +90,14 @@ likewise constrained to `<workspace>/projects/<project-id>/`. ForgePilot
 validates the global directory before saving it; application data and encrypted
 credentials remain separate control-plane state.
 
+The current workflow preview supports explicit manual execution from the editor. An
+edited definition is saved before starting, and connected asset commands execute in order.
+The active node and each completed node's output or error are visible on a read-only run
+snapshot, with historical attempts retained independently of later definition edits.
+Failures stop the chain rather than automatically repeating external mutations. This is
+the first observable execution loop, not yet the full resumable, policy-gated engine:
+event triggers, cancellation, resume, approvals, and distributed scheduling are not enabled.
+
 Requirement creation will eventually begin with a natural-language AI entry. ForgePilot will create a draft, derive acceptance criteria, recommend assets and participants, clarify missing information, and start execution according to project policy.
 
 ## Non-Goals

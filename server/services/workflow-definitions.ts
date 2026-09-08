@@ -25,6 +25,7 @@ import { getKnowledge } from './knowledge-assets'
 import { getProjectMember } from './project-members'
 import { getProject } from './projects'
 import { getRepository } from './repository-assets'
+import { assertProjectWorkflowsIdle, assertWorkflowIdle } from './workflow-runs'
 
 const workflowNodeLimit = 50
 const positionLimit = 100_000
@@ -127,6 +128,11 @@ const validateDefinition = (
 
 export const getWorkflow = (id: string) => getWorkflowRecord(id)
 
+export const validateWorkflowForExecution = (workflow: WorkflowDefinition): WorkflowDefinition => ({
+  ...workflow,
+  ...validateDefinition(workflow.projectId, workflow.trigger, workflow.nodes, workflow.edges),
+})
+
 export const listProjectWorkflows = (projectId: string) => listWorkflowDefinitions(projectId)
 
 export const createWorkflow = (projectId: string, input: CreateWorkflowInput) => {
@@ -167,9 +173,11 @@ export const updateWorkflow = (id: string, input: UpdateWorkflowInput) => {
 
 export const deleteWorkflow = (id: string) => {
   getWorkflowRecord(id)
+  assertWorkflowIdle(id)
   removeWorkflowDefinition(id)
 }
 
 export const deleteProjectWorkflows = (projectId: string) => {
+  assertProjectWorkflowsIdle(projectId)
   removeWorkflowDefinitionsForProject(projectId)
 }

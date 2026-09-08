@@ -184,6 +184,20 @@ const createDatabase = async () => {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS workflow_runs (
+      id TEXT PRIMARY KEY,
+      workflow_id TEXT NOT NULL REFERENCES workflow_definitions(id) ON DELETE CASCADE,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      definition_json TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('running', 'succeeded', 'failed')),
+      steps_json TEXT NOT NULL,
+      started_at TEXT NOT NULL,
+      finished_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS workflow_runs_history ON workflow_runs(workflow_id, started_at DESC);
+    CREATE UNIQUE INDEX IF NOT EXISTS workflow_runs_active ON workflow_runs(workflow_id) WHERE status = 'running';
+
     CREATE TABLE IF NOT EXISTS integration_settings (
       provider TEXT PRIMARY KEY,
       base_url TEXT NOT NULL,

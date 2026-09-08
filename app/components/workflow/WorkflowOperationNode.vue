@@ -1,5 +1,7 @@
 <script setup lang="ts">
 import { Handle, Position } from '@vue-flow/core'
+import { workflowRunStatusLabels } from '#shared/config/workflow-run-status'
+import type { WorkflowStepStatus } from '#shared/types/workflow-runs'
 
 defineProps<{
   data: {
@@ -10,6 +12,8 @@ defineProps<{
     order: number
     connectionSource: boolean
     awaitingTarget: boolean
+    runStatus?: WorkflowStepStatus
+    readOnly?: boolean
   }
 }>()
 
@@ -23,6 +27,7 @@ const emit = defineEmits<{
   <div
     class="workflow-flow-node operation-node"
     :class="{ incomplete: !data.complete, 'connection-target-ready': data.awaitingTarget }"
+    :data-run-status="data.runStatus"
     :role="data.awaitingTarget ? 'button' : undefined"
     :tabindex="data.awaitingTarget ? 0 : undefined"
     @click="data.awaitingTarget && emit('selectTarget')"
@@ -34,7 +39,7 @@ const emit = defineEmits<{
       :position="Position.Top"
       :class="{ 'click-target-ready': data.awaitingTarget }"
       role="button"
-      tabindex="0"
+      :tabindex="data.readOnly ? -1 : 0"
       aria-label="选择当前节点作为连线终点"
       @click.stop="emit('selectTarget')"
       @keydown.enter.stop.prevent="emit('selectTarget')"
@@ -42,14 +47,15 @@ const emit = defineEmits<{
     />
     <span class="workflow-node-order">{{ data.order }}</span>
     <div><small>资产操作</small><strong>{{ data.label }}</strong><p>{{ data.assetLabel }}</p></div>
-    <span v-if="!data.complete" class="workflow-node-warning">待配置</span>
+    <span v-if="data.runStatus" class="workflow-node-run-status workflow-run-status" :data-status="data.runStatus">{{ workflowRunStatusLabels[data.runStatus] }}</span>
+    <span v-else-if="!data.complete" class="workflow-node-warning">待配置</span>
     <span v-if="data.awaitingTarget" class="workflow-node-connect-prompt">点击节点完成连线</span>
     <Handle
       type="source"
       :position="Position.Bottom"
       :class="{ 'click-source-active': data.connectionSource }"
       role="button"
-      tabindex="0"
+      :tabindex="data.readOnly ? -1 : 0"
       aria-label="选择当前节点作为连线起点"
       @click.stop="emit('selectSource')"
       @keydown.enter.stop.prevent="emit('selectSource')"

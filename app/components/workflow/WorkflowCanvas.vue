@@ -3,6 +3,7 @@ import { MarkerType, VueFlow, useVueFlow, type Edge, type Node } from '@vue-flow
 import { findAssetOperation } from '#shared/config/asset-operations'
 import type { ProjectWorkspace, WorkflowEdge, WorkflowOperationNode, WorkflowTrigger } from '#shared/types/asdp'
 import { analyzeWorkflowGraph, workflowTriggerNodeId } from '#shared/utils/workflow-graph'
+import type { WorkflowRunStep } from '#shared/types/workflow-runs'
 
 const props = defineProps<{
   trigger: WorkflowTrigger | null
@@ -10,6 +11,8 @@ const props = defineProps<{
   edges: WorkflowEdge[]
   workspace: ProjectWorkspace
   selectedNodeId: string | null
+  runSteps?: WorkflowRunStep[]
+  readOnly?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -51,7 +54,7 @@ const canvasNodes = computed<Node[]>(() => {
     id: workflowTriggerNodeId,
     type: 'trigger',
     position: props.trigger?.position || { x: 260, y: 80 },
-    draggable: Boolean(props.trigger),
+    draggable: Boolean(props.trigger) && !props.readOnly,
     selectable: false,
     data: {
       label: triggerDetails?.label || '请选择触发器',
@@ -71,10 +74,12 @@ const canvasNodes = computed<Node[]>(() => {
         label: operation?.label || node.operationId,
         assetLabel: assetLabel(node) || '资产已不存在',
         description: operation?.description || '',
-        complete: nodeComplete(node),
+        complete: props.readOnly || nodeComplete(node),
         order: orderById.get(node.id) || index + 1,
         connectionSource: pendingSourceId.value === node.id,
         awaitingTarget: Boolean(pendingSourceId.value && pendingSourceId.value !== node.id),
+        runStatus: props.runSteps?.find(step => step.nodeId === node.id)?.status,
+        readOnly: props.readOnly,
       },
     }
   })]
@@ -93,14 +98,17 @@ const onNodeClick = ({ node }: { node: Node }) => {
   emit('selectNode', node.id === workflowTriggerNodeId ? null : node.id)
 }
 const onEdgeClick = ({ edge }: { edge: Edge }) => {
+  if (props.readOnly) return
   selectedEdgeId.value = edge.id
   emit('selectNode', null)
 }
 const onConnect = (connection: { source?: string | null, target?: string | null }) => {
+  if (props.readOnly) return
   if (connection.source && connection.target) emit('connectEdge', { source: connection.source, target: connection.target })
   pendingSourceId.value = null
 }
 const selectConnectionSource = (sourceId: string) => {
+  if (props.readOnly) return
   pendingSourceId.value = pendingSourceId.value === sourceId ? null : sourceId
   selectedEdgeId.value = null
 }
@@ -148,7 +156,7 @@ onBeforeUnmount(() => {
 <template>
   <section class="workflow-canvas" aria-label="工作流画板">
     <ClientOnly>
-      <VueFlow id="workflow-definition-canvas" :nodes="canvasNodes" :edges="canvasEdges" :min-zoom="0.35" :max-zoom="1.6" :nodes-connectable="true" :edges-updatable="false" :delete-key-code="null" fit-view-on-init @connect="onConnect" @node-click="onNodeClick" @edge-click="onEdgeClick" @node-drag-stop="onNodeDragStop" @pane-click="clearSelection">
+      <VueFlow id="workflow-definition-canvas" :nodes="canvasNodes" :edges="canvasEdges" :min-zoom="0.35" :max-zoom="1.6" :nodes-connectable="!readOnly" :nodes-draggable="!readOnly" :edges-updatable="false" :delete-key-code="null" fit-view-on-init @connect="onConnect" @node-click="onNodeClick" @edge-click="onEdgeClick" @node-drag-stop="onNodeDragStop" @pane-click="clearSelection">
         <template #node-trigger="slotProps"><WorkflowTriggerNode v-bind="slotProps" @select-source="selectConnectionSource(slotProps.id)" /></template>
         <template #node-operation="slotProps"><WorkflowOperationNode v-bind="slotProps" @select-source="selectConnectionSource(slotProps.id)" @select-target="selectConnectionTarget(slotProps.id)" /></template>
         <div v-if="pendingSourceId" class="workflow-connection-status" role="status">已选择起点，请点击下游节点卡片或顶部圆点。<button type="button" @click="pendingSourceId = null">取消</button></div>
