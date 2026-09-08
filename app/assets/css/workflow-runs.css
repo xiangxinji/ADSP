@@ -108,9 +108,11 @@
 .workflow-run-detail dt,
 .workflow-run-id { color: var(--muted); }
 .workflow-run-detail dd { margin: 0 0 var(--space-2); }
-.workflow-run-detail summary { cursor: pointer; font-size: var(--font-size-xs); }
+.workflow-run-detail summary,
+.workflow-run-root summary { cursor: pointer; font-size: var(--font-size-xs); }
 
-.workflow-run-detail pre {
+.workflow-run-detail pre,
+.workflow-run-root pre {
   max-height: 300px;
   overflow: auto;
   padding: var(--space-2);

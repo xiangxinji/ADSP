@@ -120,7 +120,14 @@ metadata for the canvas. Stable directed edges are persisted with the definition
 the source of execution order for the manual-run orchestrator.
 
 Each operation node stores an asset type, a project-local asset ID, a stable operation ID,
-and input values. The workflow-definition service is the explicitly named cross-domain
+and input values. An input may be a literal or an exact `$root.path` / `$prev.path`
+reference. Dot paths traverse nested objects and numeric array indexes. The root source is
+the trigger value for the attempt; the previous source is the value propagated along the
+currently executing path. Successful operations propagate their contract output, exception
+edges propagate `{ code, message }`, async child paths inherit the value that entered the
+control node, and async completion/error outlets receive the control result. This keeps
+data flow deterministic through nested async and exception paths without allowing arbitrary
+cross-branch reads. The workflow-definition service is the explicitly named cross-domain
 orchestration boundary that verifies asset ownership and the operation contract before
 writing. It reads workflow-ready commands from `shared/config/asset-operations.ts` and
 does not duplicate their inputs, outputs, exceptions, or provider-specific payloads.
@@ -158,9 +165,13 @@ changing the saved definition. Both editor and server reuse shared graph validat
 
 The editor exposes **Run workflow**, or **Save and run** for an edited definition.
 Only a configured `manual` trigger with at least one connected operation may start.
+The manual-run dialog accepts one JSON object as the root trigger output. Each run persists
+that root object, the immutable configured input expressions, and each operation's resolved
+inputs so later audits can distinguish authored bindings from values actually sent.
 `server/services/workflow-run-orchestration.ts` revalidates the complete saved definition,
-project-local asset ownership, shared operation contracts, and command-specific inputs
-before performing any side effects. It delegates commands to the existing asset-operation
+project-local asset ownership, shared operation contracts, and every literal command input
+before performing any side effects. Reference inputs are resolved, type-checked against the
+target contract, and command-validated immediately before their node executes. It delegates commands to the existing asset-operation
 service through `server/services/workflow-graph-execution.ts`; GitLab requests remain behind integrations and local repository commands retain
 the project-workspace containment primitive. No provider credentials enter run snapshots.
 
@@ -169,6 +180,9 @@ overall status, timestamps, and ordered node results. Nodes transition from `pen
 `running` and then `succeeded` or `failed`. The executor persists a node's `running` state
 before invoking its command and its declared output after success. An expected failure
 retains the asset operation's stable machine-readable error code and operator message.
+Successful operation results are checked against the declared output field names and types
+before they can become the next node's value. Missing paths and type mismatches fail the
+current node before its external command is invoked.
 Execution stops the failing normal path, executes a matching configured exception path,
 and leaves independent asynchronous siblings running. Async node outputs record each
 child result and the selected outlet. It never retries mutating commands automatically.

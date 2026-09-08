@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { findAssetOperation } from '../../shared/config/asset-operations'
+import type { AssetOperationField } from '../../shared/types/asset-operations'
 import {
   workflowTriggerKinds,
   type CreateWorkflowInput,
@@ -13,6 +14,7 @@ import {
 } from '../../shared/types/asdp'
 import { analyzeWorkflowGraph } from '../../shared/utils/workflow-graph'
 import { validateAsyncWorkflowNode, workflowNodeLimit } from '../../shared/utils/workflow-nodes'
+import { parseWorkflowValueReference, workflowValueReferenceError } from '../../shared/utils/workflow-values'
 import {
   findWorkflowDefinition,
   insertWorkflowDefinition,
@@ -51,7 +53,7 @@ const validateTrigger = (trigger: WorkflowTrigger | null) => {
 
 const validateOperationInputs = (
   node: WorkflowOperationNode,
-  contractFields: readonly { name: string, type: string, required?: boolean }[],
+  contractFields: readonly AssetOperationField[],
 ) => {
   const allowedNames = new Set(contractFields.map(field => field.name))
   const unknownName = Object.keys(node.inputs).find(name => !allowedNames.has(name))
@@ -64,9 +66,12 @@ const validateOperationInputs = (
       throw badRequest(`Workflow node input is required: ${field.name}`)
     }
     if (value === undefined) return
+    const referenceError = workflowValueReferenceError(value)
+    if (referenceError) throw badRequest(referenceError)
+    const reference = parseWorkflowValueReference(value)
     if (field.type === 'boolean') {
-      if (typeof value !== 'boolean') throw badRequest(`Workflow node input must be boolean: ${field.name}`)
-      inputs[field.name] = value
+      if (typeof value !== 'boolean' && !reference) throw badRequest(`Workflow node input must be boolean: ${field.name}`)
+      inputs[field.name] = typeof value === 'string' ? value.trim() : value
       return
     }
     if (typeof value !== 'string') throw badRequest(`Workflow node input must be a string: ${field.name}`)

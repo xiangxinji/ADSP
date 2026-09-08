@@ -97,6 +97,10 @@ a completion or error path after all children finish. Asset-operation nodes can 
 exception ports selected from the operation contract's stable error codes and connect
 each port to a handling child path. Successful commands follow only the normal outlet;
 failed commands follow only the matching, connected exception outlet. Other paths are skipped.
+Manual runs accept a JSON root value. Asset-operation inputs may read nested root fields with
+`$root.xxx` or the previous value on their active path with `$prev.xxx`; resolved inputs and
+typed contract outputs are retained in the run history. Async child paths inherit their
+incoming value, so bindings remain deterministic when async and exception paths are nested.
 The active node and each completed node's output or error are visible on a read-only run
 snapshot, with historical attempts retained independently of later definition edits.
 Failures without a matching handler stop their path without stopping independent async

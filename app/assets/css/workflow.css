@@ -800,6 +800,38 @@
   color: var(--text-secondary);
 }
 
+.workflow-value-reference-preview {
+  color: var(--blue);
+  font-family: "Cascadia Code", Consolas, monospace;
+  font-size: 10px;
+}
+
+.workflow-output-contract {
+  display: grid;
+  gap: var(--space-1-5);
+  margin: var(--space-3) 0;
+  padding: var(--space-2);
+  border: 1px solid var(--line-subtle);
+  border-radius: var(--radius-md);
+  background: var(--surface-subtle);
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.workflow-output-contract strong {
+  color: var(--text-strong);
+  font-size: var(--font-size-xs);
+}
+
+.workflow-output-contract span {
+  display: grid;
+  gap: 2px;
+}
+
+.workflow-output-contract code {
+  color: var(--purple);
+}
+
 .workflow-node-actions {
   display: grid;
   grid-template-columns: 1fr;

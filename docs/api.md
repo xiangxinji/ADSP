@@ -63,15 +63,20 @@ Create body: `{ "name": string, "note": string }`. The response starts with
 
 ### Manual Runs
 
-Start accepts no body or `{}`; it never accepts replacement project IDs, nodes, or inputs.
+Start accepts no body, `{}`, or `{ "root": { ... } }`; it never accepts replacement project
+IDs, nodes, or saved inputs. `root` is the manual trigger's JSON object for this attempt.
+It is persisted in run history and must not contain credentials or other secrets.
 Save edits through `PATCH` before starting. The saved definition must have a `manual`
 trigger, at least one operation, valid project-local assets, and a complete connected path.
-All command inputs are validated before creating a run or invoking any operation.
+Literal command inputs are validated before creating a run. Reference-based inputs are
+type-checked and command-validated immediately before their node executes, after their
+source output exists.
 
 The `202` response is a `WorkflowRun` (`shared/types/workflow-runs.ts`): `id`, `workflowId`,
-`workflow` (the complete definition snapshot), `status`, `steps`, `startedAt`, and
+`workflow` (the complete definition snapshot), `root`, `status`, `steps`, `startedAt`, and
 `finishedAt`. Each ordered step includes `nodeId`, `status`, `startedAt`, `finishedAt`,
-`output` (the operation's declared result, or null), and `error` (null or `{ code, message }`).
+`resolvedInputs`, `output` (the operation's declared result, or null), and `error` (null or
+`{ code, message }`).
 Run status is `running`, `succeeded`, or `failed`; steps additionally use `pending` and
 `skipped`. Times are ISO-8601 strings, or null before the corresponding event occurs.
 
@@ -80,6 +85,19 @@ per second exposes the currently running node even before its command finishes. 
 operation preserves its shared contract error code, stops execution, and skips remaining
 nodes; it is a failed run rather than a failure of the already-accepted start request.
 Starting again creates a new attempt and re-executes the chain from the beginning.
+
+Operation input strings may be exact value references. `$root.release.branch` reads the
+manual trigger object, while `$prev.branch` reads the previous value on the currently
+executing path. Dot segments traverse nested objects; numeric segments traverse arrays,
+for example `$root.releases.0.branch`. References replace the complete input value and
+preserve its type; they are not string templates. A normal operation edge supplies the
+successful operation output. An exception edge supplies `{ code, message }`. An async
+child branch inherits the value that entered its control node, while the control
+node's `complete` or `error` outlet receives its `{ branches, selectedPort }` output.
+
+Runtime reference failures use `workflow.input-reference-not-found`,
+`workflow.previous-output-unavailable`, or `workflow.input-type-mismatch` and stop that
+path before invoking its command.
 
 Start-time errors include `404` for missing workflows/assets, `400` for invalid definitions
 or command inputs (command validation retains its stable `data.code`), and these `409`s:
@@ -110,8 +128,8 @@ finite canvas coordinates. An operation node has the following stable shape:
   "operationId": "repository.create-branch",
   "inputs": {
     "repositoryId": "repository-uuid",
-    "branch": "feature/workflow",
-    "source": "main"
+    "branch": "$root.release.branch",
+    "source": "$prev.branch"
   },
   "position": { "x": 420, "y": 180 }
 }

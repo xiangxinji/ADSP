@@ -1,4 +1,5 @@
 import type { WorkflowRun } from '#shared/types/workflow-runs'
+import type { WorkflowValueObject } from '#shared/types/asdp'
 
 export const useWorkflowRuns = (workflowId: string) => {
   const runs = ref<WorkflowRun[]>([])
@@ -38,12 +39,12 @@ export const useWorkflowRuns = (workflowId: string) => {
     if (!disposed) timer = setTimeout(poll, 1000)
   }
 
-  const startRun = async () => {
+  const startRun = async (root: WorkflowValueObject = {}) => {
     if (running.value || loading.value || loadError.value) return false
     starting.value = true
     startError.value = ''
     try {
-      const run = await $fetch<WorkflowRun>(endpoint, { method: 'POST' })
+      const run = await $fetch<WorkflowRun>(endpoint, { method: 'POST', body: { root } })
       revision += 1
       runs.value = [run, ...runs.value.filter(item => item.id !== run.id)]
       selectedRunId.value = run.id

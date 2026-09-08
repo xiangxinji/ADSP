@@ -26,6 +26,14 @@ const operation = computed(() => operationNode.value
   ? findAssetOperation(operationNode.value.assetType, operationNode.value.operationId) : undefined)
 const inputFields = computed(() => operation.value?.workflow.enabled
   ? operation.value.contract.input.filter(field => field.name !== operationNode.value?.assetType + 'Id') : [])
+const previousFields = computed(() => {
+  if (!operationNode.value) return []
+  const edge = props.workflow.edges.find(edge => edge.target === operationNode.value?.id)
+  const previous = props.workflow.nodes.find(node => node.id === edge?.source)
+  if (!previous || previous.kind === 'async' || edge?.sourceHandle) return []
+  const previousOperation = findAssetOperation(previous.assetType, previous.operationId)
+  return previousOperation?.workflow.enabled ? previousOperation.contract.output : []
+})
 const assetLabel = computed(() => {
   if (!operationNode.value) return ''
   const { assetType, assetId } = operationNode.value
@@ -62,14 +70,16 @@ const assetLabel = computed(() => {
         <div class="workflow-selected-summary"><span><AppIcon name="repository" :size="16" /></span><div><strong>{{ operation.label }}</strong><small>{{ assetLabel || '资产已不存在' }}</small></div></div>
         <p class="workflow-operation-help">{{ operation.description }}</p>
         <template v-if="inputFields.length">
-          <AppFormField v-for="field in inputFields" :key="field.name" :field-id="'workflow-input-' + field.name" :label="field.name" :hint="field.description">
-            <label v-if="field.type === 'boolean'" class="workflow-boolean-input">
-              <AppCheckbox :model-value="Boolean(operationNode.inputs[field.name])" @update:model-value="emit('updateInput', field.name, Boolean($event))" />启用
-            </label>
-            <AppInput v-else :id="'workflow-input-' + field.name" :model-value="String(operationNode.inputs[field.name] || '')" :required="field.required" @update:model-value="emit('updateInput', field.name, String($event || ''))" />
-          </AppFormField>
+          <WorkflowInputField
+            v-for="field in inputFields" :key="field.name" :field="field" :model-value="operationNode.inputs[field.name]"
+            :previous-fields="previousFields" @update:model-value="emit('updateInput', field.name, $event)"
+          />
         </template>
         <p v-else class="workflow-library-empty compact">该操作无需额外参数。</p>
+        <div class="workflow-output-contract">
+          <strong>节点输出类型</strong>
+          <span v-for="field in operation.contract.output" :key="field.name"><code>{{ field.name }}: {{ field.type }}</code>{{ field.description }}</span>
+        </div>
         <WorkflowExceptionInspector
           :key="operationNode.id" :node="operationNode"
           @add-port="emit('addExceptionPort', operationNode.id)"

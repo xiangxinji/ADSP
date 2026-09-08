@@ -168,7 +168,10 @@ export type WorkflowTrigger = {
   position: WorkflowNodePosition
 }
 
+export type WorkflowValue = string | number | boolean | null | WorkflowValue[] | { [key: string]: WorkflowValue }
+export type WorkflowValueObject = Record<string, WorkflowValue>
 export type WorkflowOperationInputValue = string | boolean
+export type WorkflowOperationResolvedInputs = Record<string, string | boolean>
 
 export type WorkflowExceptionPort = {
   id: string

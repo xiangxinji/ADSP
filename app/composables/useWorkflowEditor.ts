@@ -4,6 +4,7 @@ import type { AssetType } from '#shared/types/asset-operations'
 import type { ProjectWorkspace, WorkflowDefinition, WorkflowNodePosition, WorkflowOperationInputValue, WorkflowTriggerKind } from '#shared/types/asdp'
 import { analyzeWorkflowGraph } from '#shared/utils/workflow-graph'
 import { validateAsyncWorkflowNode, workflowNodeLimit } from '#shared/utils/workflow-nodes'
+import { workflowValueReferenceError } from '#shared/utils/workflow-values'
 
 const cloneWorkflow = (workflow: WorkflowDefinition): WorkflowDefinition => structuredClone(toRaw(workflow))
 
@@ -43,6 +44,8 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
       const operation = findAssetOperation(node.assetType, node.operationId)
       if (!assetExists(node.assetType, node.assetId)) return '存在已删除或不属于当前项目的资产节点。'
       if (!operation?.workflow.enabled) return '存在不可用于工作流的资产操作。'
+      const invalidReference = Object.values(node.inputs).map(workflowValueReferenceError).find(Boolean)
+      if (invalidReference) return invalidReference
       const missing = operation.contract.input.find(field => field.required && (node.inputs[field.name] === undefined || node.inputs[field.name] === ''))
       if (missing) return `节点“${operation.label}”缺少参数 ${missing.name}。`
     }

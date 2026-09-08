@@ -19,7 +19,7 @@ export const workflowFixture = (nodes: WorkflowNode[], edges: WorkflowEdge[]): W
   createdAt: '', updatedAt: '',
 })
 export const runFixture = (nodes: WorkflowNode[], edges: WorkflowEdge[]): WorkflowRun => ({
-  id: 'run-1', workflowId: 'workflow-1', status: 'running', workflow: workflowFixture(nodes, edges),
+  id: 'run-1', workflowId: 'workflow-1', root: {}, status: 'running', workflow: workflowFixture(nodes, edges),
   startedAt: new Date().toISOString(), finishedAt: null,
-  steps: nodes.map(node => ({ nodeId: node.id, status: 'pending', startedAt: null, finishedAt: null, output: null, error: null })),
+  steps: nodes.map(node => ({ nodeId: node.id, status: 'pending', startedAt: null, finishedAt: null, resolvedInputs: null, output: null, error: null })),
 })

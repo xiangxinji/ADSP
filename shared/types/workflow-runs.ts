@@ -6,6 +6,8 @@ import type {
   RepositoryUpdateResult,
   RepositoryWorktreeResult,
   WorkflowDefinition,
+  WorkflowOperationResolvedInputs,
+  WorkflowValueObject,
 } from './asdp'
 
 export type WorkflowRunStatus = 'running' | 'succeeded' | 'failed'
@@ -31,6 +33,7 @@ export type WorkflowRunStep = {
   status: WorkflowStepStatus
   startedAt: string | null
   finishedAt: string | null
+  resolvedInputs: WorkflowOperationResolvedInputs | null
   output: RepositoryBranchResult | RepositoryCloneResult | RepositoryLocalCloneStatusResult
     | RepositoryMergeRequestResult | RepositoryUpdateResult | RepositoryWorktreeResult | WorkflowAsyncOutput | null
   error: WorkflowRunError | null
@@ -40,6 +43,7 @@ export type WorkflowRun = {
   id: string
   workflowId: string
   workflow: WorkflowDefinition
+  root: WorkflowValueObject
   status: WorkflowRunStatus
   steps: WorkflowRunStep[]
   startedAt: string

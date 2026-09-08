@@ -4,7 +4,7 @@ import { useWorkflowRuns } from '../app/composables/useWorkflowRuns'
 import type { WorkflowRun } from '../shared/types/workflow-runs'
 
 const result = (status: WorkflowRun['status'] = 'running'): WorkflowRun => ({
-  id: 'run-1', workflowId: 'workflow-1', status, steps: [],
+  id: 'run-1', workflowId: 'workflow-1', root: {}, status, steps: [],
   startedAt: '2026-09-08T00:00:00.000Z', finishedAt: null,
   workflow: { id: 'workflow-1', projectId: 'project-1', name: 'Test', note: '', trigger: null, nodes: [], edges: [], createdAt: '', updatedAt: '' },
 })
@@ -66,7 +66,7 @@ describe('workflow run polling', () => {
     await older
     expect(state.selectedRunId.value).toBe('run-1')
     expect(state.selectedRun.value?.status).toBe('running')
-    expect(fetchMock).toHaveBeenCalledWith('/api/workflows/workflow-1/runs', { method: 'POST' })
+    expect(fetchMock).toHaveBeenCalledWith('/api/workflows/workflow-1/runs', { method: 'POST', body: { root: {} } })
   })
 
   test('reports start failures without inventing an execution record', async () => {

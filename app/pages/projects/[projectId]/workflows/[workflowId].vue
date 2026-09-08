@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ProjectWorkspace } from '#shared/types/asdp'
+import type { ProjectWorkspace, WorkflowValueObject } from '#shared/types/asdp'
 import type { WorkflowNodeDropData } from '~/utils/workflow-node-drag'
 
 const route = useRoute()
@@ -17,6 +17,7 @@ const {
   loadError: runsError, startError, startRun, refreshRuns,
 } = useWorkflowRuns(workflowId)
 const showRuns = ref(false)
+const runDialogOpen = ref(false)
 const runNodeId = ref<string | null>(null)
 const displayedWorkflow = computed(() => showRuns.value && selectedRun.value ? selectedRun.value.workflow : draft.value!)
 const runDisabledReason = computed(() => {
@@ -33,8 +34,12 @@ watch(running, (active) => { if (active) showRuns.value = true })
 const runWorkflow = async () => {
   if (saving.value || runDisabledReason.value) return
   if (dirty.value && !await save()) return
+  runDialogOpen.value = true
+}
+const confirmRun = async (root: WorkflowValueObject) => {
+  if (!await startRun(root)) return
+  runDialogOpen.value = false
   showRuns.value = true
-  await startRun()
 }
 const addDroppedNode = (data: WorkflowNodeDropData) => {
   if (data.type === 'async') addAsyncNode(data.position)
@@ -87,5 +92,9 @@ const addDroppedNode = (data: WorkflowNodeDropData) => {
       </div>
     </main>
     <main v-else id="main-content" class="page"><AppAsyncState :pending="status === 'pending'" :error-message="error?.statusMessage || '工作流不存在'" @retry="refresh" /></main>
+    <WorkflowRunDialog
+      :open="runDialogOpen" :busy="starting" :default-root="selectedRun?.root || {}" :error="startError"
+      @close="runDialogOpen = false" @run="confirmRun"
+    />
   </div>
 </template>

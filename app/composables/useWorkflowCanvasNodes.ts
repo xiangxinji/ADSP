@@ -5,6 +5,7 @@ import type { ProjectWorkspace, WorkflowEdge, WorkflowNode, WorkflowOperationNod
 import type { WorkflowRunStep } from '#shared/types/workflow-runs'
 import { analyzeWorkflowGraph, workflowTriggerNodeId } from '#shared/utils/workflow-graph'
 import { validateAsyncWorkflowNode, validateWorkflowExceptionPorts, workflowOperationExceptions } from '#shared/utils/workflow-nodes'
+import { workflowValueReferenceError } from '#shared/utils/workflow-values'
 
 export type WorkflowCanvasProps = {
   trigger: WorkflowTrigger | null
@@ -25,7 +26,7 @@ export const useWorkflowCanvasNodes = (props: WorkflowCanvasProps, pendingSource
     return props.workspace.knowledge.find(asset => asset.id === node.assetId)?.title
   }
   const triggerLabels = {
-    manual: { label: '手动触发', description: '由操作人员主动启动' },
+    manual: { label: '手动触发', description: '输入 JSON 根数据 · 输出 object' },
     'requirement-created': { label: '需求创建时', description: '监听项目需求创建事件' },
   }
   return computed<Node[]>(() => {
@@ -74,6 +75,7 @@ export const useWorkflowCanvasNodes = (props: WorkflowCanvasProps, pendingSource
         canAddException: exceptions.some(exception => !node.exceptionPorts?.some(port => port.code === exception.code)),
         assetLabel: assetLabel(node) || '资产已不存在', description: operation?.description || '',
         complete: props.readOnly || Boolean(connected && assetLabel(node) && !validateWorkflowExceptionPorts(node) && operation?.workflow.enabled
+          && !Object.values(node.inputs).some(workflowValueReferenceError)
           && operation.contract.input.every(field => !field.required || (node.inputs[field.name] !== undefined && node.inputs[field.name] !== ''))),
       } }
     })]

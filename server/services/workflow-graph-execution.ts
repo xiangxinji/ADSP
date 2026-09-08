@@ -1,12 +1,15 @@
+import { findAssetOperation } from '../../shared/config/asset-operations'
+import type { WorkflowOperationInputValue, WorkflowValue } from '../../shared/types/asdp'
 import type { WorkflowAsyncBranchResult, WorkflowRun, WorkflowRunError } from '../../shared/types/workflow-runs'
 import { workflowTriggerNodeId } from '../../shared/utils/workflow-graph'
 import { updateWorkflowRun } from '../repositories/workflow-runs'
 import { assetOperationErrorCode } from '../utils/asset-operation-error'
-import type { assetOperationInput } from '../validation/asset-operation-input'
+import { assetOperationInput as validateAssetOperationInput } from '../validation/asset-operation-input'
 import { executeAssetOperation } from './asset-operations'
+import { assertWorkflowOperationOutput, resolveWorkflowOperationInputs } from './workflow-value-resolution'
 
 type ExecutionFailure = { nodeId: string, error: WorkflowRunError }
-export type WorkflowRunInputs = Map<string, ReturnType<typeof assetOperationInput>>
+export type WorkflowRunInputs = Map<string, Record<string, WorkflowOperationInputValue>>
 
 const operationError = (error: unknown): WorkflowRunError => {
   const code = assetOperationErrorCode(error)
@@ -32,7 +35,7 @@ export const executeWorkflowGraph = async (run: WorkflowRun, inputs: WorkflowRun
     run.workflow.edges.filter(edge => edge.source === nodeId).forEach(edge => skipPath(edge.target))
   }
 
-  const executePath = async (nodeId?: string): Promise<ExecutionFailure | null> => {
+  const executePath = async (nodeId?: string, previous?: WorkflowValue): Promise<ExecutionFailure | null> => {
     if (!nodeId) return null
     const node = nodesById.get(nodeId)!
     const step = stepsById.get(nodeId)!
@@ -46,7 +49,7 @@ export const executeWorkflowGraph = async (run: WorkflowRun, inputs: WorkflowRun
         return target ? [{ branch, target }] : []
       })
       const branches = await Promise.all(connectedBranches.map(async ({ branch, target }): Promise<WorkflowAsyncBranchResult> => {
-        const failure = await executePath(target)
+        const failure = await executePath(target, previous)
         return {
           portId: branch.id, nodeId: target, status: failure ? 'failed' : 'succeeded',
           failedNodeId: failure?.nodeId || null, error: failure?.error || null,
@@ -60,32 +63,47 @@ export const executeWorkflowGraph = async (run: WorkflowRun, inputs: WorkflowRun
       step.finishedAt = new Date().toISOString()
       skipPath(targetFor(node.id, failedBranch ? 'complete' : 'error'))
       updateWorkflowRun(run)
-      const outletFailure = await executePath(targetFor(node.id, selectedPort))
+      const outletFailure = await executePath(targetFor(node.id, selectedPort), step.output as WorkflowValue)
       return failedBranch
         ? { nodeId: failedBranch.failedNodeId!, error: failedBranch.error! }
         : outletFailure
     }
 
     let nextNodeId: string | undefined
+    let nextValue: WorkflowValue | undefined
     try {
-      step.output = await executeAssetOperation(node.assetType, node.assetId, node.operationId, inputs.get(node.id)!)
+      const operation = findAssetOperation(node.assetType, node.operationId)!
+      step.resolvedInputs = resolveWorkflowOperationInputs(
+        inputs.get(node.id) || node.inputs,
+        operation.contract.input,
+        run.root,
+        previous,
+      )
+      const operationInput = validateAssetOperationInput(node.operationId, step.resolvedInputs)
+      const output = await executeAssetOperation(node.assetType, node.assetId, node.operationId, operationInput)
+      assertWorkflowOperationOutput(operation.contract.output, output)
+      step.output = output
+      nextValue = output as WorkflowValue
       step.status = 'succeeded'
       nextNodeId = targetFor(node.id)
     } catch (error) {
       step.status = 'failed'
       step.error = operationError(error)
       const port = node.exceptionPorts?.find(port => port.code === step.error?.code)
-      if (port) nextNodeId = targetFor(node.id, port.id)
+      if (port) {
+        nextNodeId = targetFor(node.id, port.id)
+        nextValue = step.error
+      }
     }
     run.workflow.edges.filter(edge => edge.source === node.id && edge.target !== nextNodeId)
       .forEach(edge => skipPath(edge.target))
     step.finishedAt = new Date().toISOString()
     updateWorkflowRun(run)
-    const nextFailure = await executePath(nextNodeId)
+    const nextFailure = await executePath(nextNodeId, nextValue)
     return step.error ? { nodeId, error: step.error } : nextFailure
   }
 
-  await executePath(targetFor(workflowTriggerNodeId))
+  await executePath(targetFor(workflowTriggerNodeId), run.root)
   run.status = run.steps.some(step => step.status === 'failed') ? 'failed' : 'succeeded'
   run.finishedAt = new Date().toISOString()
   updateWorkflowRun(run)

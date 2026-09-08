@@ -110,7 +110,7 @@ describe('async workflow execution', () => {
   test('skips an entire async subtree if its upstream fails', async () => {
     const run = fixture()
     run.workflow.nodes.unshift(operationNode('upstream'))
-    run.steps.unshift({ nodeId: 'upstream', status: 'pending', startedAt: null, finishedAt: null, output: null, error: null })
+    run.steps.unshift({ nodeId: 'upstream', status: 'pending', startedAt: null, finishedAt: null, resolvedInputs: null, output: null, error: null })
     run.workflow.edges[0] = edge('workflow-trigger', 'upstream')
     run.workflow.edges.push(edge('upstream', 'parallel'))
     failures.set('upstream', new Error('failed'))

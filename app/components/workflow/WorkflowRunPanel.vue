@@ -62,6 +62,7 @@ const duration = computed(() => {
         <p v-else-if="run.status === 'running'">等待节点执行状态更新。</p>
         <p v-else>执行完成，未命中的出口已跳过。</p>
       </section>
+      <details class="workflow-run-root"><summary>根触发器输出</summary><pre>{{ JSON.stringify(run.root, null, 2) }}</pre></details>
       <ol class="workflow-run-steps" aria-label="节点执行进度">
         <li v-for="(step, index) in run.steps" :key="step.nodeId">
           <button type="button" :aria-pressed="selectedStep?.nodeId === step.nodeId" :aria-current="step.status === 'running' ? 'step' : undefined" @click="emit('selectNode', step.nodeId)">
@@ -73,7 +74,8 @@ const duration = computed(() => {
       <section v-if="selectedStep && selectedNode" class="workflow-run-detail" aria-label="节点执行结果">
         <h3>{{ nodeLabel(selectedStep.nodeId) }}</h3>
         <dl><dt>开始时间</dt><dd>{{ formatTime(selectedStep.startedAt) }}</dd><dt>结束时间</dt><dd>{{ formatTime(selectedStep.finishedAt) }}</dd><dt>耗时</dt><dd>{{ duration }}</dd></dl>
-        <details><summary>{{ selectedNode.kind === 'async' ? '子端点配置' : '输入参数' }}</summary><pre>{{ JSON.stringify(selectedInputs, null, 2) }}</pre></details>
+        <details><summary>{{ selectedNode.kind === 'async' ? '子端点配置' : '配置输入' }}</summary><pre>{{ JSON.stringify(selectedInputs, null, 2) }}</pre></details>
+        <details v-if="selectedStep.resolvedInputs"><summary>实际输入</summary><pre>{{ JSON.stringify(selectedStep.resolvedInputs, null, 2) }}</pre></details>
         <section v-if="asyncOutput" class="workflow-async-results" aria-label="异步子流程结果">
           <h4>执行出口：{{ asyncOutput.selectedPort === 'complete' ? '完成' : '异常' }}</h4>
           <button v-for="branch in asyncOutput.branches" :key="branch.portId" type="button" @click="emit('selectNode', branch.failedNodeId || branch.nodeId)">

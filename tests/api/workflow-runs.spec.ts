@@ -92,6 +92,54 @@ describe('manual workflow runs', () => {
     expect(result.finishedAt).toBeTruthy()
   })
 
+  test('resolves nested root and previous output values and persists actual inputs', async () => {
+    const first = branchNode('value-first', '$root.releases.0.branch')
+    const second = branchNode('value-second', '$root.releases.1.branch', '$prev.branch')
+    const workflow = await createWorkflow([first, second])
+    const root = { releases: [{ branch: 'feature/api-value-first' }, { branch: 'feature/api-value-second' }] }
+
+    const started = await harness.request<WorkflowRun>(`/api/workflows/${workflow.id}/runs`, {
+      method: 'POST', body: { root },
+    })
+    expect(started.status).toBe(202)
+    expect(started.data.root).toEqual(root)
+    const result = await finishedRun(workflow.id)
+
+    expect(result.status).toBe('succeeded')
+    expect(result.root).toEqual(root)
+    expect(result.steps[0].resolvedInputs).toMatchObject({ branch: 'feature/api-value-first', source: 'main' })
+    expect(result.steps[1].resolvedInputs).toMatchObject({ branch: 'feature/api-value-second', source: 'feature/api-value-first' })
+    expect(harness.gitLabRequests.some(request => request.query.branch === 'feature/api-value-second'
+      && request.query.ref === 'feature/api-value-first')).toBe(true)
+  })
+
+  test('records stable reference errors without invoking the operation', async () => {
+    const workflow = await createWorkflow([branchNode('missing-value', '$root.release.branch')])
+    const requestCount = harness.gitLabRequests.length
+    expect((await harness.request(`/api/workflows/${workflow.id}/runs`, { method: 'POST', body: { root: {} } })).status).toBe(202)
+    const result = await finishedRun(workflow.id)
+    expect(result.status).toBe('failed')
+    expect(result.steps[0].error?.code).toBe('workflow.input-reference-not-found')
+    expect(harness.gitLabRequests).toHaveLength(requestCount)
+    expect((await harness.request(`/api/workflows/${workflow.id}/runs`, { method: 'POST', body: { root: [] } })).status).toBe(400)
+  })
+
+  test('rejects malformed reference syntax when saving a definition', async () => {
+    const created = await harness.request<WorkflowDefinition>('/api/projects/project-asdp/workflows', {
+      method: 'POST', body: { name: '非法取值表达式', note: '' },
+    })
+    const node = branchNode('invalid-reference', '$root..branch')
+    const response = await harness.request(`/api/workflows/${created.data.id}`, {
+      method: 'PATCH',
+      body: {
+        trigger: { kind: 'manual', position: { x: 100, y: 0 } },
+        nodes: [node],
+        edges: [{ id: 'root-invalid', source: 'workflow-trigger', target: node.id }],
+      },
+    })
+    expect(response.status).toBe(400)
+  })
+
   test('preserves error codes, skips downstream nodes, and keeps previous attempts', async () => {
     const workflow = await createWorkflow([
       branchNode('existing', 'main'), branchNode('never', 'feature/never-run'),
