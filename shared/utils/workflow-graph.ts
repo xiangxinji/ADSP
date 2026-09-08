@@ -1,4 +1,5 @@
-import type { WorkflowEdge } from '../types/asdp'
+import type { WorkflowEdge, WorkflowNode } from '../types/asdp'
+import { validateAsyncWorkflowNode, validateWorkflowExceptionPorts, workflowNodeLimit, workflowOutputPorts } from './workflow-nodes'
 
 export const workflowTriggerNodeId = 'workflow-trigger'
 
@@ -7,58 +8,78 @@ export type WorkflowGraphAnalysis = {
   orderedNodeIds: string[]
 }
 
+export const validateWorkflowEdges = (nodes: WorkflowNode[], edges: WorkflowEdge[]): string => {
+  if (nodes.length > workflowNodeLimit) return '工作流最多支持 50 个节点。'
+  const nodesById = new Map(nodes.map(node => [node.id, node]))
+  if (nodesById.size !== nodes.length || nodes.some(node => !node.id.trim() || node.id === workflowTriggerNodeId)) {
+    return '节点 ID 必须存在且唯一，不能使用根触发器 ID。'
+  }
+  for (const node of nodes) {
+    if (node.kind === 'async') continue
+    const message = validateWorkflowExceptionPorts(node)
+    if (message) return message
+  }
+  const outgoing = new Map<string, WorkflowEdge[]>()
+  const incoming = new Set<string>()
+  const edgeIds = new Set<string>()
+  for (const edge of edges) {
+    if (!edge.id.trim() || edgeIds.has(edge.id)) return '连线 ID 必须存在且唯一。'
+    edgeIds.add(edge.id)
+    if ((!nodesById.has(edge.source) && edge.source !== workflowTriggerNodeId) || !nodesById.has(edge.target)) {
+      return '连线引用了不存在的节点，根触发器不能作为终点。'
+    }
+    if (edge.source === edge.target) return '节点不能连接到自身。'
+    const ports = workflowOutputPorts(nodesById.get(edge.source))
+    if (!ports.some(port => port.id === edge.sourceHandle)) return '连线必须选择有效的输出端点。'
+    const siblings = outgoing.get(edge.source) || []
+    if (siblings.some(sibling => sibling.sourceHandle === edge.sourceHandle)) return '每个输出端点只能连接一个下游节点。'
+    if (incoming.has(edge.target)) return '每个节点只能连接一个上游节点，子流程不能交叉合流。'
+    outgoing.set(edge.source, [...siblings, edge])
+    incoming.add(edge.target)
+  }
+  const visiting = new Set<string>()
+  const visited = new Set<string>()
+  const hasCycle = (nodeId: string): boolean => {
+    if (visiting.has(nodeId)) return true
+    if (visited.has(nodeId)) return false
+    visiting.add(nodeId)
+    if ((outgoing.get(nodeId) || []).some(edge => hasCycle(edge.target))) return true
+    visiting.delete(nodeId)
+    visited.add(nodeId)
+    return false
+  }
+  return [...nodesById.keys()].some(hasCycle) ? '工作流不能形成环路。' : ''
+}
+
 export const analyzeWorkflowGraph = (
-  nodeIds: string[],
+  nodes: WorkflowNode[],
   edges: WorkflowEdge[],
   triggerConfigured: boolean,
 ): WorkflowGraphAnalysis => {
-  if (!triggerConfigured && (nodeIds.length || edges.length)) {
-    return { message: '请先选择根触发器。', orderedNodeIds: [] }
+  const invalid = (message: string): WorkflowGraphAnalysis => ({ message, orderedNodeIds: [] })
+  if (!triggerConfigured && (nodes.length || edges.length)) return invalid('请先选择根触发器。')
+  const edgeError = validateWorkflowEdges(nodes, edges)
+  if (edgeError) return invalid(edgeError)
+  for (const node of nodes) {
+    if (node.kind !== 'async') continue
+    const nodeError = validateAsyncWorkflowNode(node)
+    if (nodeError) return invalid(nodeError)
+    if (!edges.some(edge => edge.source === node.id && node.branches.some(branch => branch.id === edge.sourceHandle))) {
+      return invalid('每个异步节点至少需要连接一个子端点。')
+    }
   }
-  if (!nodeIds.length) {
-    return edges.length
-      ? { message: '没有操作节点时不能保留连线。', orderedNodeIds: [] }
-      : { message: '', orderedNodeIds: [] }
-  }
-
-  const nodeIdSet = new Set(nodeIds)
-  const validIds = new Set([workflowTriggerNodeId, ...nodeIds])
-  const outgoing = new Map<string, string>()
-  const incoming = new Map<string, string>()
-  const edgeIds = new Set<string>()
-  const connections = new Set<string>()
-
-  for (const edge of edges) {
-    if (!edge.id.trim() || edgeIds.has(edge.id)) return { message: '连线 ID 必须存在且唯一。', orderedNodeIds: [] }
-    edgeIds.add(edge.id)
-    if (!validIds.has(edge.source) || !validIds.has(edge.target)) return { message: '连线引用了不存在的节点。', orderedNodeIds: [] }
-    if (edge.target === workflowTriggerNodeId) return { message: '根触发器不能作为连线终点。', orderedNodeIds: [] }
-    if (edge.source === edge.target) return { message: '节点不能连接到自身。', orderedNodeIds: [] }
-    const connection = `${edge.source}\u0000${edge.target}`
-    if (connections.has(connection)) return { message: '不能重复连接相同的节点。', orderedNodeIds: [] }
-    connections.add(connection)
-    if (outgoing.has(edge.source)) return { message: '一期流程中每个节点只能连接一个下游节点。', orderedNodeIds: [] }
-    if (incoming.has(edge.target)) return { message: '一期流程中每个操作节点只能连接一个上游节点。', orderedNodeIds: [] }
-    outgoing.set(edge.source, edge.target)
-    incoming.set(edge.target, edge.source)
-  }
-
-  if (!outgoing.has(workflowTriggerNodeId)) return { message: '请从根触发器连接第一个操作节点。', orderedNodeIds: [] }
-  const unconnectedNode = nodeIds.find(nodeId => !incoming.has(nodeId))
-  if (unconnectedNode) return { message: '每个操作节点都必须连接到流程中。', orderedNodeIds: [] }
-
+  if (nodes.length && !edges.some(edge => edge.source === workflowTriggerNodeId)) return invalid('请从根触发器连接第一个节点。')
+  const nodesById = new Map(nodes.map(node => [node.id, node]))
   const orderedNodeIds: string[] = []
-  const visited = new Set<string>([workflowTriggerNodeId])
-  let current = workflowTriggerNodeId
-  while (outgoing.has(current)) {
-    const next = outgoing.get(current) as string
-    if (visited.has(next)) return { message: '工作流不能形成环路。', orderedNodeIds: [] }
-    if (!nodeIdSet.has(next)) return { message: '连线引用了不存在的操作节点。', orderedNodeIds: [] }
-    visited.add(next)
-    orderedNodeIds.push(next)
-    current = next
+  const visit = (nodeId: string) => {
+    if (nodeId !== workflowTriggerNodeId) orderedNodeIds.push(nodeId)
+    for (const port of workflowOutputPorts(nodesById.get(nodeId))) {
+      const next = edges.find(edge => edge.source === nodeId && edge.sourceHandle === port.id)
+      if (next) visit(next.target)
+    }
   }
-
-  if (orderedNodeIds.length !== nodeIds.length) return { message: '所有操作节点必须从根触发器连续可达。', orderedNodeIds: [] }
-  return { message: '', orderedNodeIds }
+  visit(workflowTriggerNodeId)
+  return orderedNodeIds.length !== nodes.length
+    ? invalid('所有节点必须从根触发器连续可达。')
+    : { message: '', orderedNodeIds }
 }

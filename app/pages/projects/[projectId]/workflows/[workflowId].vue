@@ -8,6 +8,8 @@ const { data: workspace, status, error, refresh } = await useFetch<ProjectWorksp
 const {
   draft, selectedNodeId, selectedNode, dirty, saving, actionError, validationMessage,
   save, selectTrigger, addOperation, updatePosition, updateInput, removeNode, connectEdge, removeEdge, setUpstream,
+  addAsyncNode, addAsyncBranch, updateAsyncLabel, renameAsyncBranch, removeAsyncBranch,
+  addExceptionPort, updateExceptionPort, removeExceptionPort,
 } = useWorkflowEditor(workflowId, workspace)
 const {
   runs, selectedRunId, selectedRun, running, starting, loading: runsLoading,
@@ -41,7 +43,7 @@ const runWorkflow = async () => {
     <main v-if="workspace && draft" id="main-content" class="workflow-editor-page">
       <header class="workflow-editor-toolbar">
         <AppButton variant="plain" icon="arrow-left" :to="`/projects/${projectId}/workflows`" aria-label="返回工作流列表" />
-        <div class="workflow-editor-title"><span class="workflow-editor-icon"><AppIcon name="workflow" :size="18" /></span><div><strong>{{ draft.name || '未命名工作流' }}</strong><small>{{ dirty ? '有未保存修改' : '已保存' }} · {{ draft.nodes.length }} 个操作节点</small></div></div>
+        <div class="workflow-editor-title"><span class="workflow-editor-icon"><AppIcon name="workflow" :size="18" /></span><div><strong>{{ draft.name || '未命名工作流' }}</strong><small>{{ dirty ? '有未保存修改' : '已保存' }} · {{ draft.nodes.length }} 个节点</small></div></div>
         <p v-if="validationMessage" class="workflow-toolbar-hint" role="status">{{ validationMessage }}</p>
         <p v-if="actionError || startError" class="workflow-toolbar-error" role="alert">{{ actionError || startError }}</p>
         <div class="workflow-toolbar-actions">
@@ -51,7 +53,7 @@ const runWorkflow = async () => {
         </div>
       </header>
       <div class="workflow-editor-layout">
-        <WorkflowNodeLibrary v-if="!showRuns" :workspace="workspace" :trigger-kind="draft.trigger?.kind || null" @select-trigger="selectTrigger" @add-operation="addOperation" />
+        <WorkflowNodeLibrary v-if="!showRuns" :workspace="workspace" :trigger-kind="draft.trigger?.kind || null" @select-trigger="selectTrigger" @add-operation="addOperation" @add-async-node="addAsyncNode" />
         <aside v-else class="workflow-sidebar workflow-library">
           <header class="workflow-sidebar-heading"><p class="overline">RUN SNAPSHOT</p><h2>运行快照</h2><span>{{ selectedRun?.workflow.name || draft.name }}</span></header>
           <p class="workflow-run-help">画布展示本次启动时保存的节点与连线，只读查看。之后的编排修改不会改变历史结果。</p>
@@ -65,9 +67,17 @@ const runWorkflow = async () => {
           :run-steps="showRuns ? selectedRun?.steps : undefined" :read-only="showRuns"
           @select-node="showRuns ? runNodeId = $event : selectedNodeId = $event"
           @update-position="updatePosition" @connect-edge="connectEdge" @remove-edge="removeEdge"
+          @add-async-branch="addAsyncBranch"
+          @add-exception-port="addExceptionPort"
         />
         <WorkflowRunPanel v-if="showRuns" :runs="runs" :run="selectedRun" :selected-node-id="runNodeId" :loading="runsLoading" :error="runsError" @select-run="selectedRunId = $event" @select-node="runNodeId = $event" @retry="refreshRuns" />
-        <WorkflowInspector v-else :workflow="draft" :workspace="workspace" :selected-node="selectedNode" @update-name="draft.name = $event" @update-note="draft.note = $event" @update-input="updateInput" @set-upstream="setUpstream" @remove-node="removeNode" />
+        <WorkflowInspector
+          v-else :workflow="draft" :workspace="workspace" :selected-node="selectedNode"
+          @update-name="draft.name = $event" @update-note="draft.note = $event" @update-input="updateInput"
+          @set-upstream="setUpstream" @remove-node="removeNode" @add-async-branch="addAsyncBranch"
+          @update-async-label="updateAsyncLabel" @rename-async-branch="renameAsyncBranch" @remove-async-branch="removeAsyncBranch"
+          @add-exception-port="addExceptionPort" @update-exception-port="updateExceptionPort" @remove-exception-port="removeExceptionPort"
+        />
       </div>
     </main>
     <main v-else id="main-content" class="page"><AppAsyncState :pending="status === 'pending'" :error-message="error?.statusMessage || '工作流不存在'" @retry="refresh" /></main>

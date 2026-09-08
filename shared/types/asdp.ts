@@ -170,19 +170,42 @@ export type WorkflowTrigger = {
 
 export type WorkflowOperationInputValue = string | boolean
 
+export type WorkflowExceptionPort = {
+  id: string
+  code: string
+}
+
 export type WorkflowOperationNode = {
   id: string
+  kind?: 'operation'
   assetType: AssetType
   assetId: string
   operationId: string
   inputs: Record<string, WorkflowOperationInputValue>
+  exceptionPorts?: WorkflowExceptionPort[]
   position: WorkflowNodePosition
 }
+
+export type WorkflowAsyncBranch = {
+  id: string
+  label: string
+}
+
+export type WorkflowAsyncNode = {
+  id: string
+  kind: 'async'
+  label: string
+  branches: WorkflowAsyncBranch[]
+  position: WorkflowNodePosition
+}
+
+export type WorkflowNode = WorkflowOperationNode | WorkflowAsyncNode
 
 export type WorkflowEdge = {
   id: string
   source: string
   target: string
+  sourceHandle?: string
 }
 
 export type WorkflowDefinition = {
@@ -191,7 +214,7 @@ export type WorkflowDefinition = {
   name: string
   note: string
   trigger: WorkflowTrigger | null
-  nodes: WorkflowOperationNode[]
+  nodes: WorkflowNode[]
   edges: WorkflowEdge[]
   createdAt: string
   updatedAt: string

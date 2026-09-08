@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { findAssetOperation } from '#shared/config/asset-operations'
+import { workflowNodeLabel } from '#shared/utils/workflow-nodes'
 import { workflowRunStatusLabels } from '#shared/config/workflow-run-status'
 import type { WorkflowRun } from '#shared/types/workflow-runs'
 
@@ -16,15 +16,22 @@ const emit = defineEmits<{
   retry: []
 }>()
 
-const activeStep = computed(() => props.run?.steps.find(step => step.status === 'running'))
-const activeStepNumber = computed(() => (props.run?.steps.findIndex(step => step.status === 'running') ?? -1) + 1)
+const activeSteps = computed(() => props.run?.steps.filter(step => step.status === 'running') || [])
+const activeStep = computed(() => activeSteps.value[0])
 const selectedStep = computed(() => props.run?.steps.find(step => step.nodeId === props.selectedNodeId)
   || activeStep.value || props.run?.steps.find(step => step.status === 'failed') || props.run?.steps.at(-1))
 const selectedNode = computed(() => props.run?.workflow.nodes.find(node => node.id === selectedStep.value?.nodeId))
 const completedCount = computed(() => props.run?.steps.filter(step => step.status === 'succeeded').length || 0)
+const selectedInputs = computed(() => selectedNode.value?.kind === 'async' ? { branches: selectedNode.value.branches } : selectedNode.value?.inputs)
+const asyncOutput = computed(() => {
+  const output = selectedStep.value?.output
+  return output && 'branches' in output && 'selectedPort' in output ? output : null
+})
+const branchLabel = (portId: string) => selectedNode.value?.kind === 'async'
+  ? selectedNode.value.branches.find(branch => branch.id === portId)?.label || portId : portId
 const nodeLabel = (nodeId: string) => {
   const node = props.run?.workflow.nodes.find(item => item.id === nodeId)
-  return node ? findAssetOperation(node.assetType, node.operationId)?.label || node.operationId : nodeId
+  return node ? workflowNodeLabel(node) : nodeId
 }
 const formatTime = (value: string | null) => value ? new Date(value).toLocaleString('zh-CN', { hour12: false }) : '—'
 const duration = computed(() => {
@@ -50,9 +57,10 @@ const duration = computed(() => {
       <section class="workflow-run-summary" role="status" aria-live="polite">
         <strong class="workflow-run-status" :data-status="run.status">{{ workflowRunStatusLabels[run.status] }}</strong>
         <span>{{ completedCount }} / {{ run.steps.length }} 个节点成功</span>
-        <p v-if="activeStep">当前节点：{{ activeStepNumber }} · {{ nodeLabel(activeStep.nodeId) }}</p>
-        <p v-else-if="run.status === 'failed'">执行已停止，未执行的下游节点已跳过。</p>
-        <p v-else>所有节点执行完成。</p>
+        <p v-if="activeSteps.length">执行中（{{ activeSteps.length }}）：{{ activeSteps.map(step => nodeLabel(step.nodeId)).join('、') }}</p>
+        <p v-else-if="run.status === 'failed'">执行结束，原始失败已保留；未命中的出口及失败后的节点已跳过。</p>
+        <p v-else-if="run.status === 'running'">等待节点执行状态更新。</p>
+        <p v-else>执行完成，未命中的出口已跳过。</p>
       </section>
       <ol class="workflow-run-steps" aria-label="节点执行进度">
         <li v-for="(step, index) in run.steps" :key="step.nodeId">
@@ -65,7 +73,15 @@ const duration = computed(() => {
       <section v-if="selectedStep && selectedNode" class="workflow-run-detail" aria-label="节点执行结果">
         <h3>{{ nodeLabel(selectedStep.nodeId) }}</h3>
         <dl><dt>开始时间</dt><dd>{{ formatTime(selectedStep.startedAt) }}</dd><dt>结束时间</dt><dd>{{ formatTime(selectedStep.finishedAt) }}</dd><dt>耗时</dt><dd>{{ duration }}</dd></dl>
-        <details><summary>输入参数</summary><pre>{{ JSON.stringify(selectedNode.inputs, null, 2) }}</pre></details>
+        <details><summary>{{ selectedNode.kind === 'async' ? '子端点配置' : '输入参数' }}</summary><pre>{{ JSON.stringify(selectedInputs, null, 2) }}</pre></details>
+        <section v-if="asyncOutput" class="workflow-async-results" aria-label="异步子流程结果">
+          <h4>执行出口：{{ asyncOutput.selectedPort === 'complete' ? '完成' : '异常' }}</h4>
+          <button v-for="branch in asyncOutput.branches" :key="branch.portId" type="button" @click="emit('selectNode', branch.failedNodeId || branch.nodeId)">
+            <strong>{{ branchLabel(branch.portId) }}</strong>
+            <span class="workflow-run-status" :data-status="branch.status">{{ workflowRunStatusLabels[branch.status] }}</span>
+            <small v-if="branch.error">{{ branch.error.code }} · {{ branch.error.message }}</small>
+          </button>
+        </section>
         <div v-if="selectedStep.error" class="alert error-state" role="alert"><strong>{{ selectedStep.error.code }}</strong><p>{{ selectedStep.error.message }}</p></div>
         <template v-if="selectedStep.output !== null"><h4>输出结果</h4><pre>{{ JSON.stringify(selectedStep.output, null, 2) }}</pre></template>
         <p v-else-if="selectedStep.status === 'pending'">等待上游节点完成。</p>

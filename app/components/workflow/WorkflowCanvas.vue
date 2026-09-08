@@ -1,96 +1,35 @@
 <script setup lang="ts">
 import { MarkerType, VueFlow, useVueFlow, type Edge, type Node } from '@vue-flow/core'
-import { findAssetOperation } from '#shared/config/asset-operations'
-import type { ProjectWorkspace, WorkflowEdge, WorkflowOperationNode, WorkflowTrigger } from '#shared/types/asdp'
-import { analyzeWorkflowGraph, workflowTriggerNodeId } from '#shared/utils/workflow-graph'
+import type { ProjectWorkspace, WorkflowEdge, WorkflowNode, WorkflowTrigger } from '#shared/types/asdp'
 import type { WorkflowRunStep } from '#shared/types/workflow-runs'
+import { workflowTriggerNodeId } from '#shared/utils/workflow-graph'
+import { workflowOutputPorts } from '#shared/utils/workflow-nodes'
+import type { WorkflowConnectionSource } from '~/composables/useWorkflowCanvasNodes'
 
 const props = defineProps<{
   trigger: WorkflowTrigger | null
-  nodes: WorkflowOperationNode[]
+  nodes: WorkflowNode[]
   edges: WorkflowEdge[]
   workspace: ProjectWorkspace
   selectedNodeId: string | null
   runSteps?: WorkflowRunStep[]
   readOnly?: boolean
 }>()
-
 const emit = defineEmits<{
   selectNode: [id: string | null]
   updatePosition: [id: string, position: { x: number, y: number }]
-  connectEdge: [connection: Pick<WorkflowEdge, 'source' | 'target'>]
+  connectEdge: [connection: Pick<WorkflowEdge, 'source' | 'target' | 'sourceHandle'>]
   removeEdge: [id: string]
+  addAsyncBranch: [nodeId: string]
+  addExceptionPort: [nodeId: string]
 }>()
-
 const { fitView, zoomIn, zoomOut } = useVueFlow({ id: 'workflow-definition-canvas' })
 const selectedEdgeId = ref<string | null>(null)
-const pendingSourceId = ref<string | null>(null)
-const triggerLabels = {
-  manual: { label: '手动触发', description: '由操作人员主动启动' },
-  'requirement-created': { label: '需求创建时', description: '监听项目需求创建事件' },
-}
-
-const assetLabel = (node: WorkflowOperationNode) => {
-  if (node.assetType === 'repository') return props.workspace.repositories.find(asset => asset.id === node.assetId)?.name
-  if (node.assetType === 'member') return props.workspace.members.find(asset => asset.id === node.assetId)?.user.name
-  if (node.assetType === 'environment') return props.workspace.environments.find(asset => asset.id === node.assetId)?.address
-  return props.workspace.knowledge.find(asset => asset.id === node.assetId)?.title
-}
-
-const nodeComplete = (node: WorkflowOperationNode) => {
-  const operation = findAssetOperation(node.assetType, node.operationId)
-  const connected = props.edges.some(edge => edge.target === node.id)
-  return Boolean(connected && assetLabel(node) && operation?.workflow.enabled && operation.contract.input.every(field =>
-    !field.required || (node.inputs[field.name] !== undefined && node.inputs[field.name] !== ''),
-  ))
-}
-
-const canvasNodes = computed<Node[]>(() => {
-  const triggerDetails = props.trigger ? triggerLabels[props.trigger.kind] : null
-  const graph = analyzeWorkflowGraph(props.nodes.map(node => node.id), props.edges, Boolean(props.trigger))
-  const orderById = new Map(graph.orderedNodeIds.map((nodeId, index) => [nodeId, index + 1]))
-  const triggerConnected = !props.nodes.length || props.edges.some(edge => edge.source === workflowTriggerNodeId)
-  return [{
-    id: workflowTriggerNodeId,
-    type: 'trigger',
-    position: props.trigger?.position || { x: 260, y: 80 },
-    draggable: Boolean(props.trigger) && !props.readOnly,
-    selectable: false,
-    data: {
-      label: triggerDetails?.label || '请选择触发器',
-      description: triggerDetails?.description || '从左侧节点库选择根触发器',
-      configured: Boolean(props.trigger),
-      connected: triggerConnected,
-      connectionSource: pendingSourceId.value === workflowTriggerNodeId,
-    },
-  }, ...props.nodes.map((node, index) => {
-    const operation = findAssetOperation(node.assetType, node.operationId)
-    return {
-      id: node.id,
-      type: 'operation',
-      position: node.position,
-      selected: props.selectedNodeId === node.id,
-      data: {
-        label: operation?.label || node.operationId,
-        assetLabel: assetLabel(node) || '资产已不存在',
-        description: operation?.description || '',
-        complete: props.readOnly || nodeComplete(node),
-        order: orderById.get(node.id) || index + 1,
-        connectionSource: pendingSourceId.value === node.id,
-        awaitingTarget: Boolean(pendingSourceId.value && pendingSourceId.value !== node.id),
-        runStatus: props.runSteps?.find(step => step.nodeId === node.id)?.status,
-        readOnly: props.readOnly,
-      },
-    }
-  })]
-})
-
+const pendingSource = ref<WorkflowConnectionSource | null>(null)
+const canvasNodes = useWorkflowCanvasNodes(props, pendingSource)
 const canvasEdges = computed<Edge[]>(() => props.edges.map(edge => ({
-  ...edge,
-  type: 'smoothstep',
-  markerEnd: MarkerType.ArrowClosed,
-  selected: selectedEdgeId.value === edge.id,
-  selectable: true,
+  ...edge, type: 'smoothstep', markerEnd: MarkerType.ArrowClosed,
+  selected: selectedEdgeId.value === edge.id, selectable: true,
 })))
 
 const onNodeClick = ({ node }: { node: Node }) => {
@@ -102,24 +41,26 @@ const onEdgeClick = ({ edge }: { edge: Edge }) => {
   selectedEdgeId.value = edge.id
   emit('selectNode', null)
 }
-const onConnect = (connection: { source?: string | null, target?: string | null }) => {
+const onConnect = (connection: { source?: string | null, target?: string | null, sourceHandle?: string | null }) => {
   if (props.readOnly) return
-  if (connection.source && connection.target) emit('connectEdge', { source: connection.source, target: connection.target })
-  pendingSourceId.value = null
+  if (connection.source && connection.target) emit('connectEdge', {
+    source: connection.source, target: connection.target,
+    ...(connection.sourceHandle ? { sourceHandle: connection.sourceHandle } : {}),
+  })
+  pendingSource.value = null
 }
-const selectConnectionSource = (sourceId: string) => {
+const selectConnectionSource = (source: string, sourceHandle?: string) => {
   if (props.readOnly) return
-  pendingSourceId.value = pendingSourceId.value === sourceId ? null : sourceId
+  pendingSource.value = pendingSource.value?.source === source && pendingSource.value?.sourceHandle === sourceHandle
+    ? null : { source, ...(sourceHandle ? { sourceHandle } : {}) }
   selectedEdgeId.value = null
 }
-const selectConnectionTarget = (targetId: string) => {
-  if (!pendingSourceId.value) return
-  emit('connectEdge', { source: pendingSourceId.value, target: targetId })
-  pendingSourceId.value = null
+const selectConnectionTarget = (target: string) => {
+  if (pendingSource.value) onConnect({ ...pendingSource.value, target })
 }
 const clearSelection = () => {
   selectedEdgeId.value = null
-  pendingSourceId.value = null
+  pendingSource.value = null
   emit('selectNode', null)
 }
 const removeSelectedEdge = () => {
@@ -127,19 +68,25 @@ const removeSelectedEdge = () => {
   emit('removeEdge', selectedEdgeId.value)
   selectedEdgeId.value = null
 }
-const onNodeDragStop = ({ node }: { node: Node }) => emit('updatePosition', node.id, { x: node.position.x, y: node.position.y })
+const onNodeDragStop = ({ node }: { node: Node }) => {
+  if (!props.readOnly) emit('updatePosition', node.id, { x: node.position.x, y: node.position.y })
+}
 let resizeTimer: ReturnType<typeof setTimeout> | undefined
-
 const fitCanvas = () => fitView({ padding: 0.24, duration: 200 })
 const onResize = () => {
   if (resizeTimer) clearTimeout(resizeTimer)
   resizeTimer = setTimeout(fitCanvas, 150)
 }
-
 watch(() => props.nodes.length, async () => {
   await nextTick()
   requestAnimationFrame(() => requestAnimationFrame(fitCanvas))
 })
+watch(() => props.nodes, () => {
+  const pending = pendingSource.value
+  if (!pending || pending.source === workflowTriggerNodeId) return
+  const source = props.nodes.find(node => node.id === pending.source)
+  if (!source || !workflowOutputPorts(source).some(port => port.id === pending.sourceHandle)) pendingSource.value = null
+}, { deep: true })
 watch(() => props.edges, edges => {
   if (selectedEdgeId.value && !edges.some(edge => edge.id === selectedEdgeId.value)) selectedEdgeId.value = null
 }, { deep: true })
@@ -156,10 +103,23 @@ onBeforeUnmount(() => {
 <template>
   <section class="workflow-canvas" aria-label="工作流画板">
     <ClientOnly>
-      <VueFlow id="workflow-definition-canvas" :nodes="canvasNodes" :edges="canvasEdges" :min-zoom="0.35" :max-zoom="1.6" :nodes-connectable="!readOnly" :nodes-draggable="!readOnly" :edges-updatable="false" :delete-key-code="null" fit-view-on-init @connect="onConnect" @node-click="onNodeClick" @edge-click="onEdgeClick" @node-drag-stop="onNodeDragStop" @pane-click="clearSelection">
+      <VueFlow
+        id="workflow-definition-canvas" :nodes="canvasNodes" :edges="canvasEdges" :min-zoom="0.35" :max-zoom="1.6"
+        :nodes-connectable="!readOnly" :nodes-draggable="!readOnly" :edges-updatable="false" :delete-key-code="null"
+        fit-view-on-init @connect="onConnect" @node-click="onNodeClick" @edge-click="onEdgeClick"
+        @node-drag-stop="onNodeDragStop" @pane-click="clearSelection"
+      >
         <template #node-trigger="slotProps"><WorkflowTriggerNode v-bind="slotProps" @select-source="selectConnectionSource(slotProps.id)" /></template>
-        <template #node-operation="slotProps"><WorkflowOperationNode v-bind="slotProps" @select-source="selectConnectionSource(slotProps.id)" @select-target="selectConnectionTarget(slotProps.id)" /></template>
-        <div v-if="pendingSourceId" class="workflow-connection-status" role="status">已选择起点，请点击下游节点卡片或顶部圆点。<button type="button" @click="pendingSourceId = null">取消</button></div>
+        <template #node-operation="slotProps">
+          <WorkflowOperationNode
+            v-bind="slotProps" @select-source="selectConnectionSource(slotProps.id, $event)"
+            @select-target="selectConnectionTarget(slotProps.id)" @add-exception="emit('addExceptionPort', slotProps.id)"
+          />
+        </template>
+        <template #node-async="slotProps">
+          <WorkflowAsyncNode v-bind="slotProps" @select-source="selectConnectionSource(slotProps.id, $event)" @select-target="selectConnectionTarget(slotProps.id)" @add-branch="emit('addAsyncBranch', slotProps.id)" />
+        </template>
+        <div v-if="pendingSource" class="workflow-connection-status" role="status">已选择输出端点，请点击下游节点卡片或顶部圆点。<button type="button" @click="pendingSource = null">取消</button></div>
         <div class="workflow-canvas-controls" aria-label="画板缩放工具">
           <button v-if="selectedEdgeId" type="button" class="danger" aria-label="删除选中的连线" @click="removeSelectedEdge">删线</button>
           <button type="button" aria-label="缩小画板" @click="zoomOut()">−</button>

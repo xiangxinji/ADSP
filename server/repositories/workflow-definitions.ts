@@ -1,4 +1,4 @@
-import type { WorkflowDefinition, WorkflowEdge, WorkflowOperationNode, WorkflowTriggerKind } from '../../shared/types/asdp'
+import type { WorkflowDefinition, WorkflowEdge, WorkflowNode, WorkflowTriggerKind } from '../../shared/types/asdp'
 import { workflowTriggerNodeId } from '../../shared/utils/workflow-graph'
 import { useDatabase } from '../utils/database'
 
@@ -17,13 +17,13 @@ type WorkflowDefinitionRow = {
 }
 
 const workflowFromRow = (row: WorkflowDefinitionRow): WorkflowDefinition => {
-  const nodes = JSON.parse(row.nodes_json) as WorkflowOperationNode[]
+  const nodes = JSON.parse(row.nodes_json) as WorkflowNode[]
   const storedEdges = JSON.parse(row.edges_json || '[]') as WorkflowEdge[]
   const trigger = row.trigger_kind === null ? null : {
     kind: row.trigger_kind,
     position: { x: Number(row.trigger_x), y: Number(row.trigger_y) },
   }
-  const edges = storedEdges.length || !trigger || !nodes.length ? storedEdges : nodes.map((node, index) => ({
+  const edges = storedEdges.length || !trigger || !nodes.length || nodes.some(node => node.kind === 'async') ? storedEdges : nodes.map((node, index) => ({
     id: `workflow-edge-legacy-${index}`,
     source: index === 0 ? workflowTriggerNodeId : nodes[index - 1].id,
     target: node.id,

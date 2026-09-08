@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { Handle, Position } from '@vue-flow/core'
+import { Handle, Position, useVueFlow } from '@vue-flow/core'
 import { workflowRunStatusLabels } from '#shared/config/workflow-run-status'
 import type { WorkflowStepStatus } from '#shared/types/workflow-runs'
 
-defineProps<{
+const props = defineProps<{
+  id: string
   data: {
     label: string
     assetLabel: string
@@ -11,6 +12,9 @@ defineProps<{
     complete: boolean
     order: number
     connectionSource: boolean
+    connectionSourceHandle: string | null
+    exceptionPorts: { id: string, code: string, description: string }[]
+    canAddException: boolean
     awaitingTarget: boolean
     runStatus?: WorkflowStepStatus
     readOnly?: boolean
@@ -18,9 +22,15 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  selectSource: []
+  selectSource: [handleId?: string]
   selectTarget: []
+  addException: []
 }>()
+const { updateNodeInternals } = useVueFlow()
+watch(() => props.data.exceptionPorts.map(port => port.id + ':' + port.code).join(','), async () => {
+  await nextTick()
+  updateNodeInternals([props.id])
+})
 </script>
 
 <template>
@@ -31,12 +41,13 @@ const emit = defineEmits<{
     :role="data.awaitingTarget ? 'button' : undefined"
     :tabindex="data.awaitingTarget ? 0 : undefined"
     @click="data.awaitingTarget && emit('selectTarget')"
-    @keydown.enter.stop.prevent="data.awaitingTarget && emit('selectTarget')"
-    @keydown.space.stop.prevent="data.awaitingTarget && emit('selectTarget')"
+    @keydown.enter.self.stop.prevent="data.awaitingTarget && emit('selectTarget')"
+    @keydown.space.self.stop.prevent="data.awaitingTarget && emit('selectTarget')"
   >
     <Handle
       type="target"
       :position="Position.Top"
+      :connectable="!data.readOnly"
       :class="{ 'click-target-ready': data.awaitingTarget }"
       role="button"
       :tabindex="data.readOnly ? -1 : 0"
@@ -53,13 +64,37 @@ const emit = defineEmits<{
     <Handle
       type="source"
       :position="Position.Bottom"
-      :class="{ 'click-source-active': data.connectionSource }"
+      :connectable="!data.readOnly"
+      :class="{ 'click-source-active': data.connectionSource && !data.connectionSourceHandle }"
       role="button"
       :tabindex="data.readOnly ? -1 : 0"
-      aria-label="选择当前节点作为连线起点"
+      aria-label="选择正常执行出口"
       @click.stop="emit('selectSource')"
       @keydown.enter.stop.prevent="emit('selectSource')"
       @keydown.space.stop.prevent="emit('selectSource')"
     />
+    <div v-if="data.exceptionPorts.length" class="workflow-exception-ports">
+      <div v-for="port in data.exceptionPorts" :key="port.id" class="workflow-exception-port">
+        <button
+          type="button" class="nodrag" :disabled="data.readOnly"
+          :class="{ active: data.connectionSourceHandle === port.id }"
+          :aria-label="'选择异常端点：' + port.code" :title="port.code + ' · ' + port.description"
+          @click.stop="emit('selectSource', port.id)"
+        ><span>{{ port.description }}</span><small>{{ port.code }}</small></button>
+        <Handle
+          :id="port.id" type="source" :position="Position.Right" :connectable="!data.readOnly"
+          :class="{ 'click-source-active': data.connectionSourceHandle === port.id }"
+          role="button" :tabindex="data.readOnly ? -1 : 0" :aria-label="port.code + '异常输出圆点'"
+          @click.stop="emit('selectSource', port.id)"
+          @keydown.enter.stop.prevent="emit('selectSource', port.id)"
+          @keydown.space.stop.prevent="emit('selectSource', port.id)"
+        />
+      </div>
+    </div>
+    <button
+      v-if="!data.readOnly" type="button" class="workflow-exception-add nodrag"
+      :disabled="!data.canAddException" @click.stop="emit('addException')"
+    >＋ 添加异常端点</button>
+    <span v-if="data.exceptionPorts.length" class="workflow-operation-normal-label">正常执行 ↓</span>
   </div>
 </template>

@@ -70,7 +70,7 @@ Project workspace
 │  ├─ development, testing, and production environments
 │  └─ Markdown knowledge linked to project assets
 ├─ Workflow definitions
-│  └─ root trigger and connected asset-operation nodes
+│  └─ root trigger, asset-operation nodes, exception paths, and async control nodes
 ├─ Requirements
 │  └─ referenced repositories and participants
 ├─ Workflow runs
@@ -91,10 +91,17 @@ validates the global directory before saving it; application data and encrypted
 credentials remain separate control-plane state.
 
 The current workflow preview supports explicit manual execution from the editor. An
-edited definition is saved before starting, and connected asset commands execute in order.
+edited definition is saved before starting. Connected asset commands execute in order
+within each path; explicit async nodes run connected child paths concurrently and choose
+a completion or error path after all children finish. Asset-operation nodes can add
+exception ports selected from the operation contract's stable error codes and connect
+each port to a handling child path. Successful commands follow only the normal outlet;
+failed commands follow only the matching, connected exception outlet. Other paths are skipped.
 The active node and each completed node's output or error are visible on a read-only run
 snapshot, with historical attempts retained independently of later definition edits.
-Failures stop the chain rather than automatically repeating external mutations. This is
+Failures without a matching handler stop their path without stopping independent async
+siblings. Handling preserves the original error and failed run status rather than hiding
+the failure or automatically repeating external mutations. This is
 the first observable execution loop, not yet the full resumable, policy-gated engine:
 event triggers, cancellation, resume, approvals, and distributed scheduling are not enabled.
 

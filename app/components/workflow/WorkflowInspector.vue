@@ -1,47 +1,34 @@
 <script setup lang="ts">
 import { findAssetOperation } from '#shared/config/asset-operations'
-import type { ProjectWorkspace, WorkflowDefinition, WorkflowOperationInputValue, WorkflowOperationNode } from '#shared/types/asdp'
-import { workflowTriggerNodeId } from '#shared/utils/workflow-graph'
+import type { ProjectWorkspace, WorkflowDefinition, WorkflowEdge, WorkflowOperationInputValue, WorkflowNode } from '#shared/types/asdp'
 
 const props = defineProps<{
   workflow: WorkflowDefinition
   workspace: ProjectWorkspace
-  selectedNode: WorkflowOperationNode | null
+  selectedNode: WorkflowNode | null
 }>()
-
 const emit = defineEmits<{
   updateName: [value: string]
   updateNote: [value: string]
   updateInput: [name: string, value: WorkflowOperationInputValue]
-  setUpstream: [sourceId: string]
+  setUpstream: [source: Pick<WorkflowEdge, 'source' | 'sourceHandle'> | null]
   removeNode: []
+  addAsyncBranch: [nodeId: string]
+  updateAsyncLabel: [nodeId: string, label: string]
+  renameAsyncBranch: [nodeId: string, branchId: string, label: string]
+  removeAsyncBranch: [nodeId: string, branchId: string]
+  addExceptionPort: [nodeId: string]
+  updateExceptionPort: [nodeId: string, portId: string, code: string]
+  removeExceptionPort: [nodeId: string, portId: string]
 }>()
-
-const operation = computed(() => props.selectedNode
-  ? findAssetOperation(props.selectedNode.assetType, props.selectedNode.operationId)
-  : undefined)
+const operationNode = computed(() => props.selectedNode?.kind !== 'async' ? props.selectedNode : null)
+const operation = computed(() => operationNode.value
+  ? findAssetOperation(operationNode.value.assetType, operationNode.value.operationId) : undefined)
 const inputFields = computed(() => operation.value?.workflow.enabled
-  ? operation.value.contract.input.filter(field => field.name !== `${props.selectedNode?.assetType}Id`)
-  : [])
-const selectedIndex = computed(() => props.selectedNode
-  ? props.workflow.nodes.findIndex(node => node.id === props.selectedNode?.id)
-  : -1)
-const upstreamId = computed(() => props.workflow.edges.find(edge => edge.target === props.selectedNode?.id)?.source || '')
-const sourceDisabled = (sourceId: string) => {
-  if (!props.selectedNode || sourceId === upstreamId.value) return false
-  if (props.workflow.edges.some(edge => edge.source === sourceId)) return true
-  let cursor: string | undefined = props.selectedNode.id
-  while (cursor) {
-    cursor = props.workflow.edges.find(edge => edge.source === cursor)?.target
-    if (cursor === sourceId) return true
-  }
-  return false
-}
-const nodeLabel = (node: WorkflowOperationNode) => findAssetOperation(node.assetType, node.operationId)?.label || node.operationId
-
+  ? operation.value.contract.input.filter(field => field.name !== operationNode.value?.assetType + 'Id') : [])
 const assetLabel = computed(() => {
-  if (!props.selectedNode) return ''
-  const { assetType, assetId } = props.selectedNode
+  if (!operationNode.value) return ''
+  const { assetType, assetId } = operationNode.value
   if (assetType === 'repository') return props.workspace.repositories.find(asset => asset.id === assetId)?.name
   if (assetType === 'member') return props.workspace.members.find(asset => asset.id === assetId)?.user.name
   if (assetType === 'environment') return props.workspace.environments.find(asset => asset.id === assetId)?.address
@@ -51,7 +38,7 @@ const assetLabel = computed(() => {
 
 <template>
   <aside class="workflow-sidebar workflow-inspector" aria-label="工作流配置">
-    <div class="workflow-sidebar-heading"><p class="overline">CONFIGURATION</p><h2>配置</h2><span>修改基本信息和当前选中的操作节点。</span></div>
+    <div class="workflow-sidebar-heading"><p class="overline">CONFIGURATION</p><h2>配置</h2><span>修改基本信息和当前选中的节点。</span></div>
     <section class="workflow-inspector-section">
       <div class="workflow-library-title"><strong>基本信息</strong><span>名称必填</span></div>
       <AppFormField field-id="workflow-editor-name" label="名称">
@@ -62,31 +49,36 @@ const assetLabel = computed(() => {
       </AppFormField>
     </section>
     <section class="workflow-inspector-section node-inspector">
-      <div class="workflow-library-title"><strong>操作节点</strong><span>{{ selectedNode ? `节点 ${selectedIndex + 1} · 连线决定顺序` : '未选择' }}</span></div>
-      <template v-if="selectedNode && operation?.workflow.enabled">
+      <div class="workflow-library-title"><strong>节点配置</strong><span>{{ selectedNode?.kind === 'async' ? '并发控制' : selectedNode ? '资产操作' : '未选择' }}</span></div>
+      <WorkflowUpstreamField v-if="selectedNode" :workflow="workflow" :node-id="selectedNode.id" @change="emit('setUpstream', $event)" />
+      <WorkflowAsyncInspector
+        v-if="selectedNode?.kind === 'async'" :node="selectedNode"
+        @update-label="emit('updateAsyncLabel', selectedNode.id, $event)"
+        @add-branch="emit('addAsyncBranch', selectedNode.id)"
+        @rename-branch="(branchId, label) => emit('renameAsyncBranch', selectedNode!.id, branchId, label)"
+        @remove-branch="emit('removeAsyncBranch', selectedNode.id, $event)"
+      />
+      <template v-else-if="operationNode && operation?.workflow.enabled">
         <div class="workflow-selected-summary"><span><AppIcon name="repository" :size="16" /></span><div><strong>{{ operation.label }}</strong><small>{{ assetLabel || '资产已不存在' }}</small></div></div>
         <p class="workflow-operation-help">{{ operation.description }}</p>
-        <AppFormField field-id="workflow-upstream" label="上游节点" hint="可用下拉框连接，也可直接拖动画板端口。">
-          <AppSelect id="workflow-upstream" :model-value="upstreamId" @update:model-value="emit('setUpstream', String($event || ''))">
-            <option value="">未连接</option>
-            <option :value="workflowTriggerNodeId" :disabled="sourceDisabled(workflowTriggerNodeId)">根触发器</option>
-            <option v-for="node in workflow.nodes.filter(item => item.id !== selectedNode?.id)" :key="node.id" :value="node.id" :disabled="sourceDisabled(node.id)">{{ nodeLabel(node) }}</option>
-          </AppSelect>
-        </AppFormField>
         <template v-if="inputFields.length">
-          <AppFormField v-for="field in inputFields" :key="field.name" :field-id="`workflow-input-${field.name}`" :label="field.name" :hint="field.description">
+          <AppFormField v-for="field in inputFields" :key="field.name" :field-id="'workflow-input-' + field.name" :label="field.name" :hint="field.description">
             <label v-if="field.type === 'boolean'" class="workflow-boolean-input">
-              <AppCheckbox :model-value="Boolean(selectedNode.inputs[field.name])" @update:model-value="emit('updateInput', field.name, Boolean($event))" />启用
+              <AppCheckbox :model-value="Boolean(operationNode.inputs[field.name])" @update:model-value="emit('updateInput', field.name, Boolean($event))" />启用
             </label>
-            <AppInput v-else :id="`workflow-input-${field.name}`" :model-value="String(selectedNode.inputs[field.name] || '')" :required="field.required" @update:model-value="emit('updateInput', field.name, String($event || ''))" />
+            <AppInput v-else :id="'workflow-input-' + field.name" :model-value="String(operationNode.inputs[field.name] || '')" :required="field.required" @update:model-value="emit('updateInput', field.name, String($event || ''))" />
           </AppFormField>
         </template>
         <p v-else class="workflow-library-empty compact">该操作无需额外参数。</p>
-        <div class="workflow-node-actions">
-          <AppButton variant="danger-outline" icon="delete" @click="emit('removeNode')">删除节点</AppButton>
-        </div>
+        <WorkflowExceptionInspector
+          :key="operationNode.id" :node="operationNode"
+          @add-port="emit('addExceptionPort', operationNode.id)"
+          @update-port="(portId, code) => emit('updateExceptionPort', operationNode!.id, portId, code)"
+          @remove-port="emit('removeExceptionPort', operationNode.id, $event)"
+        />
       </template>
-      <div v-else class="workflow-library-empty"><strong>选择一个操作节点</strong><span>点击画板中的资产操作节点后，可在这里维护输入参数。</span></div>
+      <div v-else class="workflow-library-empty"><strong>选择一个节点</strong><span>点击画板中的节点，维护参数或执行子端点。</span></div>
+      <div v-if="selectedNode" class="workflow-node-actions"><AppButton variant="danger-outline" icon="delete" @click="emit('removeNode')">删除节点</AppButton></div>
     </section>
   </aside>
 </template>

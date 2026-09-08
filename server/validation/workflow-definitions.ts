@@ -4,7 +4,7 @@ import {
   type UpdateWorkflowInput,
   type WorkflowEdge,
   type WorkflowOperationInputValue,
-  type WorkflowOperationNode,
+  type WorkflowNode,
   type WorkflowTrigger,
 } from '../../shared/types/asdp'
 import { assetTypes, type AssetType } from '../../shared/types/asset-operations'
@@ -50,8 +50,24 @@ const inputsPayload = (value: unknown) => {
   return inputs as Record<string, WorkflowOperationInputValue>
 }
 
-const nodePayload = (value: unknown): WorkflowOperationNode => {
+const nodePayload = (value: unknown): WorkflowNode => {
   const node = bodyObject(value)
+  if (node.kind === 'async') {
+    if (!Array.isArray(node.branches)) throw createError({ statusCode: 400, statusMessage: 'branches must be an array' })
+    return {
+      id: requiredText(node.id, 'node.id'),
+      kind: 'async',
+      label: requiredText(node.label, 'node.label'),
+      branches: node.branches.map((value) => {
+        const branch = bodyObject(value)
+        return { id: requiredText(branch.id, 'branch.id'), label: requiredText(branch.label, 'branch.label') }
+      }),
+      position: positionPayload(node.position, 'node.position'),
+    }
+  }
+  if (node.kind !== undefined && node.kind !== 'operation') {
+    throw createError({ statusCode: 400, statusMessage: 'Unsupported workflow node kind' })
+  }
   if (typeof node.assetType !== 'string' || !assetTypes.includes(node.assetType as AssetType)) {
     throw createError({ statusCode: 400, statusMessage: 'Unsupported workflow asset type' })
   }
@@ -61,8 +77,17 @@ const nodePayload = (value: unknown): WorkflowOperationNode => {
     assetId: requiredText(node.assetId, 'node.assetId'),
     operationId: requiredText(node.operationId, 'node.operationId'),
     inputs: inputsPayload(node.inputs),
+    ...(node.exceptionPorts === undefined ? {} : { exceptionPorts: exceptionPortsPayload(node.exceptionPorts) }),
     position: positionPayload(node.position, 'node.position'),
   }
+}
+
+const exceptionPortsPayload = (value: unknown) => {
+  if (!Array.isArray(value)) throw createError({ statusCode: 400, statusMessage: 'exceptionPorts must be an array' })
+  return value.map(value => {
+    const port = bodyObject(value)
+    return { id: requiredText(port.id, 'exceptionPort.id'), code: requiredText(port.code, 'exceptionPort.code') }
+  })
 }
 
 const nodesPayload = (value: unknown) => {
@@ -76,6 +101,8 @@ const edgePayload = (value: unknown): WorkflowEdge => {
     id: requiredText(edge.id, 'edge.id'),
     source: requiredText(edge.source, 'edge.source'),
     target: requiredText(edge.target, 'edge.target'),
+    ...(edge.sourceHandle === undefined || edge.sourceHandle === null
+      ? {} : { sourceHandle: requiredText(edge.sourceHandle, 'edge.sourceHandle') }),
   }
 }
 

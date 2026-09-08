@@ -1,0 +1,111 @@
+.workflow-exception-ports,
+.workflow-exception-add {
+  grid-column: 1 / -1;
+}
+
+.operation-node .workflow-node-warning {
+  position: static;
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+
+.workflow-exception-ports {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+
+.workflow-exception-port {
+  position: relative;
+  margin: 0 calc(-1 * var(--space-3));
+  padding: 0 var(--space-3);
+}
+
+.workflow-exception-port button {
+  width: 100%;
+  min-height: 46px;
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workflow-exception-port button > span {
+  display: block;
+  overflow: hidden;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-exception-port button > small {
+  margin: 3px 0 0;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.workflow-exception-port button:hover:not(:disabled),
+.workflow-exception-port button.active {
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+}
+
+.workflow-exception-port button:disabled {
+  cursor: default;
+}
+
+.workflow-exception-port .vue-flow__handle-right {
+  right: 0;
+  top: 50%;
+  background: var(--danger);
+}
+
+.workflow-operation-normal-label {
+  display: block;
+  grid-column: 1 / -1;
+  color: var(--success-strong);
+  font-size: 9px;
+  text-align: center;
+}
+
+.workflow-exception-add {
+  min-height: 30px;
+  border: 1px dashed var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--danger);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.workflow-exception-add:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.workflow-exception-inspector {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.workflow-exception-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-2);
+}
+
+.workflow-exception-editor > button {
+  margin-top: 20px;
+}
+
+.workflow-exception-help {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.6;
+}

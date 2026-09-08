@@ -100,6 +100,8 @@ Project 1─* EnvironmentAsset 1─0..* EnvironmentAccount
 Project 1─* KnowledgeAsset
 Project 1─* WorkflowDefinition 1─0..1 WorkflowTrigger
 WorkflowDefinition 1─0..* WorkflowOperationNode
+WorkflowDefinition 1─0..* WorkflowAsyncNode
+WorkflowOperationNode 1─0..* WorkflowExceptionPort
 WorkflowDefinition 1─0..* WorkflowEdge
 
 Requirement *─1 RequirementStatus
@@ -110,8 +112,8 @@ Requirement 1─* WorkflowRun
 ```
 
 `WorkflowDefinition` is reusable project configuration, while `WorkflowRun` remains an
-auditable execution attempt. The initial definition model is deliberately linear: it
-contains one required root trigger and manually connected asset-operation nodes. A draft
+auditable execution attempt. The definition model is a rooted, acyclic graph with
+asset-operation nodes and explicit asynchronous control nodes. A draft
 may exist without a trigger while its basic information is being created, but operation
 nodes cannot be persisted until the root trigger exists. Node positions are presentation
 metadata for the canvas. Stable directed edges are persisted with the definition and are
@@ -124,10 +126,33 @@ writing. It reads workflow-ready commands from `shared/config/asset-operations.t
 does not duplicate their inputs, outputs, exceptions, or provider-specific payloads.
 The current registry exposes repository commands; other asset types enter the canvas only
 after their own server commands declare workflow-ready contracts.
-The first release accepts only one connected, acyclic chain: the trigger and every
-operation may have at most one downstream edge, every operation has exactly one upstream
-edge, and every operation must be reachable from the trigger. The canvas supports manual
-connection and edge deletion; branching and parallel execution remain later capabilities.
+Every output port may connect to at most one downstream node, every node has exactly one
+upstream edge, and every node must be reachable from the trigger. Cross-branch merges and
+cycles are rejected. Graphs contain at most 50 nodes. An asynchronous node has 1–50 stable,
+named child ports plus reserved `complete` and `error` outlets; at least one child port
+must be connected. The graph executor starts connected child paths concurrently, waits
+for their entire subtrees, and executes exactly one completion or error path. Unselected
+paths are recursively skipped. Renaming a child port preserves its ID and connections.
+
+Operation nodes optionally declare `exceptionPorts: [{ id, code }]`. The default normal
+outlet retains its legacy absent `sourceHandle`; exception edges reference a stable port
+ID through `sourceHandle`. Codes must come from that operation's shared contract and may
+occur only once per node. Success follows only the normal outlet; failure follows only
+the connected exception port matching the original `data.code`, never translated text.
+Unmatched errors or unconnected matching ports stop the current path. Every other outlet
+subtree is skipped. Exception paths may themselves contain operation or asynchronous
+nodes, including further exception handlers. A handler is awaited before its parent
+asynchronous node selects an outlet. Handling does not erase failures: original failed
+nodes and overall runs remain failed, and async summaries retain the original failed
+node and error. Unexpected errors are sanitized as `workflow.operation-failed` and do
+not select a contract exception port.
+
+Port configuration is stored in existing node JSON and handles in edge JSON, so no new
+table is needed. Legacy linear definitions and run snapshots need no exception fields.
+Deleting a port removes its outgoing edge in the editor but keeps the downstream nodes
+for reconnection or explicit deletion; invalid or dangling graphs cannot be saved.
+The API rejects malformed ports, undeclared/duplicate codes, and stale handles without
+changing the saved definition. Both editor and server reuse shared graph validation.
 
 ### Manual Execution and Node History
 
@@ -136,7 +161,7 @@ Only a configured `manual` trigger with at least one connected operation may sta
 `server/services/workflow-run-orchestration.ts` revalidates the complete saved definition,
 project-local asset ownership, shared operation contracts, and command-specific inputs
 before performing any side effects. It delegates commands to the existing asset-operation
-service; GitLab requests remain behind integrations and local repository commands retain
+service through `server/services/workflow-graph-execution.ts`; GitLab requests remain behind integrations and local repository commands retain
 the project-workspace containment primitive. No provider credentials enter run snapshots.
 
 Each attempt persists a `WorkflowRun` in SQLite with an immutable definition snapshot,
@@ -144,8 +169,10 @@ overall status, timestamps, and ordered node results. Nodes transition from `pen
 `running` and then `succeeded` or `failed`. The executor persists a node's `running` state
 before invoking its command and its declared output after success. An expected failure
 retains the asset operation's stable machine-readable error code and operator message.
-Execution stops on the first failure and marks remaining nodes `skipped`; it never retries
-mutating commands automatically. Starting again creates a separate complete attempt.
+Execution stops the failing normal path, executes a matching configured exception path,
+and leaves independent asynchronous siblings running. Async node outputs record each
+child result and the selected outlet. It never retries mutating commands automatically.
+Starting again creates a separate complete attempt.
 
 The start endpoint returns `202` with the initial record and keeps the in-process execution
 promise alive through Nitro's request lifecycle. The editor polls persisted records every

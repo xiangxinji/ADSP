@@ -8,9 +8,11 @@ import {
   type WorkflowEdge,
   type WorkflowOperationInputValue,
   type WorkflowOperationNode,
+  type WorkflowNode,
   type WorkflowTrigger,
 } from '../../shared/types/asdp'
 import { analyzeWorkflowGraph } from '../../shared/utils/workflow-graph'
+import { validateAsyncWorkflowNode, workflowNodeLimit } from '../../shared/utils/workflow-nodes'
 import {
   findWorkflowDefinition,
   insertWorkflowDefinition,
@@ -27,7 +29,6 @@ import { getProject } from './projects'
 import { getRepository } from './repository-assets'
 import { assertProjectWorkflowsIdle, assertWorkflowIdle } from './workflow-runs'
 
-const workflowNodeLimit = 50
 const positionLimit = 100_000
 
 const getWorkflowRecord = (id: string) => requireEntity(
@@ -81,8 +82,17 @@ const assetProjectId = (node: WorkflowOperationNode) => {
   return getKnowledge(node.assetId).projectId
 }
 
-const validateNode = (projectId: string, node: WorkflowOperationNode): WorkflowOperationNode => {
+const validateNode = (projectId: string, node: WorkflowNode): WorkflowNode => {
   if (!node.id.trim()) throw badRequest('Workflow node id is required')
+  if (node.kind === 'async') {
+    const message = validateAsyncWorkflowNode(node)
+    if (message) throw badRequest(message)
+    return {
+      ...node, label: node.label.trim(),
+      branches: node.branches.map(branch => ({ ...branch, label: branch.label.trim() })),
+      position: validatePosition(node.position, 'node.position'),
+    }
+  }
   const operation = findAssetOperation(node.assetType, node.operationId)
   if (!operation?.workflow.enabled || operation.execution.kind !== 'command') {
     throw badRequest('Asset operation is not available to workflows')
@@ -104,7 +114,7 @@ const validateNode = (projectId: string, node: WorkflowOperationNode): WorkflowO
 const validateDefinition = (
   projectId: string,
   trigger: WorkflowTrigger | null,
-  nodes: WorkflowOperationNode[],
+  nodes: WorkflowNode[],
   edges: WorkflowEdge[],
 ) => {
   if (nodes.length > workflowNodeLimit) throw badRequest(`Workflow supports at most ${workflowNodeLimit} operation nodes`)
@@ -115,13 +125,14 @@ const validateDefinition = (
     id: edge.id.trim(),
     source: edge.source.trim(),
     target: edge.target.trim(),
+    ...(edge.sourceHandle === undefined ? {} : { sourceHandle: edge.sourceHandle.trim() }),
   }))
-  const graph = analyzeWorkflowGraph(validatedNodes.map(node => node.id), validatedEdges, Boolean(trigger))
+  const graph = analyzeWorkflowGraph(validatedNodes, validatedEdges, Boolean(trigger))
   if (graph.message) throw badRequest(graph.message)
   const nodesById = new Map(validatedNodes.map(node => [node.id, node]))
   return {
     trigger: validateTrigger(trigger),
-    nodes: graph.orderedNodeIds.map(nodeId => nodesById.get(nodeId) as WorkflowOperationNode),
+    nodes: graph.orderedNodeIds.map(nodeId => nodesById.get(nodeId) as WorkflowNode),
     edges: validatedEdges,
   }
 }

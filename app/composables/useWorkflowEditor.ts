@@ -3,6 +3,7 @@ import { findAssetOperation } from '#shared/config/asset-operations'
 import type { AssetType } from '#shared/types/asset-operations'
 import type { ProjectWorkspace, WorkflowDefinition, WorkflowOperationInputValue, WorkflowTriggerKind } from '#shared/types/asdp'
 import { analyzeWorkflowGraph } from '#shared/utils/workflow-graph'
+import { validateAsyncWorkflowNode, workflowNodeLimit } from '#shared/utils/workflow-nodes'
 
 const cloneWorkflow = (workflow: WorkflowDefinition): WorkflowDefinition => structuredClone(toRaw(workflow))
 
@@ -19,6 +20,8 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
   const selectedNode = computed(() => draft.value?.nodes.find(node => node.id === selectedNodeId.value) || null)
   const dirty = computed(() => Boolean(draft.value && JSON.stringify(draft.value) !== savedSnapshot.value))
   const { connectEdge, removeEdge, setUpstream } = useWorkflowConnections(draft, selectedNode, actionError)
+  const asyncNodes = useWorkflowAsyncNodes(draft, selectedNodeId, actionError)
+  const exceptionPorts = useWorkflowExceptionPorts(draft, selectedNodeId, actionError)
 
   const assetExists = (assetType: AssetType, assetId: string) => {
     if (!workspace.value) return false
@@ -32,13 +35,18 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
     if (!draft.value?.name.trim()) return '请填写工作流名称。'
     if (!draft.value.trigger) return '请选择一个根触发器。'
     for (const node of draft.value.nodes) {
+      if (node.kind === 'async') {
+        const message = validateAsyncWorkflowNode(node)
+        if (message) return message
+        continue
+      }
       const operation = findAssetOperation(node.assetType, node.operationId)
       if (!assetExists(node.assetType, node.assetId)) return '存在已删除或不属于当前项目的资产节点。'
       if (!operation?.workflow.enabled) return '存在不可用于工作流的资产操作。'
       const missing = operation.contract.input.find(field => field.required && (node.inputs[field.name] === undefined || node.inputs[field.name] === ''))
       if (missing) return `节点“${operation.label}”缺少参数 ${missing.name}。`
     }
-    return analyzeWorkflowGraph(draft.value.nodes.map(node => node.id), draft.value.edges, Boolean(draft.value.trigger)).message
+    return analyzeWorkflowGraph(draft.value.nodes, draft.value.edges, Boolean(draft.value.trigger)).message
   })
 
   const selectTrigger = (kind: WorkflowTriggerKind) => {
@@ -48,6 +56,10 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
 
   const addOperation = (selection: { assetType: AssetType, assetId: string, operationId: string }) => {
     if (!draft.value) return
+    if (draft.value.nodes.length >= workflowNodeLimit) {
+      actionError.value = '工作流最多支持 50 个节点。'
+      return
+    }
     const operation = findAssetOperation(selection.assetType, selection.operationId)
     if (!operation?.workflow.enabled) return
     const inputs: Record<string, WorkflowOperationInputValue> = {}
@@ -72,7 +84,7 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
   }
 
   const updateInput = (name: string, value: WorkflowOperationInputValue) => {
-    if (selectedNode.value) selectedNode.value.inputs[name] = value
+    if (selectedNode.value && selectedNode.value.kind !== 'async') selectedNode.value.inputs[name] = value
   }
 
   const removeNode = () => {
@@ -117,6 +129,8 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
   onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 
   return {
+    ...asyncNodes,
+    ...exceptionPorts,
     draft, selectedNodeId, selectedNode, dirty, saving, actionError, validationMessage,
     save, selectTrigger, addOperation, updatePosition, updateInput, removeNode, connectEdge, removeEdge, setUpstream,
   }

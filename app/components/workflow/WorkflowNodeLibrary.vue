@@ -10,6 +10,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   selectTrigger: [kind: WorkflowTriggerKind]
+  addAsyncNode: []
   addOperation: [selection: { assetType: AssetType, assetId: string, operationId: string }]
 }>()
 
@@ -82,8 +83,13 @@ const addOperation = () => {
       </div>
     </section>
     <section class="workflow-library-section">
-      <div class="workflow-library-title"><strong>2. 资产操作</strong><span>按共享操作契约生成节点</span></div>
-      <p class="workflow-connection-guide">添加节点后，点击上游底部圆点，再点击下游节点卡片；也可以直接拖动端口。</p>
+      <div class="workflow-library-title"><strong>2. 流程控制</strong><span>并发执行与结果分流</span></div>
+      <p class="workflow-operation-help">动态添加子端点并发执行多个子流程，全部结束后走完成或异常出口。</p>
+      <AppButton class="workflow-add-node" variant="secondary" icon="add" :disabled="!triggerKind" @click="emit('addAsyncNode')">添加异步执行节点</AppButton>
+    </section>
+    <section class="workflow-library-section">
+      <div class="workflow-library-title"><strong>3. 资产操作</strong><span>按共享操作契约生成节点</span></div>
+      <p class="workflow-connection-guide">添加节点后，点击上游输出端点，再点击下游节点卡片；也可以直接拖动端口。资产操作支持添加红色异常端点。</p>
       <template v-if="assetOptions.length">
         <AppFormField field-id="workflow-asset" label="选择资产">
           <AppSelect id="workflow-asset" v-model="selectedAssetKey"><option value="">请选择资产</option><option v-for="asset in assetOptions" :key="asset.key" :value="asset.key">{{ asset.typeLabel }} · {{ asset.label }}</option></AppSelect>

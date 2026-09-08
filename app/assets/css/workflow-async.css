@@ -1,0 +1,155 @@
+.workflow-async-node {
+  display: block;
+  width: 260px;
+}
+
+.workflow-async-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.workflow-async-heading > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.workflow-async-heading .workflow-run-status,
+.workflow-async-warning {
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.workflow-async-warning {
+  color: var(--warning);
+}
+
+.workflow-async-node .workflow-async-description {
+  margin: var(--space-3) 0;
+  white-space: normal;
+  line-height: 1.6;
+}
+
+.workflow-async-port {
+  position: relative;
+  margin: 0 calc(-1 * var(--space-3));
+  padding: 0 var(--space-3);
+}
+
+.workflow-async-port[data-port-kind='complete'] {
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+}
+
+.workflow-async-port button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 34px;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font-size: 11px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.workflow-async-port button > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.workflow-async-port button small {
+  margin: 0;
+  flex-shrink: 0;
+  font-size: 9px;
+}
+
+.workflow-async-port button:hover:not(:disabled),
+.workflow-async-port button.active {
+  background: var(--purple-soft);
+  color: var(--purple);
+}
+
+.workflow-async-port button:disabled {
+  cursor: default;
+}
+
+.workflow-async-port[data-port-kind='complete'] button {
+  color: var(--success-strong);
+}
+
+.workflow-async-port[data-port-kind='error'] button {
+  color: var(--danger);
+}
+
+.workflow-async-port .vue-flow__handle-right {
+  right: 0;
+  top: 50%;
+}
+
+.workflow-async-add {
+  width: 100%;
+  min-height: 32px;
+  margin-top: var(--space-2);
+  border: 1px dashed var(--control-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--purple);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.workflow-async-add:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.workflow-branch-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.workflow-async-rules {
+  font-size: var(--font-size-xs);
+  line-height: 1.7;
+}
+
+.workflow-async-rules dt {
+  margin-top: var(--space-3);
+  font-weight: 700;
+}
+
+.workflow-async-rules dd {
+  margin: 2px 0 0;
+  color: var(--muted);
+}
+
+.workflow-async-results button {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  width: 100%;
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.workflow-async-results small {
+  flex-basis: 100%;
+  overflow-wrap: anywhere;
+}
