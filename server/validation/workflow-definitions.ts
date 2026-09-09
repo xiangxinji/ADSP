@@ -71,10 +71,18 @@ const nodePayload = (value: unknown): WorkflowNode => {
   if (typeof node.assetType !== 'string' || !assetTypes.includes(node.assetType as AssetType)) {
     throw createError({ statusCode: 400, statusMessage: 'Unsupported workflow asset type' })
   }
+  if (node.assetSource !== undefined && node.assetSource !== 'input' && node.assetSource !== 'fixed') {
+    throw createError({ statusCode: 400, statusMessage: 'Unsupported workflow asset source' })
+  }
+  const assetSource = node.assetSource ?? (node.assetId === undefined ? 'input' : 'fixed')
+  if (assetSource === 'input' && node.assetId !== undefined) {
+    throw createError({ statusCode: 400, statusMessage: 'Input asset source must not include a fixed assetId' })
+  }
   return {
     id: requiredText(node.id, 'node.id'),
     assetType: node.assetType as AssetType,
-    assetId: requiredText(node.assetId, 'node.assetId'),
+    assetSource,
+    ...(assetSource === 'fixed' ? { assetId: requiredText(node.assetId, 'node.assetId') } : {}),
     operationId: requiredText(node.operationId, 'node.operationId'),
     inputs: inputsPayload(node.inputs),
     ...(node.exceptionPorts === undefined ? {} : { exceptionPorts: exceptionPortsPayload(node.exceptionPorts) }),

@@ -6,6 +6,7 @@ import type { WorkflowRunStep } from '#shared/types/workflow-runs'
 import { analyzeWorkflowGraph, workflowTriggerNodeId } from '#shared/utils/workflow-graph'
 import { validateAsyncWorkflowNode, validateWorkflowExceptionPorts, workflowOperationExceptions } from '#shared/utils/workflow-nodes'
 import { workflowValueReferenceError } from '#shared/utils/workflow-values'
+import { workflowAssetInputName, workflowAssetSource } from '#shared/utils/workflow-operation-assets'
 
 export type WorkflowCanvasProps = {
   trigger: WorkflowTrigger | null
@@ -20,6 +21,7 @@ export type WorkflowConnectionSource = Pick<WorkflowEdge, 'source' | 'sourceHand
 
 export const useWorkflowCanvasNodes = (props: WorkflowCanvasProps, pendingSource: Ref<WorkflowConnectionSource | null>) => {
   const assetLabel = (node: WorkflowOperationNode) => {
+    if (workflowAssetSource(node) === 'input') return `输入值 · ${node.inputs[workflowAssetInputName(node)] || '待配置'}`
     if (node.assetType === 'repository') return props.workspace.repositories.find(asset => asset.id === node.assetId)?.name
     if (node.assetType === 'member') return props.workspace.members.find(asset => asset.id === node.assetId)?.user.name
     if (node.assetType === 'environment') return props.workspace.environments.find(asset => asset.id === node.assetId)?.address

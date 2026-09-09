@@ -11,6 +11,7 @@ const {
   save, selectTrigger, addOperation, updatePosition, updateInput, removeNode, connectEdge, removeEdge, setUpstream,
   addAsyncNode, addAsyncBranch, updateAsyncLabel, renameAsyncBranch, removeAsyncBranch,
   addExceptionPort, updateExceptionPort, removeExceptionPort,
+  updateAssetSource, updateAssetId,
 } = useWorkflowEditor(workflowId, workspace)
 const {
   runs, selectedRunId, selectedRun, running, starting, loading: runsLoading,
@@ -63,7 +64,7 @@ const addDroppedNode = (data: WorkflowNodeDropData) => {
         </div>
       </header>
       <div class="workflow-editor-layout">
-        <WorkflowNodeLibrary v-if="!showRuns" :workspace="workspace" :trigger-kind="draft.trigger?.kind || null" @select-trigger="selectTrigger" @add-operation="addOperation" @add-async-node="addAsyncNode" />
+        <WorkflowNodeLibrary v-if="!showRuns" :trigger-kind="draft.trigger?.kind || null" @select-trigger="selectTrigger" @add-operation="addOperation" @add-async-node="addAsyncNode" />
         <aside v-else class="workflow-sidebar workflow-library">
           <header class="workflow-sidebar-heading"><p class="overline">RUN SNAPSHOT</p><h2>运行快照</h2><span>{{ selectedRun?.workflow.name || draft.name }}</span></header>
           <p class="workflow-run-help">画布展示本次启动时保存的节点与连线，只读查看。之后的编排修改不会改变历史结果。</p>
@@ -85,6 +86,7 @@ const addDroppedNode = (data: WorkflowNodeDropData) => {
         <WorkflowInspector
           v-else :workflow="draft" :workspace="workspace" :selected-node="selectedNode"
           @update-name="draft.name = $event" @update-note="draft.note = $event" @update-input="updateInput"
+          @update-asset-source="updateAssetSource" @update-asset-id="updateAssetId"
           @set-upstream="setUpstream" @remove-node="removeNode" @add-async-branch="addAsyncBranch"
           @update-async-label="updateAsyncLabel" @rename-async-branch="renameAsyncBranch" @remove-async-branch="removeAsyncBranch"
           @add-exception-port="addExceptionPort" @update-exception-port="updateExceptionPort" @remove-exception-port="removeExceptionPort"

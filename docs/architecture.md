@@ -119,8 +119,14 @@ nodes cannot be persisted until the root trigger exists. Node positions are pres
 metadata for the canvas. Stable directed edges are persisted with the definition and are
 the source of execution order for the manual-run orchestrator.
 
-Each operation node stores an asset type, a project-local asset ID, a stable operation ID,
-and input values. An input may be a literal or an exact `$root.path` / `$prev.path`
+Each operation node stores an asset type, a stable operation ID, an asset source, and
+input values. The node library lists all workflow-ready operations directly as searchable
+drag-and-drop cards, regardless of registered project assets. New nodes default to
+`assetSource: 'input'` and do not store `assetId`; the contract's identity input (for
+example `repositoryId`) supplies the target asset at execution time. Operators can switch
+to `assetSource: 'fixed'`, select a project asset, and persist both `assetId` and its
+matching contract input. Legacy nodes with `assetId` but no source remain fixed.
+An input may be a literal or an exact `$root.path` / `$prev.path`
 reference. Dot paths traverse nested objects and numeric array indexes. The root source is
 the trigger value for the attempt; the previous source is the value propagated along the
 currently executing path. Successful operations propagate their contract output, exception
@@ -128,8 +134,13 @@ edges propagate `{ code, message }`, async child paths inherit the value that en
 control node, and async completion/error outlets receive the control result. This keeps
 data flow deterministic through nested async and exception paths without allowing arbitrary
 cross-branch reads. The workflow-definition service is the explicitly named cross-domain
-orchestration boundary that verifies asset ownership and the operation contract before
-writing. It reads workflow-ready commands from `shared/config/asset-operations.ts` and
+orchestration boundary that verifies fixed asset ownership and the operation contract before
+writing. Input-sourced assets are resolved by the focused cross-domain
+`server/services/workflow-asset-resolution.ts` service immediately before dispatch,
+after value-reference resolution; it rejects blank IDs, missing assets, and assets owned
+by another project before any provider or filesystem command runs. IDs still refer to
+registered assets, not arbitrary repository URLs or filesystem paths. It reads
+workflow-ready commands from `shared/config/asset-operations.ts` and
 does not duplicate their inputs, outputs, exceptions, or provider-specific payloads.
 The current registry exposes repository commands; other asset types enter the canvas only
 after their own server commands declare workflow-ready contracts.
@@ -169,7 +180,7 @@ The manual-run dialog accepts one JSON object as the root trigger output. Each r
 that root object, the immutable configured input expressions, and each operation's resolved
 inputs so later audits can distinguish authored bindings from values actually sent.
 `server/services/workflow-run-orchestration.ts` revalidates the complete saved definition,
-project-local asset ownership, shared operation contracts, and every literal command input
+fixed project-local asset ownership, shared operation contracts, and every literal command input
 before performing any side effects. Reference inputs are resolved, type-checked against the
 target contract, and command-validated immediately before their node executes. It delegates commands to the existing asset-operation
 service through `server/services/workflow-graph-execution.ts`; GitLab requests remain behind integrations and local repository commands retain

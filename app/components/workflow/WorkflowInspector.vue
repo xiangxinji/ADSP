@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { findAssetOperation } from '#shared/config/asset-operations'
+import { workflowAssetSource } from '#shared/utils/workflow-operation-assets'
 import type { ProjectWorkspace, WorkflowDefinition, WorkflowEdge, WorkflowOperationInputValue, WorkflowNode } from '#shared/types/asdp'
 
 const props = defineProps<{
@@ -11,6 +12,8 @@ const emit = defineEmits<{
   updateName: [value: string]
   updateNote: [value: string]
   updateInput: [name: string, value: WorkflowOperationInputValue]
+  updateAssetSource: [source: 'input' | 'fixed']
+  updateAssetId: [assetId: string]
   setUpstream: [source: Pick<WorkflowEdge, 'source' | 'sourceHandle'> | null]
   removeNode: []
   addAsyncBranch: [nodeId: string]
@@ -25,7 +28,8 @@ const operationNode = computed(() => props.selectedNode?.kind !== 'async' ? prop
 const operation = computed(() => operationNode.value
   ? findAssetOperation(operationNode.value.assetType, operationNode.value.operationId) : undefined)
 const inputFields = computed(() => operation.value?.workflow.enabled
-  ? operation.value.contract.input.filter(field => field.name !== operationNode.value?.assetType + 'Id') : [])
+  ? operation.value.contract.input.filter(field => !operationNode.value || workflowAssetSource(operationNode.value) === 'input'
+    || field.name !== operationNode.value.assetType + 'Id') : [])
 const previousFields = computed(() => {
   if (!operationNode.value) return []
   const edge = props.workflow.edges.find(edge => edge.target === operationNode.value?.id)
@@ -36,6 +40,7 @@ const previousFields = computed(() => {
 })
 const assetLabel = computed(() => {
   if (!operationNode.value) return ''
+  if (workflowAssetSource(operationNode.value) === 'input') return '资产来源 · 输入值'
   const { assetType, assetId } = operationNode.value
   if (assetType === 'repository') return props.workspace.repositories.find(asset => asset.id === assetId)?.name
   if (assetType === 'member') return props.workspace.members.find(asset => asset.id === assetId)?.user.name
@@ -69,6 +74,10 @@ const assetLabel = computed(() => {
       <template v-else-if="operationNode && operation?.workflow.enabled">
         <div class="workflow-selected-summary"><span><AppIcon name="repository" :size="16" /></span><div><strong>{{ operation.label }}</strong><small>{{ assetLabel || '资产已不存在' }}</small></div></div>
         <p class="workflow-operation-help">{{ operation.description }}</p>
+        <WorkflowAssetSourceField
+          :node="operationNode" :workspace="workspace"
+          @update-source="emit('updateAssetSource', $event)" @update-asset-id="emit('updateAssetId', $event)"
+        />
         <template v-if="inputFields.length">
           <WorkflowInputField
             v-for="field in inputFields" :key="field.name" :field="field" :model-value="operationNode.inputs[field.name]"

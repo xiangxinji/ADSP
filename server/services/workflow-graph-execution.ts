@@ -2,10 +2,12 @@ import { findAssetOperation } from '../../shared/config/asset-operations'
 import type { WorkflowOperationInputValue, WorkflowValue } from '../../shared/types/asdp'
 import type { WorkflowAsyncBranchResult, WorkflowRun, WorkflowRunError } from '../../shared/types/workflow-runs'
 import { workflowTriggerNodeId } from '../../shared/utils/workflow-graph'
+import { workflowAssetInputName, workflowAssetSource } from '../../shared/utils/workflow-operation-assets'
 import { updateWorkflowRun } from '../repositories/workflow-runs'
 import { assetOperationErrorCode } from '../utils/asset-operation-error'
 import { assetOperationInput as validateAssetOperationInput } from '../validation/asset-operation-input'
 import { executeAssetOperation } from './asset-operations'
+import { resolveWorkflowAssetId } from './workflow-asset-resolution'
 import { assertWorkflowOperationOutput, resolveWorkflowOperationInputs } from './workflow-value-resolution'
 
 type ExecutionFailure = { nodeId: string, error: WorkflowRunError }
@@ -79,8 +81,11 @@ export const executeWorkflowGraph = async (run: WorkflowRun, inputs: WorkflowRun
         run.root,
         previous,
       )
+      const assetId = workflowAssetSource(node) === 'fixed' ? node.assetId!
+        : resolveWorkflowAssetId(run.workflow.projectId, node.assetType, step.resolvedInputs[workflowAssetInputName(node)])
+      step.resolvedInputs[workflowAssetInputName(node)] = assetId
       const operationInput = validateAssetOperationInput(node.operationId, step.resolvedInputs)
-      const output = await executeAssetOperation(node.assetType, node.assetId, node.operationId, operationInput)
+      const output = await executeAssetOperation(node.assetType, assetId, node.operationId, operationInput)
       assertWorkflowOperationOutput(operation.contract.output, output)
       step.output = output
       nextValue = output as WorkflowValue

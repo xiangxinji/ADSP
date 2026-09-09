@@ -1,4 +1,5 @@
 import { assetTypes } from '#shared/types/asset-operations'
+import { findAssetOperation } from '#shared/config/asset-operations'
 import type { AssetType } from '#shared/types/asset-operations'
 import type { WorkflowNodePosition } from '#shared/types/asdp'
 
@@ -6,7 +7,7 @@ export const workflowNodeDragMime = 'application/x-forgepilot-workflow-node'
 
 export type WorkflowOperationSelection = {
   assetType: AssetType
-  assetId: string
+  assetId?: string
   operationId: string
 }
 
@@ -25,13 +26,14 @@ export const parseWorkflowNodeDragData = (value: string): WorkflowNodeDragData |
     if (data.type !== 'operation' || !data.selection || typeof data.selection !== 'object') return null
     const selection = data.selection as Record<string, unknown>
     if (typeof selection.assetType !== 'string' || !assetTypes.includes(selection.assetType as AssetType)
-      || typeof selection.assetId !== 'string' || !selection.assetId
+      || (selection.assetId !== undefined && (typeof selection.assetId !== 'string' || !selection.assetId.trim()))
       || typeof selection.operationId !== 'string' || !selection.operationId) return null
+    if (!findAssetOperation(selection.assetType as AssetType, selection.operationId)?.workflow.enabled) return null
     return {
       type: 'operation',
       selection: {
         assetType: selection.assetType as AssetType,
-        assetId: selection.assetId,
+        ...(selection.assetId === undefined ? {} : { assetId: selection.assetId as string }),
         operationId: selection.operationId,
       },
     }

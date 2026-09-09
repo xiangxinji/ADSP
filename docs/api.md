@@ -67,10 +67,18 @@ Start accepts no body, `{}`, or `{ "root": { ... } }`; it never accepts replacem
 IDs, nodes, or saved inputs. `root` is the manual trigger's JSON object for this attempt.
 It is persisted in run history and must not contain credentials or other secrets.
 Save edits through `PATCH` before starting. The saved definition must have a `manual`
-trigger, at least one operation, valid project-local assets, and a complete connected path.
+trigger, at least one operation, valid fixed project-local assets, and a complete connected path.
 Literal command inputs are validated before creating a run. Reference-based inputs are
 type-checked and command-validated immediately before their node executes, after their
 source output exists.
+
+Input-sourced asset identities are resolved immediately before their command executes.
+They must identify registered assets in the workflow's project. Blank IDs fail with
+`workflow.asset-input-invalid`; cross-project IDs fail with
+`workflow.asset-project-mismatch`; missing repositories retain `repository.not-found`.
+These are step errors in an accepted run, not start-response errors. No provider or
+filesystem command runs for the rejected node. Existing command output and exception
+contracts remain unchanged, including those for repository cloning.
 
 The `202` response is a `WorkflowRun` (`shared/types/workflow-runs.ts`): `id`, `workflowId`,
 `workflow` (the complete definition snapshot), `root`, `status`, `steps`, `startedAt`, and
@@ -124,16 +132,29 @@ finite canvas coordinates. An operation node has the following stable shape:
 {
   "id": "node-uuid",
   "assetType": "repository",
-  "assetId": "repository-uuid",
+  "assetSource": "input",
   "operationId": "repository.create-branch",
   "inputs": {
-    "repositoryId": "repository-uuid",
+    "repositoryId": "$root.repositoryId",
     "branch": "$root.release.branch",
     "source": "$prev.branch"
   },
   "position": { "x": 420, "y": 180 }
 }
 ```
+
+`assetSource` supports `input` and `fixed`. Input mode omits `assetId` and supplies the
+contract's asset identity field through `inputs` (a literal ID, `$root.repositoryId`,
+or `$prev.repositoryId`). Fixed mode requires a project-local `assetId` and an identical
+literal identity input. Omitting the source preserves legacy fixed behavior when an
+`assetId` exists; otherwise it defaults to input. Unknown sources, an `assetId` combined
+with input mode, missing fixed IDs, and mismatched fixed inputs return `400`.
+No database migration or API-path change is required.
+
+For `repository.clone`, use `assetType: "repository"`, `operationId: "repository.clone"`,
+`assetSource: "input"`, and `inputs: { "repositoryId": "$prev.repositoryId" }`.
+The result remains `{ repositoryId, path }`. This uses a registered repository ID, not
+an arbitrary clone URL; the existing project-workspace containment rules still apply.
 
 Edges persist the connections created on the canvas:
 
@@ -149,7 +170,7 @@ The connected path from `workflow-trigger` determines execution order; the servi
 normalizes the returned node array to that order. Operation nodes require a root trigger,
 must reference assets from the workflow's project, and may use only commands marked
 workflow-ready in `shared/config/asset-operations.ts`. Inputs are checked against that
-operation's shared contract, and the bound asset ID must match the selected asset. The
+operation's shared contract; in fixed mode, the bound asset ID must match the selected asset. The
 initial graph must be one connected acyclic chain: no self-connections, duplicate edges,
 branching, multiple upstream nodes, cycles, or disconnected operation nodes are accepted.
 The first release persists definitions only; it does not execute triggers or workflows.

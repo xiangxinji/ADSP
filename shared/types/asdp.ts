@@ -182,7 +182,8 @@ export type WorkflowOperationNode = {
   id: string
   kind?: 'operation'
   assetType: AssetType
-  assetId: string
+  assetSource?: 'input' | 'fixed'
+  assetId?: string
   operationId: string
   inputs: Record<string, WorkflowOperationInputValue>
   exceptionPorts?: WorkflowExceptionPort[]

@@ -15,6 +15,7 @@ import {
 import { analyzeWorkflowGraph } from '../../shared/utils/workflow-graph'
 import { validateAsyncWorkflowNode, workflowNodeLimit } from '../../shared/utils/workflow-nodes'
 import { parseWorkflowValueReference, workflowValueReferenceError } from '../../shared/utils/workflow-values'
+import { workflowAssetSource } from '../../shared/utils/workflow-operation-assets'
 import {
   findWorkflowDefinition,
   insertWorkflowDefinition,
@@ -24,11 +25,8 @@ import {
   updateWorkflowDefinitionRecord,
 } from '../repositories/workflow-definitions'
 import { badRequest, requireEntity } from './errors'
-import { getEnvironment } from './environment-assets'
-import { getKnowledge } from './knowledge-assets'
-import { getProjectMember } from './project-members'
 import { getProject } from './projects'
-import { getRepository } from './repository-assets'
+import { workflowAssetProjectId } from './workflow-asset-resolution'
 import { assertProjectWorkflowsIdle, assertWorkflowIdle } from './workflow-runs'
 
 const positionLimit = 100_000
@@ -62,7 +60,7 @@ const validateOperationInputs = (
   const inputs: Record<string, WorkflowOperationInputValue> = {}
   contractFields.forEach((field) => {
     const value = node.inputs[field.name]
-    if (field.required && (value === undefined || value === '')) {
+    if (field.required && (value === undefined || (typeof value === 'string' && !value.trim()))) {
       throw badRequest(`Workflow node input is required: ${field.name}`)
     }
     if (value === undefined) return
@@ -80,13 +78,6 @@ const validateOperationInputs = (
   return inputs
 }
 
-const assetProjectId = (node: WorkflowOperationNode) => {
-  if (node.assetType === 'repository') return getRepository(node.assetId).projectId
-  if (node.assetType === 'member') return getProjectMember(node.assetId).projectId
-  if (node.assetType === 'environment') return getEnvironment(node.assetId).projectId
-  return getKnowledge(node.assetId).projectId
-}
-
 const validateNode = (projectId: string, node: WorkflowNode): WorkflowNode => {
   if (!node.id.trim()) throw badRequest('Workflow node id is required')
   if (node.kind === 'async') {
@@ -102,15 +93,19 @@ const validateNode = (projectId: string, node: WorkflowNode): WorkflowNode => {
   if (!operation?.workflow.enabled || operation.execution.kind !== 'command') {
     throw badRequest('Asset operation is not available to workflows')
   }
-  if (assetProjectId(node) !== projectId) throw badRequest('Workflow assets must belong to the same project')
-
   const inputs = validateOperationInputs(node, operation.contract.input)
   const assetIdField = `${node.assetType}Id`
-  if (inputs[assetIdField] !== node.assetId) {
-    throw badRequest(`Workflow ${assetIdField} must match the selected asset`)
+  const assetSource = workflowAssetSource(node)
+  if (assetSource === 'fixed') {
+    if (!node.assetId?.trim()) throw badRequest('Workflow fixed assetId is required')
+    if (workflowAssetProjectId(node.assetType, node.assetId) !== projectId) throw badRequest('Workflow assets must belong to the same project')
+    if (inputs[assetIdField] !== node.assetId) throw badRequest(`Workflow ${assetIdField} must match the selected asset`)
+  } else if (node.assetId !== undefined) {
+    throw badRequest('Input asset source must not include a fixed assetId')
   }
   return {
     ...node,
+    assetSource,
     inputs,
     position: validatePosition(node.position, 'node.position'),
   }

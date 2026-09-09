@@ -1,9 +1,10 @@
 import type { Ref } from 'vue'
 import { findAssetOperation } from '#shared/config/asset-operations'
 import type { AssetType } from '#shared/types/asset-operations'
-import type { ProjectWorkspace, WorkflowDefinition, WorkflowNodePosition, WorkflowOperationInputValue, WorkflowTriggerKind } from '#shared/types/asdp'
+import type { ProjectWorkspace, WorkflowDefinition, WorkflowOperationInputValue, WorkflowTriggerKind } from '#shared/types/asdp'
 import { analyzeWorkflowGraph } from '#shared/utils/workflow-graph'
-import { validateAsyncWorkflowNode, workflowNodeLimit } from '#shared/utils/workflow-nodes'
+import { validateAsyncWorkflowNode } from '#shared/utils/workflow-nodes'
+import { workflowAssetSource } from '#shared/utils/workflow-operation-assets'
 import { workflowValueReferenceError } from '#shared/utils/workflow-values'
 
 const cloneWorkflow = (workflow: WorkflowDefinition): WorkflowDefinition => structuredClone(toRaw(workflow))
@@ -23,8 +24,9 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
   const { connectEdge, removeEdge, setUpstream } = useWorkflowConnections(draft, selectedNode, actionError)
   const asyncNodes = useWorkflowAsyncNodes(draft, selectedNodeId, actionError)
   const exceptionPorts = useWorkflowExceptionPorts(draft, selectedNodeId, actionError)
+  const operationNodes = useWorkflowOperationNodes(draft, selectedNode, selectedNodeId, actionError)
 
-  const assetExists = (assetType: AssetType, assetId: string) => {
+  const assetExists = (assetType: AssetType, assetId?: string) => {
     if (!workspace.value) return false
     if (assetType === 'repository') return workspace.value.repositories.some(asset => asset.id === assetId)
     if (assetType === 'member') return workspace.value.members.some(asset => asset.id === assetId)
@@ -42,7 +44,7 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
         continue
       }
       const operation = findAssetOperation(node.assetType, node.operationId)
-      if (!assetExists(node.assetType, node.assetId)) return '存在已删除或不属于当前项目的资产节点。'
+      if (workflowAssetSource(node) === 'fixed' && !assetExists(node.assetType, node.assetId)) return '请选择当前项目中的固定资产。'
       if (!operation?.workflow.enabled) return '存在不可用于工作流的资产操作。'
       const invalidReference = Object.values(node.inputs).map(workflowValueReferenceError).find(Boolean)
       if (invalidReference) return invalidReference
@@ -55,28 +57,6 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
   const selectTrigger = (kind: WorkflowTriggerKind) => {
     if (!draft.value) return
     draft.value.trigger = { kind, position: draft.value.trigger?.position || { x: 260, y: 80 } }
-  }
-
-  const addOperation = (selection: { assetType: AssetType, assetId: string, operationId: string }, position?: WorkflowNodePosition) => {
-    if (!draft.value) return
-    if (draft.value.nodes.length >= workflowNodeLimit) {
-      actionError.value = '工作流最多支持 50 个节点。'
-      return
-    }
-    const operation = findAssetOperation(selection.assetType, selection.operationId)
-    if (!operation?.workflow.enabled) return
-    const inputs: Record<string, WorkflowOperationInputValue> = {}
-    operation.contract.input.forEach((field) => {
-      if (field.name === `${selection.assetType}Id`) inputs[field.name] = selection.assetId
-      else inputs[field.name] = field.type === 'boolean' ? false : ''
-    })
-    const previousPosition = draft.value.nodes.at(-1)?.position
-    const node = {
-      id: globalThis.crypto.randomUUID(), ...selection, inputs,
-      position: position || (previousPosition ? { x: previousPosition.x, y: previousPosition.y + 170 } : { x: 260, y: 250 }),
-    }
-    draft.value.nodes.push(node)
-    selectedNodeId.value = node.id
   }
 
   const updatePosition = (id: string, position: { x: number, y: number }) => {
@@ -134,7 +114,8 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
   return {
     ...asyncNodes,
     ...exceptionPorts,
+    ...operationNodes,
     draft, selectedNodeId, selectedNode, dirty, saving, actionError, validationMessage,
-    save, selectTrigger, addOperation, updatePosition, updateInput, removeNode, connectEdge, removeEdge, setUpstream,
+    save, selectTrigger, updatePosition, updateInput, removeNode, connectEdge, removeEdge, setUpstream,
   }
 }
