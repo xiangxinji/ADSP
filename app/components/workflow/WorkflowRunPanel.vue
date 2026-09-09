@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { workflowNodeLabel } from '#shared/utils/workflow-nodes'
+import { isWorkflowControlNode, workflowControlNames, workflowNodeLabel } from '#shared/utils/workflow-nodes'
 import { workflowRunStatusLabels } from '#shared/config/workflow-run-status'
 import type { WorkflowRun } from '#shared/types/workflow-runs'
 
@@ -18,16 +18,23 @@ const emit = defineEmits<{
 
 const activeSteps = computed(() => props.run?.steps.filter(step => step.status === 'running') || [])
 const activeStep = computed(() => activeSteps.value[0])
-const selectedStep = computed(() => props.run?.steps.find(step => step.nodeId === props.selectedNodeId)
+const summaryStep = computed(() => props.run?.steps.find(step => step.nodeId === props.selectedNodeId)
   || activeStep.value || props.run?.steps.find(step => step.status === 'failed') || props.run?.steps.at(-1))
+const selectedIteration = ref(-1)
+watch(() => [props.run?.id, summaryStep.value?.nodeId], () => { selectedIteration.value = -1 })
+const selectedStep = computed(() => summaryStep.value?.executions?.[selectedIteration.value] || summaryStep.value)
 const selectedNode = computed(() => props.run?.workflow.nodes.find(node => node.id === selectedStep.value?.nodeId))
+const legacyControl = computed(() => isWorkflowControlNode(selectedNode.value)
+  && (selectedNode.value.branches.length !== 1 || selectedNode.value.branches[0]?.id !== 'item'))
 const completedCount = computed(() => props.run?.steps.filter(step => step.status === 'succeeded').length || 0)
-const selectedInputs = computed(() => selectedNode.value?.kind === 'async' ? { branches: selectedNode.value.branches } : selectedNode.value?.inputs)
-const asyncOutput = computed(() => {
+const selectedInputs = computed(() => isWorkflowControlNode(selectedNode.value)
+  ? legacyControl.value ? { branches: selectedNode.value.branches } : { input: '上一个节点的输出数组', childPort: 'item' }
+  : selectedNode.value?.inputs)
+const controlOutput = computed(() => {
   const output = selectedStep.value?.output
   return output && 'branches' in output && 'selectedPort' in output ? output : null
 })
-const branchLabel = (portId: string) => selectedNode.value?.kind === 'async'
+const branchLabel = (portId: string) => isWorkflowControlNode(selectedNode.value)
   ? selectedNode.value.branches.find(branch => branch.id === portId)?.label || portId : portId
 const nodeLabel = (nodeId: string) => {
   const node = props.run?.workflow.nodes.find(item => item.id === nodeId)
@@ -74,12 +81,23 @@ const duration = computed(() => {
       <section v-if="selectedStep && selectedNode" class="workflow-run-detail" aria-label="节点执行结果">
         <h3>{{ nodeLabel(selectedStep.nodeId) }}</h3>
         <dl><dt>开始时间</dt><dd>{{ formatTime(selectedStep.startedAt) }}</dd><dt>结束时间</dt><dd>{{ formatTime(selectedStep.finishedAt) }}</dd><dt>耗时</dt><dd>{{ duration }}</dd></dl>
-        <details><summary>{{ selectedNode.kind === 'async' ? '子端点配置' : '配置输入' }}</summary><pre>{{ JSON.stringify(selectedInputs, null, 2) }}</pre></details>
+        <template v-if="summaryStep?.executions?.length">
+          <label for="workflow-run-iteration">逐项执行记录</label>
+          <select id="workflow-run-iteration" v-model.number="selectedIteration" class="workflow-run-history">
+            <option :value="-1">节点汇总 · {{ summaryStep.executions.length }} 次</option>
+            <option v-for="(execution, index) in summaryStep.executions" :key="JSON.stringify(execution.iterationPath)" :value="index">
+              {{ execution.iterationPath.map(item => nodeLabel(item.nodeId) + ' 第 ' + (item.index + 1) + ' 项').join(' / ') }} · {{ workflowRunStatusLabels[execution.status] }}
+            </option>
+          </select>
+          <p v-if="selectedIteration === -1">选择具体数组元素，查看该次执行独立的输入、输出和错误。</p>
+        </template>
+        <details><summary>{{ isWorkflowControlNode(selectedNode) ? '迭代规则' : '配置输入' }}</summary><pre>{{ JSON.stringify(selectedInputs, null, 2) }}</pre></details>
         <details v-if="selectedStep.resolvedInputs"><summary>实际输入</summary><pre>{{ JSON.stringify(selectedStep.resolvedInputs, null, 2) }}</pre></details>
-        <section v-if="asyncOutput" class="workflow-async-results" aria-label="异步子流程结果">
-          <h4>执行出口：{{ asyncOutput.selectedPort === 'complete' ? '完成' : '异常' }}</h4>
-          <button v-for="branch in asyncOutput.branches" :key="branch.portId" type="button" @click="emit('selectNode', branch.failedNodeId || branch.nodeId)">
-            <strong>{{ branchLabel(branch.portId) }}</strong>
+        <section v-if="controlOutput" class="workflow-control-results" aria-label="流程控制子流程结果">
+          <p v-if="isWorkflowControlNode(selectedNode)">{{ workflowControlNames[selectedNode.kind] }} · {{ legacyControl ? '按历史端点顺序展示结果' : '按原数组顺序展示逐项结果' }}</p>
+          <h4>执行出口：{{ controlOutput.selectedPort === 'complete' ? '完成' : '异常' }}</h4>
+          <button v-for="branch in controlOutput.branches" :key="branch.index ?? branch.portId" type="button" @click="emit('selectNode', branch.failedNodeId || branch.nodeId)">
+            <strong>{{ branch.index === undefined ? branchLabel(branch.portId) : '第 ' + (branch.index + 1) + ' 项' }}</strong>
             <span class="workflow-run-status" :data-status="branch.status">{{ workflowRunStatusLabels[branch.status] }}</span>
             <small v-if="branch.error">{{ branch.error.code }} · {{ branch.error.message }}</small>
           </button>

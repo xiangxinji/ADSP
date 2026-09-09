@@ -7,6 +7,7 @@ import type {
   RepositoryWorktreeResult,
   WorkflowDefinition,
   WorkflowOperationResolvedInputs,
+  WorkflowValue,
   WorkflowValueObject,
 } from './asdp'
 
@@ -17,28 +18,43 @@ export type WorkflowStepStatus = WorkflowRunStatus | 'pending' | 'skipped'
 
 export type WorkflowRunError = { code: string, message: string }
 
-export type WorkflowAsyncBranchResult = {
+export type WorkflowBranchResult = {
   portId: string
   nodeId: string
-  status: 'succeeded' | 'failed'
+  status: 'succeeded' | 'failed' | 'skipped'
   failedNodeId: string | null
   error: WorkflowRunError | null
+  index?: number
+  input?: WorkflowValue
 }
 
-export type WorkflowAsyncOutput = {
-  branches: WorkflowAsyncBranchResult[]
+export type WorkflowAsyncBranchResult = WorkflowBranchResult & { status: 'succeeded' | 'failed' }
+
+export type WorkflowControlOutput = {
+  branches: WorkflowBranchResult[]
   selectedPort: 'complete' | 'error'
 }
 
-export type WorkflowRunStep = {
+export type WorkflowAsyncOutput = WorkflowControlOutput & { branches: WorkflowAsyncBranchResult[] }
+export type WorkflowSyncOutput = WorkflowControlOutput
+
+export type WorkflowStepExecution = {
   nodeId: string
   status: WorkflowStepStatus
   startedAt: string | null
   finishedAt: string | null
   resolvedInputs: WorkflowOperationResolvedInputs | null
   output: RepositoryBranchResult | RepositoryCloneResult | RepositoryLocalCloneStatusResult
-    | RepositoryMergeRequestResult | RepositoryUpdateResult | RepositoryWorktreeResult | WorkflowAsyncOutput | AssetListResult | null
+    | RepositoryMergeRequestResult | RepositoryUpdateResult | RepositoryWorktreeResult | WorkflowControlOutput | AssetListResult | null
   error: WorkflowRunError | null
+}
+
+export type WorkflowIterationStep = WorkflowStepExecution & {
+  iterationPath: { nodeId: string, index: number }[]
+}
+
+export type WorkflowRunStep = WorkflowStepExecution & {
+  executions?: WorkflowIterationStep[]
 }
 
 export type WorkflowRun = {

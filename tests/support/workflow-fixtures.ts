@@ -1,9 +1,19 @@
-import type { WorkflowAsyncNode, WorkflowDefinition, WorkflowEdge, WorkflowNode, WorkflowOperationNode } from '../../shared/types/asdp'
+import type { WorkflowAsyncNode, WorkflowDefinition, WorkflowEdge, WorkflowNode, WorkflowOperationNode, WorkflowSyncNode } from '../../shared/types/asdp'
 import type { WorkflowRun } from '../../shared/types/workflow-runs'
+import { workflowControlBranch } from '../../shared/utils/workflow-nodes'
 
 export const asyncNode = (id = 'parallel'): WorkflowAsyncNode => ({
   id, kind: 'async', label: '异步执行', position: { x: 120, y: 160 },
-  branches: [{ id: 'first', label: '子流程 1' }, { id: 'second', label: '子流程 2' }],
+  branches: [{ ...workflowControlBranch }],
+})
+export const syncNode = (id = 'sequence'): WorkflowSyncNode => ({ ...asyncNode(id), kind: 'sync', label: '同步执行' })
+export const listNode = (id = 'items'): WorkflowOperationNode => ({
+  id, assetType: 'repository', assetSource: 'input', operationId: 'repository.list', inputs: {}, position: { x: 0, y: 0 },
+})
+export const repositoryListItem = (id: string) => ({
+  id, projectId: 'project-1', name: 'feature/' + id, note: '', provider: 'gitlab' as const,
+  branchStrategy: 'multi-version' as const, externalId: '101', url: 'https://example.test/repo.git',
+  localOperation: null, referenceCount: 0, createdAt: '', updatedAt: '',
 })
 export const operationNode = (id: string, repositoryId = id, branch = 'feature/' + id, source = 'main'): WorkflowOperationNode => ({
   id, assetType: 'repository', assetId: repositoryId, operationId: 'repository.create-branch',

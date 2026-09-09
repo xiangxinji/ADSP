@@ -3,7 +3,7 @@ import { findAssetOperation } from '#shared/config/asset-operations'
 import type { AssetType } from '#shared/types/asset-operations'
 import type { ProjectWorkspace, WorkflowDefinition, WorkflowOperationInputValue, WorkflowTriggerKind } from '#shared/types/asdp'
 import { analyzeWorkflowGraph } from '#shared/utils/workflow-graph'
-import { validateAsyncWorkflowNode } from '#shared/utils/workflow-nodes'
+import { isWorkflowControlNode, validateWorkflowControlNode } from '#shared/utils/workflow-nodes'
 import { workflowAssetSource } from '#shared/utils/workflow-operation-assets'
 import { workflowValueReferenceError } from '#shared/utils/workflow-values'
 
@@ -22,7 +22,7 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
   const selectedNode = computed(() => draft.value?.nodes.find(node => node.id === selectedNodeId.value) || null)
   const dirty = computed(() => Boolean(draft.value && JSON.stringify(draft.value) !== savedSnapshot.value))
   const { connectEdge, removeEdge, setUpstream } = useWorkflowConnections(draft, selectedNode, actionError)
-  const asyncNodes = useWorkflowAsyncNodes(draft, selectedNodeId, actionError)
+  const controlNodes = useWorkflowControlNodes(draft, selectedNodeId, actionError)
   const exceptionPorts = useWorkflowExceptionPorts(draft, selectedNodeId, actionError)
   const operationNodes = useWorkflowOperationNodes(draft, selectedNode, selectedNodeId, actionError)
 
@@ -38,8 +38,8 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
     if (!draft.value?.name.trim()) return '请填写工作流名称。'
     if (!draft.value.trigger) return '请选择一个根触发器。'
     for (const node of draft.value.nodes) {
-      if (node.kind === 'async') {
-        const message = validateAsyncWorkflowNode(node)
+      if (isWorkflowControlNode(node)) {
+        const message = validateWorkflowControlNode(node)
         if (message) return message
         continue
       }
@@ -67,7 +67,7 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
   }
 
   const updateInput = (name: string, value: WorkflowOperationInputValue) => {
-    if (selectedNode.value && selectedNode.value.kind !== 'async') selectedNode.value.inputs[name] = value
+    if (selectedNode.value && !isWorkflowControlNode(selectedNode.value)) selectedNode.value.inputs[name] = value
   }
 
   const removeNode = () => {
@@ -112,7 +112,7 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
   onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 
   return {
-    ...asyncNodes,
+    ...controlNodes,
     ...exceptionPorts,
     ...operationNodes,
     draft, selectedNodeId, selectedNode, dirty, saving, actionError, validationMessage,

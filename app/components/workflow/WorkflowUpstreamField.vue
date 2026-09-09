@@ -32,7 +32,7 @@ const changeSource = (key: string) => {
 </script>
 
 <template>
-  <AppFormField field-id="workflow-upstream" label="上游节点 / 端点" hint="选择上游节点的正常或异常出口；异步节点还可选择执行子端点。">
+  <AppFormField field-id="workflow-upstream" label="上游节点 / 端点" hint="选择上游节点的正常或异常出口；同步和异步节点还可选择执行子端点。">
     <AppSelect id="workflow-upstream" :model-value="current ? sourceKey(current) : ''" @update:model-value="changeSource(String($event || ''))">
       <option value="">未连接</option>
       <option v-for="option in options" :key="option.key" :value="option.key" :disabled="option.disabled">{{ option.label }}</option>

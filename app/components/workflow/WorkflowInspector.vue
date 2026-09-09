@@ -2,6 +2,7 @@
 import AssetContractFields from '~/components/AssetContractFields.vue'
 import { findAssetOperation, isProjectAssetOperation } from '#shared/config/asset-operations'
 import { assetOperationOutputFields, assetOperationOutputType } from '#shared/utils/asset-operation-contract'
+import { isWorkflowControlNode, workflowControlNames } from '#shared/utils/workflow-nodes'
 import { workflowAssetSource } from '#shared/utils/workflow-operation-assets'
 import type { ProjectWorkspace, WorkflowDefinition, WorkflowEdge, WorkflowOperationInputValue, WorkflowNode } from '#shared/types/asdp'
 
@@ -18,15 +19,13 @@ const emit = defineEmits<{
   updateAssetId: [assetId: string]
   setUpstream: [source: Pick<WorkflowEdge, 'source' | 'sourceHandle'> | null]
   removeNode: []
-  addAsyncBranch: [nodeId: string]
-  updateAsyncLabel: [nodeId: string, label: string]
-  renameAsyncBranch: [nodeId: string, branchId: string, label: string]
-  removeAsyncBranch: [nodeId: string, branchId: string]
+  updateControlLabel: [nodeId: string, label: string]
   addExceptionPort: [nodeId: string]
   updateExceptionPort: [nodeId: string, portId: string, code: string]
   removeExceptionPort: [nodeId: string, portId: string]
 }>()
-const operationNode = computed(() => props.selectedNode?.kind !== 'async' ? props.selectedNode : null)
+const operationNode = computed(() => !isWorkflowControlNode(props.selectedNode) ? props.selectedNode : null)
+const controlNode = computed(() => isWorkflowControlNode(props.selectedNode) ? props.selectedNode : null)
 const operation = computed(() => operationNode.value
   ? findAssetOperation(operationNode.value.assetType, operationNode.value.operationId) : undefined)
 const inputFields = computed(() => operation.value?.workflow.enabled
@@ -35,10 +34,19 @@ const inputFields = computed(() => operation.value?.workflow.enabled
 const previousFields = computed(() => {
   if (!operationNode.value) return []
   const edge = props.workflow.edges.find(edge => edge.target === operationNode.value?.id)
-  const previous = props.workflow.nodes.find(node => node.id === edge?.source)
-  if (!previous || previous.kind === 'async' || edge?.sourceHandle) return []
+  let previous = props.workflow.nodes.find(node => node.id === edge?.source)
+  const iterationChild = isWorkflowControlNode(previous) && edge?.sourceHandle === 'item'
+  if (iterationChild) {
+    const upstream = props.workflow.edges.find(connection => connection.target === previous?.id)
+    if (upstream?.sourceHandle) return []
+    previous = props.workflow.nodes.find(node => node.id === upstream?.source)
+  }
+  if (!previous || isWorkflowControlNode(previous) || (edge?.sourceHandle && !iterationChild)) return []
   const previousOperation = findAssetOperation(previous.assetType, previous.operationId)
-  return previousOperation?.workflow.enabled ? assetOperationOutputFields(previousOperation.contract) : []
+  if (!previousOperation?.workflow.enabled) return []
+  const fields = assetOperationOutputFields(previousOperation.contract)
+  return iterationChild && 'outputType' in previousOperation.contract
+    ? fields.map(field => ({ ...field, name: field.name.replace(/^0\./, '') })) : fields
 })
 const assetLabel = computed(() => {
   if (!operationNode.value) return ''
@@ -65,14 +73,11 @@ const assetLabel = computed(() => {
       </AppFormField>
     </section>
     <section class="workflow-inspector-section node-inspector">
-      <div class="workflow-library-title"><strong>节点配置</strong><span>{{ selectedNode?.kind === 'async' ? '并发控制' : selectedNode ? '资产操作' : '未选择' }}</span></div>
+      <div class="workflow-library-title"><strong>节点配置</strong><span>{{ controlNode ? workflowControlNames[controlNode.kind] : selectedNode ? '资产操作' : '未选择' }}</span></div>
       <WorkflowUpstreamField v-if="selectedNode" :workflow="workflow" :node-id="selectedNode.id" @change="emit('setUpstream', $event)" />
-      <WorkflowAsyncInspector
-        v-if="selectedNode?.kind === 'async'" :node="selectedNode"
-        @update-label="emit('updateAsyncLabel', selectedNode.id, $event)"
-        @add-branch="emit('addAsyncBranch', selectedNode.id)"
-        @rename-branch="(branchId, label) => emit('renameAsyncBranch', selectedNode!.id, branchId, label)"
-        @remove-branch="emit('removeAsyncBranch', selectedNode.id, $event)"
+      <WorkflowControlInspector
+        v-if="controlNode" :key="controlNode.id" :node="controlNode"
+        @update-label="emit('updateControlLabel', controlNode.id, $event)"
       />
       <template v-else-if="operationNode && operation?.workflow.enabled">
         <div class="workflow-selected-summary"><span><AppIcon name="repository" :size="16" /></span><div><strong>{{ operation.label }}</strong><small>{{ assetLabel || '资产已不存在' }}</small></div></div>
@@ -100,7 +105,7 @@ const assetLabel = computed(() => {
           @remove-port="emit('removeExceptionPort', operationNode.id, $event)"
         />
       </template>
-      <div v-else class="workflow-library-empty"><strong>选择一个节点</strong><span>点击画板中的节点，维护参数或执行子端点。</span></div>
+      <div v-else class="workflow-library-empty"><strong>选择一个节点</strong><span>点击画板中的节点，维护参数或查看执行规则。</span></div>
       <div v-if="selectedNode" class="workflow-node-actions"><AppButton variant="danger-outline" icon="delete" @click="emit('removeNode')">删除节点</AppButton></div>
     </section>
   </aside>

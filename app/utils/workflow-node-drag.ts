@@ -1,7 +1,7 @@
 import { assetTypes } from '#shared/types/asset-operations'
 import { findAssetOperation, isProjectAssetOperation } from '#shared/config/asset-operations'
 import type { AssetType } from '#shared/types/asset-operations'
-import type { WorkflowNodePosition } from '#shared/types/asdp'
+import type { WorkflowControlKind, WorkflowNodePosition } from '#shared/types/asdp'
 
 export const workflowNodeDragMime = 'application/x-forgepilot-workflow-node'
 
@@ -12,17 +12,21 @@ export type WorkflowOperationSelection = {
 }
 
 export type WorkflowNodeDragData =
-  | { type: 'async' }
+  | { type: 'control', kind: WorkflowControlKind }
   | { type: 'operation', selection: WorkflowOperationSelection }
 
 export type WorkflowNodeDropData = WorkflowNodeDragData & { position: WorkflowNodePosition }
+
+const controlKinds: WorkflowControlKind[] = ['sync', 'async']
 
 export const serializeWorkflowNodeDragData = (data: WorkflowNodeDragData) => JSON.stringify(data)
 
 export const parseWorkflowNodeDragData = (value: string): WorkflowNodeDragData | null => {
   try {
     const data = JSON.parse(value) as Record<string, unknown>
-    if (data.type === 'async') return { type: 'async' }
+    if (data.type === 'control' && typeof data.kind === 'string' && controlKinds.includes(data.kind as WorkflowControlKind)) {
+      return { type: 'control', kind: data.kind as WorkflowControlKind }
+    }
     if (data.type !== 'operation' || !data.selection || typeof data.selection !== 'object') return null
     const selection = data.selection as Record<string, unknown>
     if (typeof selection.assetType !== 'string' || !assetTypes.includes(selection.assetType as AssetType)

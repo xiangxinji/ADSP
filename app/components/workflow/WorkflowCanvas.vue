@@ -23,7 +23,6 @@ const emit = defineEmits<{
   connectEdge: [connection: Pick<WorkflowEdge, 'source' | 'target' | 'sourceHandle'>]
   removeEdge: [id: string]
   removeNode: []
-  addAsyncBranch: [nodeId: string]
   addExceptionPort: [nodeId: string]
   dropNode: [data: WorkflowNodeDropData]
 }>()
@@ -103,7 +102,7 @@ const onDrop = (event: DragEvent) => {
   const point = screenToFlowCoordinate({ x: event.clientX, y: event.clientY })
   const position = { x: point.x - 114, y: point.y - 43 }
   skipNextNodeFit.value = true
-  if (data.type === 'async') emit('dropNode', { type: 'async', position })
+  if (data.type === 'control') emit('dropNode', { type: 'control', kind: data.kind, position })
   else emit('dropNode', { type: 'operation', selection: data.selection, position })
   nextTick(() => { skipNextNodeFit.value = false })
 }
@@ -161,8 +160,8 @@ onBeforeUnmount(() => {
             @select-target="selectConnectionTarget(slotProps.id)" @add-exception="emit('addExceptionPort', slotProps.id)"
           />
         </template>
-        <template #node-async="slotProps">
-          <WorkflowAsyncNode v-bind="slotProps" @select-source="selectConnectionSource(slotProps.id, $event)" @select-target="selectConnectionTarget(slotProps.id)" @add-branch="emit('addAsyncBranch', slotProps.id)" />
+        <template #node-control="slotProps">
+          <WorkflowControlNode v-bind="slotProps" @select-source="selectConnectionSource(slotProps.id, $event)" @select-target="selectConnectionTarget(slotProps.id)" />
         </template>
         <div v-if="dragOver" class="workflow-drop-indicator" role="status">松开以在此处添加节点</div>
         <div v-if="pendingSource" class="workflow-connection-status" role="status">已选择输出端点，请点击下游节点卡片或顶部圆点。<button type="button" @click="pendingSource = null">取消</button></div>

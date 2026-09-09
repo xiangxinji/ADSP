@@ -104,9 +104,29 @@ manual trigger object, while `$prev.branch` reads the previous value on the curr
 executing path. Dot segments traverse nested objects; numeric segments traverse arrays,
 for example `$root.releases.0.branch`. References replace the complete input value and
 preserve its type; they are not string templates. A normal operation edge supplies the
-successful operation output. An exception edge supplies `{ code, message }`. An async
-child branch inherits the value that entered its control node, while the control
+successful operation output. An exception edge supplies `{ code, message }`. A sync or
+async child invocation receives one element of the upstream output array, while the control
 node's `complete` or `error` outlet receives its `{ branches, selectedPort }` output.
+
+Sync and async definitions use one fixed execution port: `sourceHandle: 'item'`, connected
+to exactly one child. `branches` may be omitted in request payloads and defaults to
+`[{ id: 'item', label: '逐项执行' }]`; custom or multiple ports are rejected with `400`.
+Optional `complete` and `error` outlets remain unchanged. The executor repeats the child
+subtree for each upstream array element; sync follows array order and skips later elements
+after failure, while async runs concurrently and waits for all invocations. An empty array
+completes without invoking the child. Non-array input fails the control step with
+`workflow.control-input-not-array` and follows its error outlet without invoking the child.
+
+Control `output.branches[]` entries include `index` (zero-based input position), `input`
+(original element), `portId: 'item'`, `nodeId`, `status`, `failedNodeId`, and `error`.
+Entries remain in input order even when asynchronous invocations finish out of order.
+Repeated nodes store independent `steps[].executions[]` records, each with an
+`iterationPath: [{ nodeId, index }]` from outermost to innermost control, plus its own
+resolved inputs, output, error, status, and timestamps. Top-level steps aggregate status;
+when there are multiple invocations their aggregate `resolvedInputs` and `output` are null
+rather than an arbitrary invocation's values. Older run histories may omit iteration data.
+Old definition handles map to `item` without dropping nodes or edges; multiple connected
+legacy children require explicitly removing excess connections before saving or running.
 
 Runtime reference failures use `workflow.input-reference-not-found`,
 `workflow.previous-output-unavailable`, or `workflow.input-type-mismatch` and stop that

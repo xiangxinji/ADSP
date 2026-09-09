@@ -11,7 +11,7 @@ export default defineNuxtConfig({
     '~/assets/css/main.css',
     '~/assets/css/workflow.css',
     '~/assets/css/workflow-runs.css',
-    '~/assets/css/workflow-async.css',
+    '~/assets/css/workflow-control.css',
     '~/assets/css/workflow-exceptions.css',
     '~/assets/css/markdown-editor.css',
   ],

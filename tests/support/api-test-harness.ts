@@ -34,6 +34,7 @@ export type ApiTestHarness = {
 type ApiTestHarnessOptions = {
   prepareDatabase?: (databasePath: string) => Promise<void>
   gitLabDelayMs?: number
+  gitLabProjectIds?: string[]
 }
 
 const delay = (milliseconds: number) => new Promise(resolve => setTimeout(resolve, milliseconds))
@@ -57,7 +58,7 @@ const availablePort = async () => {
   return port
 }
 
-const startGitLabMock = async (operationDelayMs = 0) => {
+const startGitLabMock = async (operationDelayMs = 0, projectIds = ['101']) => {
   const requests: GitLabRequest[] = []
   const branches = new Set(['main'])
   const mergeRequests = new Set<string>()
@@ -99,7 +100,7 @@ const startGitLabMock = async (operationDelayMs = 0) => {
       return
     }
 
-    if (url.pathname === '/api/v4/projects/101/repository/branches' && request.method === 'POST') {
+    if (projectIds.some(id => url.pathname === '/api/v4/projects/' + id + '/repository/branches') && request.method === 'POST') {
       if (operationDelayMs) await delay(operationDelayMs)
       const branch = url.searchParams.get('branch') || ''
       const source = url.searchParams.get('ref') || ''
@@ -203,7 +204,7 @@ export const startApiTestHarness = async (options: ApiTestHarnessOptions = {}): 
 
   try {
     await options.prepareDatabase?.(databasePath)
-    gitLab = await startGitLabMock(options.gitLabDelayMs)
+    gitLab = await startGitLabMock(options.gitLabDelayMs, options.gitLabProjectIds)
     const port = await availablePort()
     const baseUrl = `http://127.0.0.1:${port}`
     child = spawn(process.execPath, [join(process.cwd(), '.output', 'server', 'index.mjs')], {

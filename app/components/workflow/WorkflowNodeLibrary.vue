@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import type { WorkflowTriggerKind } from '#shared/types/asdp'
+import type { WorkflowControlKind, WorkflowTriggerKind } from '#shared/types/asdp'
+import { workflowControlNames } from '#shared/utils/workflow-nodes'
 import {
   serializeWorkflowNodeDragData,
   workflowNodeDragMime,
@@ -7,13 +8,15 @@ import {
   type WorkflowOperationSelection,
 } from '~/utils/workflow-node-drag'
 
+const controlKinds = ['sync', 'async'] as const
+
 const props = defineProps<{
   triggerKind: WorkflowTriggerKind | null
 }>()
 
 const emit = defineEmits<{
   selectTrigger: [kind: WorkflowTriggerKind]
-  addAsyncNode: []
+  addControlNode: [kind: WorkflowControlKind]
   addOperation: [selection: WorkflowOperationSelection]
 }>()
 
@@ -31,9 +34,9 @@ const startDrag = (event: DragEvent, data: WorkflowNodeDragData, source: string)
   draggingSource.value = source
 }
 
-const startAsyncDrag = (event: DragEvent) => {
+const startControlDrag = (event: DragEvent, kind: WorkflowControlKind) => {
   if (!props.triggerKind) return event.preventDefault()
-  startDrag(event, { type: 'async' }, 'async')
+  startDrag(event, { type: 'control', kind }, `control:${kind}`)
 }
 
 </script>
@@ -50,17 +53,20 @@ const startAsyncDrag = (event: DragEvent) => {
       </div>
     </section>
     <section class="workflow-library-section">
-      <div class="workflow-library-title"><strong>2. 流程控制</strong><span>并发执行与结果分流</span></div>
-      <p class="workflow-operation-help">动态添加子端点并发执行多个子流程，全部结束后走完成或异常出口。</p>
-      <button
-        type="button" class="workflow-node-template" :class="{ dragging: draggingSource === 'async' }"
-        :disabled="!triggerKind" :draggable="Boolean(triggerKind)" aria-describedby="workflow-node-drag-help"
-        @click="emit('addAsyncNode')" @dragstart="startAsyncDrag" @dragend="draggingSource = ''"
-      >
-        <span class="workflow-node-template-icon"><AppIcon name="workflow" :size="16" /></span>
-        <span class="workflow-node-template-copy"><strong>异步执行</strong><small>并发执行子流程</small></span>
-        <span class="workflow-node-template-action">拖动</span>
-      </button>
+      <div class="workflow-library-title"><strong>2. 流程控制</strong><span>顺序 / 并发执行与结果分流</span></div>
+      <p class="workflow-operation-help">自动读取上游数组，逐项执行唯一子节点；同步顺序执行，异步并发执行。</p>
+      <div class="workflow-node-templates">
+        <button
+          v-for="kind in controlKinds" :key="kind" type="button" class="workflow-node-template"
+          :class="{ dragging: draggingSource === `control:${kind}` }" :disabled="!triggerKind" :draggable="Boolean(triggerKind)"
+          aria-describedby="workflow-node-drag-help" @click="emit('addControlNode', kind)"
+          @dragstart="startControlDrag($event, kind)" @dragend="draggingSource = ''"
+        >
+          <span class="workflow-node-template-icon"><AppIcon name="workflow" :size="16" /></span>
+          <span class="workflow-node-template-copy"><strong>{{ workflowControlNames[kind] }}</strong><small>{{ kind === 'sync' ? '按数组顺序逐项执行' : '按数组元素并发执行' }}</small></span>
+          <span class="workflow-node-template-action">拖动</span>
+        </button>
+      </div>
     </section>
     <WorkflowOperationLibrary :enabled="Boolean(triggerKind)" @add-operation="emit('addOperation', $event)" />
   </aside>

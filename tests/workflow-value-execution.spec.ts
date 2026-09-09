@@ -1,12 +1,14 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { executeAssetOperation } from '../server/services/asset-operations'
+import { executeProjectAssetOperation } from '../server/services/project-asset-operations'
 import { executeWorkflowGraph } from '../server/services/workflow-graph-execution'
 import { createAssetOperationError } from '../server/utils/asset-operation-error'
 import type { WorkflowOperationNode } from '../shared/types/asdp'
 import type { WorkflowRun } from '../shared/types/workflow-runs'
-import { asyncNode, operationNode, runFixture, workflowEdge as edge } from './support/workflow-fixtures'
+import { listNode, repositoryListItem, operationNode, runFixture, syncNode, workflowEdge as edge } from './support/workflow-fixtures'
 
 vi.mock('../server/services/asset-operations', () => ({ executeAssetOperation: vi.fn() }))
+vi.mock('../server/services/project-asset-operations', () => ({ executeProjectAssetOperation: vi.fn() }))
 vi.mock('../server/repositories/workflow-runs', () => ({ updateWorkflowRun: vi.fn() }))
 
 const start = (run: WorkflowRun) => executeWorkflowGraph(run, new Map(run.workflow.nodes.flatMap(node => 'inputs' in node ? [[node.id, node.inputs]] : [])))
@@ -40,14 +42,15 @@ describe('workflow value execution', () => {
     })
   })
 
-  test('inherits the incoming value inside nested async branches and exposes control output to its outlet', async () => {
+  test('passes the current array item to the child and control output to its outlet', async () => {
+    vi.mocked(executeProjectAssetOperation).mockReturnValue([repositoryListItem('nested-child')])
     const child = operationNode('child')
-    child.inputs.branch = '$prev.release.branch'
+    child.inputs.branch = '$prev.name'
     const done = operationNode('done')
     done.inputs.branch = '$root.done.branch'
     done.inputs.source = '$prev.selectedPort'
-    const run = runFixture([asyncNode(), child, done], [
-      edge('workflow-trigger', 'parallel'), edge('parallel', 'child', 'first'), edge('parallel', 'done', 'complete'),
+    const run = runFixture([listNode(), syncNode(), child, done], [
+      edge('workflow-trigger', 'items'), edge('items', 'sequence'), edge('sequence', 'child', 'item'), edge('sequence', 'done', 'complete'),
     ])
     run.root = { release: { branch: 'feature/nested-child' }, done: { branch: 'feature/nested-done' } }
 

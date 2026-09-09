@@ -4,7 +4,7 @@ import { findAssetOperation, isProjectAssetOperation } from '#shared/config/asse
 import type { ProjectWorkspace, WorkflowEdge, WorkflowNode, WorkflowOperationNode, WorkflowTrigger } from '#shared/types/asdp'
 import type { WorkflowRunStep } from '#shared/types/workflow-runs'
 import { analyzeWorkflowGraph, workflowTriggerNodeId } from '#shared/utils/workflow-graph'
-import { validateAsyncWorkflowNode, validateWorkflowExceptionPorts, workflowOperationExceptions } from '#shared/utils/workflow-nodes'
+import { isWorkflowControlNode, validateWorkflowControlNode, validateWorkflowExceptionPorts, workflowOperationExceptions } from '#shared/utils/workflow-nodes'
 import { workflowValueReferenceError } from '#shared/utils/workflow-values'
 import { workflowAssetInputName, workflowAssetSource } from '#shared/utils/workflow-operation-assets'
 
@@ -59,11 +59,11 @@ export const useWorkflowCanvasNodes = (props: WorkflowCanvasProps, pendingSource
         runStatus: props.runSteps?.find(step => step.nodeId === node.id)?.status,
         readOnly: props.readOnly,
       }
-      if (node.kind === 'async') {
-        return { ...common, type: 'async', data: {
-          ...data, label: node.label, branches: node.branches,
+      if (isWorkflowControlNode(node)) {
+        return { ...common, type: 'control', data: {
+          ...data, kind: node.kind, label: node.label, branches: node.branches,
           connectionSourceHandle: data.connectionSource ? pendingSource.value?.sourceHandle || null : null,
-          complete: props.readOnly || Boolean(connected && !validateAsyncWorkflowNode(node)
+          complete: props.readOnly || Boolean(connected && !validateWorkflowControlNode(node)
             && props.edges.some(edge => edge.source === node.id && node.branches.some(branch => branch.id === edge.sourceHandle))),
         } }
       }

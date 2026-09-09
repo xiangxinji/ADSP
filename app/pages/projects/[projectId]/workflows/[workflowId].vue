@@ -9,7 +9,7 @@ const { data: workspace, status, error, refresh } = await useFetch<ProjectWorksp
 const {
   draft, selectedNodeId, selectedNode, dirty, saving, actionError, validationMessage,
   save, selectTrigger, addOperation, updatePosition, updateInput, removeNode, connectEdge, removeEdge, setUpstream,
-  addAsyncNode, addAsyncBranch, updateAsyncLabel, renameAsyncBranch, removeAsyncBranch,
+  addControlNode, updateControlLabel,
   addExceptionPort, updateExceptionPort, removeExceptionPort,
   updateAssetSource, updateAssetId,
 } = useWorkflowEditor(workflowId, workspace)
@@ -43,7 +43,7 @@ const confirmRun = async (root: WorkflowValueObject) => {
   showRuns.value = true
 }
 const addDroppedNode = (data: WorkflowNodeDropData) => {
-  if (data.type === 'async') addAsyncNode(data.position)
+  if (data.type === 'control') addControlNode(data.kind, data.position)
   else addOperation(data.selection, data.position)
 }
 </script>
@@ -64,7 +64,7 @@ const addDroppedNode = (data: WorkflowNodeDropData) => {
         </div>
       </header>
       <div class="workflow-editor-layout">
-        <WorkflowNodeLibrary v-if="!showRuns" :trigger-kind="draft.trigger?.kind || null" @select-trigger="selectTrigger" @add-operation="addOperation" @add-async-node="addAsyncNode" />
+        <WorkflowNodeLibrary v-if="!showRuns" :trigger-kind="draft.trigger?.kind || null" @select-trigger="selectTrigger" @add-operation="addOperation" @add-control-node="addControlNode" />
         <aside v-else class="workflow-sidebar workflow-library">
           <header class="workflow-sidebar-heading"><p class="overline">RUN SNAPSHOT</p><h2>运行快照</h2><span>{{ selectedRun?.workflow.name || draft.name }}</span></header>
           <p class="workflow-run-help">画布展示本次启动时保存的节点与连线，只读查看。之后的编排修改不会改变历史结果。</p>
@@ -78,7 +78,6 @@ const addDroppedNode = (data: WorkflowNodeDropData) => {
           :run-steps="showRuns ? selectedRun?.steps : undefined" :read-only="showRuns"
           @select-node="showRuns ? runNodeId = $event : selectedNodeId = $event"
           @update-position="updatePosition" @connect-edge="connectEdge" @remove-edge="removeEdge" @remove-node="removeNode"
-          @add-async-branch="addAsyncBranch"
           @add-exception-port="addExceptionPort"
           @drop-node="addDroppedNode"
         />
@@ -87,8 +86,8 @@ const addDroppedNode = (data: WorkflowNodeDropData) => {
           v-else :workflow="draft" :workspace="workspace" :selected-node="selectedNode"
           @update-name="draft.name = $event" @update-note="draft.note = $event" @update-input="updateInput"
           @update-asset-source="updateAssetSource" @update-asset-id="updateAssetId"
-          @set-upstream="setUpstream" @remove-node="removeNode" @add-async-branch="addAsyncBranch"
-          @update-async-label="updateAsyncLabel" @rename-async-branch="renameAsyncBranch" @remove-async-branch="removeAsyncBranch"
+          @set-upstream="setUpstream" @remove-node="removeNode"
+          @update-control-label="updateControlLabel"
           @add-exception-port="addExceptionPort" @update-exception-port="updateExceptionPort" @remove-exception-port="removeExceptionPort"
         />
       </div>

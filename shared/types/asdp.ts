@@ -190,20 +190,25 @@ export type WorkflowOperationNode = {
   position: WorkflowNodePosition
 }
 
-export type WorkflowAsyncBranch = {
+export type WorkflowBranch = {
   id: string
   label: string
 }
+
+export type WorkflowAsyncBranch = WorkflowBranch
 
 export type WorkflowAsyncNode = {
   id: string
   kind: 'async'
   label: string
-  branches: WorkflowAsyncBranch[]
+  branches: WorkflowBranch[]
   position: WorkflowNodePosition
 }
 
-export type WorkflowNode = WorkflowOperationNode | WorkflowAsyncNode
+export type WorkflowSyncNode = Omit<WorkflowAsyncNode, 'kind'> & { kind: 'sync' }
+export type WorkflowControlNode = WorkflowAsyncNode | WorkflowSyncNode
+export type WorkflowControlKind = WorkflowControlNode['kind']
+export type WorkflowNode = WorkflowOperationNode | WorkflowControlNode
 
 export type WorkflowEdge = {
   id: string

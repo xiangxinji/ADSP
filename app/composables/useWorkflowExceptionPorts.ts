@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import type { WorkflowDefinition } from '#shared/types/asdp'
-import { workflowOperationExceptions } from '#shared/utils/workflow-nodes'
+import { isWorkflowControlNode, workflowOperationExceptions } from '#shared/utils/workflow-nodes'
 
 export const useWorkflowExceptionPorts = (
   draft: Ref<WorkflowDefinition | null>,
@@ -9,7 +9,7 @@ export const useWorkflowExceptionPorts = (
 ) => {
   const findOperationNode = (nodeId: string) => {
     const node = draft.value?.nodes.find(node => node.id === nodeId)
-    return node?.kind !== 'async' ? node : undefined
+    return !isWorkflowControlNode(node) ? node : undefined
   }
 
   const addExceptionPort = (nodeId: string) => {

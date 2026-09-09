@@ -101,6 +101,7 @@ Project 1─* KnowledgeAsset
 Project 1─* WorkflowDefinition 1─0..1 WorkflowTrigger
 WorkflowDefinition 1─0..* WorkflowOperationNode
 WorkflowDefinition 1─0..* WorkflowAsyncNode
+WorkflowDefinition 1─0..* WorkflowSyncNode
 WorkflowOperationNode 1─0..* WorkflowExceptionPort
 WorkflowDefinition 1─0..* WorkflowEdge
 
@@ -113,7 +114,7 @@ Requirement 1─* WorkflowRun
 
 `WorkflowDefinition` is reusable project configuration, while `WorkflowRun` remains an
 auditable execution attempt. The definition model is a rooted, acyclic graph with
-asset-operation nodes and explicit asynchronous control nodes. A draft
+asset-operation nodes and explicit asynchronous or synchronous control nodes. A draft
 may exist without a trigger while its basic information is being created, but operation
 nodes cannot be persisted until the root trigger exists. Node positions are presentation
 metadata for the canvas. Stable directed edges are persisted with the definition and are
@@ -130,10 +131,10 @@ An input may be a literal or an exact `$root.path` / `$prev.path`
 reference. Dot paths traverse nested objects and numeric array indexes. The root source is
 the trigger value for the attempt; the previous source is the value propagated along the
 currently executing path. Successful operations propagate their contract output, exception
-edges propagate `{ code, message }`, async child paths inherit the value that entered the
-control node, and async completion/error outlets receive the control result. This keeps
-data flow deterministic through nested async and exception paths without allowing arbitrary
-cross-branch reads. The workflow-definition service is the explicitly named cross-domain
+edges propagate `{ code, message }`, control child paths receive one element of the incoming
+array per iteration, and control completion/error outlets receive the control result. This keeps
+data flow deterministic through nested sync, async, and exception paths without allowing
+arbitrary cross-branch reads. The workflow-definition service is the explicitly named cross-domain
 orchestration boundary that verifies fixed asset ownership and the operation contract before
 writing. Input-sourced assets are resolved by the focused cross-domain
 `server/services/workflow-asset-resolution.ts` service immediately before dispatch,
@@ -159,11 +160,40 @@ inputs nor workflow nodes can override the project context or bind a single asse
 these commands. Existing single-asset API paths and commands are unchanged.
 Every output port may connect to at most one downstream node, every node has exactly one
 upstream edge, and every node must be reachable from the trigger. Cross-branch merges and
-cycles are rejected. Graphs contain at most 50 nodes. An asynchronous node has 1–50 stable,
-named child ports plus reserved `complete` and `error` outlets; at least one child port
-must be connected. The graph executor starts connected child paths concurrently, waits
-for their entire subtrees, and executes exactly one completion or error path. Unselected
-paths are recursively skipped. Renaming a child port preserves its ID and connections.
+cycles are rejected. Graphs contain at most 50 nodes. Both synchronous (`kind: 'sync'`)
+and asynchronous (`kind: 'async'`) nodes expose one fixed `item` child port plus optional
+`complete` and `error` outlets. The child port must connect to exactly one node. Operators
+do not add, name, reorder, or delete execution ports. The API defaults the retained
+`branches` configuration to `[{ id: 'item', label: '逐项执行' }]` and rejects alternatives.
+
+The executor reads the immediate upstream output as an array and executes the same child
+subtree once per element. The child's `$prev` is that element and `$root` is unchanged;
+later nodes on that path still receive the immediately preceding operation output.
+Synchronous iteration follows array order, awaiting each entire subtree, including nested
+controls and exception handlers. Its first failure skips all unstarted elements.
+Asynchronous iteration starts all elements concurrently and waits for every subtree,
+including failures, before selecting an outlet. Empty arrays execute no child and complete
+successfully. Non-array input never invokes the child and selects the error outlet with
+`workflow.control-input-not-array`. All-success iterations select `complete` once; any
+failure selects `error` once. External side effects are never rolled back or retried.
+
+Control outputs retain `{ branches, selectedPort }`. Each branch result represents an
+array element, not a configurable port, and includes zero-based `index`, original `input`,
+the fixed `portId`, child `nodeId`, status, and original failure. Synchronous unstarted
+elements are `skipped`. Parent failures retain `workflow.sync-branch-failed` or
+`workflow.async-branch-failed`; successful handlers do not hide them.
+`server/services/workflow-execution-context.ts` owns invocation-local step state. Repeated
+nodes retain separate `steps[].executions[]` records with their nested `iterationPath`,
+resolved inputs, outputs, timings, status, and errors. The canvas uses aggregate status;
+the run inspector selects individual invocations. One iteration cannot overwrite another
+or skip its exception paths. Restart recovery marks active invocations interrupted without
+replaying external effects. Persistence still uses the existing run JSON and API paths.
+
+Reading old definitions maps their execution handles to `item` while retaining every node
+and edge. A single connected child needs no manual port migration. Multiple old children
+remain visible but violate the one-child rule and must be reduced before saving or running;
+the system never silently deletes them or chooses a child. Historical run snapshots and
+their old result shapes are not rewritten.
 
 Operation nodes optionally declare `exceptionPorts: [{ id, code }]`. The default normal
 outlet retains its legacy absent `sourceHandle`; exception edges reference a stable port
@@ -171,7 +201,7 @@ ID through `sourceHandle`. Codes must come from that operation's shared contract
 occur only once per node. Success follows only the normal outlet; failure follows only
 the connected exception port matching the original `data.code`, never translated text.
 Unmatched errors or unconnected matching ports stop the current path. Every other outlet
-subtree is skipped. Exception paths may themselves contain operation or asynchronous
+subtree is skipped. Exception paths may themselves contain operation or flow-control
 nodes, including further exception handlers. A handler is awaited before its parent
 asynchronous node selects an outlet. Handling does not erase failures: original failed
 nodes and overall runs remain failed, and async summaries retain the original failed
@@ -208,7 +238,7 @@ Successful operation results are checked against the declared output field names
 before they can become the next node's value. Missing paths and type mismatches fail the
 current node before its external command is invoked.
 Execution stops the failing normal path, executes a matching configured exception path,
-and leaves independent asynchronous siblings running. Async node outputs record each
+and leaves independent asynchronous siblings running. Control-node outputs record each
 child result and the selected outlet. It never retries mutating commands automatically.
 Starting again creates a separate complete attempt.
 

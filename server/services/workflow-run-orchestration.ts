@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { createError } from 'h3'
 import type { WorkflowValueObject } from '../../shared/types/asdp'
 import type { WorkflowRun } from '../../shared/types/workflow-runs'
+import { isWorkflowControlNode } from '../../shared/utils/workflow-nodes'
 import { insertWorkflowRun, listWorkflowRuns } from '../repositories/workflow-runs'
 import { runInTransaction } from '../repositories/unit-of-work'
 import { assetOperationInput } from '../validation/asset-operation-input'
@@ -26,7 +27,7 @@ export const startManualWorkflowRun = (workflowId: string, root: WorkflowValueOb
   const snapshot = validateWorkflowForExecution(workflow)
   const inputs: WorkflowRunInputs = new Map()
   for (const node of snapshot.nodes) {
-    if (node.kind === 'async') continue
+    if (isWorkflowControlNode(node)) continue
     inputs.set(node.id, node.inputs)
     if (!workflowInputHasReferences(node.inputs)) assetOperationInput(node.operationId, node.inputs)
   }

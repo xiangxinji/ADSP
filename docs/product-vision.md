@@ -70,7 +70,7 @@ Project workspace
 │  ├─ development, testing, and production environments
 │  └─ Markdown knowledge linked to project assets
 ├─ Workflow definitions
-│  └─ root trigger, asset-operation nodes, exception paths, and async control nodes
+│  └─ root trigger, asset-operation nodes, exception paths, and sync/async control nodes
 ├─ Requirements
 │  └─ referenced repositories and participants
 ├─ Workflow runs
@@ -102,15 +102,21 @@ credentials remain separate control-plane state.
 
 The current workflow preview supports explicit manual execution from the editor. An
 edited definition is saved before starting. Connected asset commands execute in order
-within each path; explicit async nodes run connected child paths concurrently and choose
-a completion or error path after all children finish. Asset-operation nodes can add
+within each path. Sync and async nodes have one fixed execution port connected to one
+child. They automatically repeat that child path for every element of the upstream array,
+sequentially in array order or concurrently, respectively. Sync failure skips unstarted
+elements; async waits for all elements. Empty arrays complete without child operations and
+non-array inputs take the error outlet. Both control-node kinds can be nested and preserve
+their original failures. Asset-operation nodes can add
 exception ports selected from the operation contract's stable error codes and connect
 each port to a handling child path. Successful commands follow only the normal outlet;
 failed commands follow only the matching, connected exception outlet. Other paths are skipped.
 Manual runs accept a JSON root value. Asset-operation inputs may read nested root fields with
 `$root.xxx` or the previous value on their active path with `$prev.xxx`; resolved inputs and
-typed contract outputs are retained in the run history. Async child paths inherit their
-incoming value, so bindings remain deterministic when async and exception paths are nested.
+typed contract outputs are retained in the run history. Control-node child paths receive
+the current array element as `$prev`, so `$prev.id` addresses that item's asset without
+manually configuring multiple ports. Each iteration retains independent inputs, outputs,
+status, and errors, including when sync, async, and exception paths are nested.
 The active node and each completed node's output or error are visible on a read-only run
 snapshot, with historical attempts retained independently of later definition edits.
 Failures without a matching handler stop their path without stopping independent async

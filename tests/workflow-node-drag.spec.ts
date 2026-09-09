@@ -7,7 +7,7 @@ import {
 
 describe('workflow node drag payload', () => {
   test.each<WorkflowNodeDragData>([
-    { type: 'async' },
+    { type: 'control', kind: 'sync' },
     {
       type: 'operation',
       selection: { assetType: 'repository', assetId: 'repo-1', operationId: 'repository.clone' },

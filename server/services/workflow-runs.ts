@@ -17,7 +17,7 @@ export const recoverInterruptedWorkflowRuns = () => {
   for (const run of listActiveWorkflowRuns()) {
     run.status = 'failed'
     run.finishedAt = new Date().toISOString()
-    for (const step of run.steps) {
+    for (const step of run.steps.flatMap(step => [step, ...(step.executions || [])])) {
       if (step.status === 'running' || step.status === 'pending') {
         step.error = { code: 'workflow.interrupted', message: '服务重启导致执行中断，请核实外部操作结果后再运行，系统不会自动重试。' }
         step.status = step.status === 'running' ? 'failed' : 'skipped'

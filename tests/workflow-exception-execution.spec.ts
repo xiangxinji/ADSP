@@ -1,11 +1,13 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 import { executeAssetOperation } from '../server/services/asset-operations'
+import { executeProjectAssetOperation } from '../server/services/project-asset-operations'
 import { executeWorkflowGraph } from '../server/services/workflow-graph-execution'
 import { createAssetOperationError } from '../server/utils/asset-operation-error'
 import type { WorkflowRun } from '../shared/types/workflow-runs'
-import { asyncNode, operationNode, runFixture, workflowEdge as edge } from './support/workflow-fixtures'
+import { asyncNode, listNode, repositoryListItem, operationNode, runFixture, workflowEdge as edge } from './support/workflow-fixtures'
 
 vi.mock('../server/services/asset-operations', () => ({ executeAssetOperation: vi.fn() }))
+vi.mock('../server/services/project-asset-operations', () => ({ executeProjectAssetOperation: vi.fn() }))
 vi.mock('../server/repositories/workflow-runs', () => ({ updateWorkflowRun: vi.fn() }))
 
 const exceptionPorts = [
@@ -18,7 +20,7 @@ const fixture = () => runFixture([operation('root'), ...['normal', 'normal-next'
   edge('root', 'handler', 'exists'), edge('handler', 'handler-next'), edge('root', 'other', 'missing'),
 ])
 const step = (run: WorkflowRun, id: string) => run.steps.find(step => step.nodeId === id)!
-const start = (run: WorkflowRun) => executeWorkflowGraph(run, new Map(run.workflow.nodes.flatMap(node => node.kind === 'async' ? [] : [[node.id, node.inputs]])))
+const start = (run: WorkflowRun) => executeWorkflowGraph(run, new Map(run.workflow.nodes.flatMap(node => 'inputs' in node ? [[node.id, node.inputs]] : [])))
 const called = () => vi.mocked(executeAssetOperation).mock.calls.map(call => call[1])
 let failures: Map<string, unknown>
 
@@ -26,6 +28,7 @@ describe('workflow operation exception execution', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     failures = new Map()
+    vi.mocked(executeProjectAssetOperation).mockReturnValue([repositoryListItem('first')])
     vi.mocked(executeAssetOperation).mockImplementation(async (_assetType, assetId) => {
       if (failures.has(assetId)) throw failures.get(assetId)
       return { repositoryId: assetId, branch: 'feature/' + assetId, source: 'main' }
@@ -99,20 +102,20 @@ describe('workflow operation exception execution', () => {
   })
 
   test('supports an async subtree as the matching operation exception path', async () => {
-    const run = runFixture([operation('root'), asyncNode(), ...['first', 'second', 'done'].map(id => operationNode(id))], [
-      edge('workflow-trigger', 'root'), edge('root', 'parallel', 'exists'), edge('parallel', 'first', 'first'),
-      edge('parallel', 'second', 'second'), edge('parallel', 'done', 'complete'),
+    const run = runFixture([operation('root'), listNode(), asyncNode(), ...['first', 'done'].map(id => operationNode(id))], [
+      edge('workflow-trigger', 'root'), edge('root', 'items', 'exists'), edge('items', 'parallel'),
+      edge('parallel', 'first', 'item'), edge('parallel', 'done', 'complete'),
     ])
     failures.set('root', createAssetOperationError(409, exceptionPorts[0].code, 'failed'))
     await start(run)
-    expect(called()).toEqual(['root', 'first', 'second', 'done'])
+    expect(called()).toEqual(['root', 'first', 'done'])
     expect(step(run, 'parallel').output).toMatchObject({ selectedPort: 'complete' })
     expect(run.status).toBe('failed')
   })
 
   test('waits for a child operation exception handler before selecting the async error outlet', async () => {
-    const run = runFixture([asyncNode(), operation('root'), operationNode('handler'), operationNode('outer')], [
-      edge('workflow-trigger', 'parallel'), edge('parallel', 'root', 'first'), edge('root', 'handler', 'exists'), edge('parallel', 'outer', 'error'),
+    const run = runFixture([listNode(), asyncNode(), operation('root'), operationNode('handler'), operationNode('outer')], [
+      edge('workflow-trigger', 'items'), edge('items', 'parallel'), edge('parallel', 'root', 'item'), edge('root', 'handler', 'exists'), edge('parallel', 'outer', 'error'),
     ])
     failures.set('root', createAssetOperationError(409, exceptionPorts[0].code, 'failed'))
     await start(run)

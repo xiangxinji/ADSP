@@ -13,7 +13,7 @@ import {
   type WorkflowTrigger,
 } from '../../shared/types/asdp'
 import { analyzeWorkflowGraph } from '../../shared/utils/workflow-graph'
-import { validateAsyncWorkflowNode, workflowNodeLimit } from '../../shared/utils/workflow-nodes'
+import { isWorkflowControlNode, validateWorkflowControlNode, workflowNodeLimit } from '../../shared/utils/workflow-nodes'
 import { parseWorkflowValueReference, workflowValueReferenceError } from '../../shared/utils/workflow-values'
 import { workflowAssetSource } from '../../shared/utils/workflow-operation-assets'
 import {
@@ -81,8 +81,8 @@ const validateOperationInputs = (
 
 const validateNode = (projectId: string, node: WorkflowNode): WorkflowNode => {
   if (!node.id.trim()) throw badRequest('Workflow node id is required')
-  if (node.kind === 'async') {
-    const message = validateAsyncWorkflowNode(node)
+  if (isWorkflowControlNode(node)) {
+    const message = validateWorkflowControlNode(node)
     if (message) throw badRequest(message)
     return {
       ...node, label: node.label.trim(),

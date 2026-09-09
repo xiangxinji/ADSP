@@ -1,5 +1,6 @@
 import type { WorkflowDefinition, WorkflowEdge, WorkflowNode, WorkflowTriggerKind } from '../../shared/types/asdp'
 import { workflowTriggerNodeId } from '../../shared/utils/workflow-graph'
+import { isWorkflowControlNode, workflowControlBranch } from '../../shared/utils/workflow-nodes'
 import { useDatabase } from '../utils/database'
 
 type WorkflowDefinitionRow = {
@@ -23,19 +24,21 @@ const workflowFromRow = (row: WorkflowDefinitionRow): WorkflowDefinition => {
     kind: row.trigger_kind,
     position: { x: Number(row.trigger_x), y: Number(row.trigger_y) },
   }
-  const edges = storedEdges.length || !trigger || !nodes.length || nodes.some(node => node.kind === 'async') ? storedEdges : nodes.map((node, index) => ({
+  const edges = storedEdges.length || !trigger || !nodes.length || nodes.some(isWorkflowControlNode) ? storedEdges : nodes.map((node, index) => ({
     id: `workflow-edge-legacy-${index}`,
     source: index === 0 ? workflowTriggerNodeId : nodes[index - 1].id,
     target: node.id,
   }))
+  const controls = new Map(nodes.filter(isWorkflowControlNode).map(node => [node.id, node]))
   return {
     id: row.id,
     projectId: row.project_id,
     name: row.name,
     note: row.note,
     trigger,
-    nodes,
-    edges,
+    nodes: nodes.map(node => isWorkflowControlNode(node) ? { ...node, branches: [{ ...workflowControlBranch }] } : node),
+    edges: edges.map(edge => controls.get(edge.source)?.branches.some(branch => branch.id === edge.sourceHandle)
+      ? { ...edge, sourceHandle: workflowControlBranch.id } : edge),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   }

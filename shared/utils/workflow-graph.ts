@@ -1,5 +1,5 @@
 import type { WorkflowEdge, WorkflowNode } from '../types/asdp'
-import { validateAsyncWorkflowNode, validateWorkflowExceptionPorts, workflowNodeLimit, workflowOutputPorts } from './workflow-nodes'
+import { isWorkflowControlNode, validateWorkflowControlNode, validateWorkflowExceptionPorts, workflowControlBranch, workflowControlNames, workflowNodeLimit, workflowOutputPorts } from './workflow-nodes'
 
 export const workflowTriggerNodeId = 'workflow-trigger'
 
@@ -15,7 +15,7 @@ export const validateWorkflowEdges = (nodes: WorkflowNode[], edges: WorkflowEdge
     return '节点 ID 必须存在且唯一，不能使用根触发器 ID。'
   }
   for (const node of nodes) {
-    if (node.kind === 'async') continue
+    if (isWorkflowControlNode(node)) continue
     const message = validateWorkflowExceptionPorts(node)
     if (message) return message
   }
@@ -61,11 +61,11 @@ export const analyzeWorkflowGraph = (
   const edgeError = validateWorkflowEdges(nodes, edges)
   if (edgeError) return invalid(edgeError)
   for (const node of nodes) {
-    if (node.kind !== 'async') continue
-    const nodeError = validateAsyncWorkflowNode(node)
+    if (!isWorkflowControlNode(node)) continue
+    const nodeError = validateWorkflowControlNode(node)
     if (nodeError) return invalid(nodeError)
-    if (!edges.some(edge => edge.source === node.id && node.branches.some(branch => branch.id === edge.sourceHandle))) {
-      return invalid('每个异步节点至少需要连接一个子端点。')
+    if (!edges.some(edge => edge.source === node.id && edge.sourceHandle === workflowControlBranch.id)) {
+      return invalid(workflowControlNames[node.kind] + '节点需要为固定子端点连接唯一的子节点。')
     }
   }
   if (nodes.length && !edges.some(edge => edge.source === workflowTriggerNodeId)) return invalid('请从根触发器连接第一个节点。')

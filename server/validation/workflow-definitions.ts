@@ -8,6 +8,7 @@ import {
   type WorkflowTrigger,
 } from '../../shared/types/asdp'
 import { assetTypes, type AssetType } from '../../shared/types/asset-operations'
+import { workflowControlBranch } from '../../shared/utils/workflow-nodes'
 import { bodyObject, optionalText, requiredText } from '../utils/http-input'
 
 const workflowName = (value: unknown) => {
@@ -52,13 +53,13 @@ const inputsPayload = (value: unknown) => {
 
 const nodePayload = (value: unknown): WorkflowNode => {
   const node = bodyObject(value)
-  if (node.kind === 'async') {
-    if (!Array.isArray(node.branches)) throw createError({ statusCode: 400, statusMessage: 'branches must be an array' })
+  if (node.kind === 'async' || node.kind === 'sync') {
+    if (node.branches !== undefined && !Array.isArray(node.branches)) throw createError({ statusCode: 400, statusMessage: 'branches must be an array' })
     return {
       id: requiredText(node.id, 'node.id'),
-      kind: 'async',
+      kind: node.kind,
       label: requiredText(node.label, 'node.label'),
-      branches: node.branches.map((value) => {
+      branches: node.branches === undefined ? [{ ...workflowControlBranch }] : node.branches.map((value) => {
         const branch = bodyObject(value)
         return { id: requiredText(branch.id, 'branch.id'), label: requiredText(branch.label, 'branch.label') }
       }),
