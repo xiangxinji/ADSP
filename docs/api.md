@@ -94,6 +94,11 @@ operation preserves its shared contract error code, stops execution, and skips r
 nodes; it is a failed run rather than a failure of the already-accepted start request.
 Starting again creates a new attempt and re-executes the chain from the beginning.
 
+Project-wide asset-list nodes return raw typed arrays in `steps[].output`, not an
+`{ assets: [...] }` wrapper. Their resolved input object is `{}`. Downstream nodes can
+read an asset field with `$prev.0.id`; an empty list succeeds, but reading its first
+element fails with `workflow.input-reference-not-found` before the downstream command.
+
 Operation input strings may be exact value references. `$root.release.branch` reads the
 manual trigger object, while `$prev.branch` reads the previous value on the currently
 executing path. Dot segments traverse nested objects; numeric segments traverse arrays,
@@ -150,6 +155,11 @@ literal identity input. Omitting the source preserves legacy fixed behavior when
 `assetId` exists; otherwise it defaults to input. Unknown sources, an `assetId` combined
 with input mode, missing fixed IDs, and mismatched fixed inputs return `400`.
 No database migration or API-path change is required.
+
+Project-scoped list operations are an exception to single-asset input configuration:
+use `assetSource: "input"`, omit `assetId`, and supply `inputs: {}`. They automatically
+read the saved workflow's project and reject fixed-asset bindings. See
+`docs/project-asset-operations.md` for the array contracts and project-level endpoints.
 
 For `repository.clone`, use `assetType: "repository"`, `operationId: "repository.clone"`,
 `assetSource: "input"`, and `inputs: { "repositoryId": "$prev.repositoryId" }`.

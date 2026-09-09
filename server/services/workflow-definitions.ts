@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { findAssetOperation } from '../../shared/config/asset-operations'
+import { findAssetOperation, isProjectAssetOperation } from '../../shared/config/asset-operations'
 import type { AssetOperationField } from '../../shared/types/asset-operations'
 import {
   workflowTriggerKinds,
@@ -27,6 +27,7 @@ import {
 import { badRequest, requireEntity } from './errors'
 import { getProject } from './projects'
 import { workflowAssetProjectId } from './workflow-asset-resolution'
+import { createAssetOperationError } from '../utils/asset-operation-error'
 import { assertProjectWorkflowsIdle, assertWorkflowIdle } from './workflow-runs'
 
 const positionLimit = 100_000
@@ -96,7 +97,11 @@ const validateNode = (projectId: string, node: WorkflowNode): WorkflowNode => {
   const inputs = validateOperationInputs(node, operation.contract.input)
   const assetIdField = `${node.assetType}Id`
   const assetSource = workflowAssetSource(node)
-  if (assetSource === 'fixed') {
+  if (isProjectAssetOperation(operation)) {
+    if (assetSource === 'fixed' || node.assetId !== undefined) {
+      throw createAssetOperationError(400, 'asset.invalid-input', '获取全部资产不能绑定单个资产。')
+    }
+  } else if (assetSource === 'fixed') {
     if (!node.assetId?.trim()) throw badRequest('Workflow fixed assetId is required')
     if (workflowAssetProjectId(node.assetType, node.assetId) !== projectId) throw badRequest('Workflow assets must belong to the same project')
     if (inputs[assetIdField] !== node.assetId) throw badRequest(`Workflow ${assetIdField} must match the selected asset`)

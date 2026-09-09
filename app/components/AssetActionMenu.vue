@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { primaryAssetOperationLimit } from '#shared/config/asset-operations'
+import { isProjectAssetOperation, primaryAssetOperationLimit } from '#shared/config/asset-operations'
 import type { AssetOperationDefinition } from '#shared/types/asset-operations'
 
 const props = withDefaults(defineProps<{
@@ -19,11 +19,12 @@ const emit = defineEmits<{
 
 const menuRoot = ref<HTMLElement | null>(null)
 const menuOpen = ref(false)
-const primaryOperations = computed(() => props.operations
+const assetOperations = computed(() => props.operations.filter(operation => !isProjectAssetOperation(operation)))
+const primaryOperations = computed(() => assetOperations.value
   .filter(operation => operation.placement === 'primary')
   .slice(0, primaryAssetOperationLimit))
 const primaryOperationIds = computed(() => new Set(primaryOperations.value.map(operation => operation.id)))
-const moreOperations = computed(() => props.operations
+const moreOperations = computed(() => assetOperations.value
   .filter(operation => !primaryOperationIds.value.has(operation.id)))
 
 const isBusy = (operation: AssetOperationDefinition) => props.busyOperationId === operation.id

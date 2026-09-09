@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { findAssetOperation } from '#shared/config/asset-operations'
+import AssetContractFields from '~/components/AssetContractFields.vue'
+import { findAssetOperation, isProjectAssetOperation } from '#shared/config/asset-operations'
+import { assetOperationOutputFields, assetOperationOutputType } from '#shared/utils/asset-operation-contract'
 import { workflowAssetSource } from '#shared/utils/workflow-operation-assets'
 import type { ProjectWorkspace, WorkflowDefinition, WorkflowEdge, WorkflowOperationInputValue, WorkflowNode } from '#shared/types/asdp'
 
@@ -36,10 +38,11 @@ const previousFields = computed(() => {
   const previous = props.workflow.nodes.find(node => node.id === edge?.source)
   if (!previous || previous.kind === 'async' || edge?.sourceHandle) return []
   const previousOperation = findAssetOperation(previous.assetType, previous.operationId)
-  return previousOperation?.workflow.enabled ? previousOperation.contract.output : []
+  return previousOperation?.workflow.enabled ? assetOperationOutputFields(previousOperation.contract) : []
 })
 const assetLabel = computed(() => {
   if (!operationNode.value) return ''
+  if (isProjectAssetOperation(operation.value)) return '当前项目 · 全部资产'
   if (workflowAssetSource(operationNode.value) === 'input') return '资产来源 · 输入值'
   const { assetType, assetId } = operationNode.value
   if (assetType === 'repository') return props.workspace.repositories.find(asset => asset.id === assetId)?.name
@@ -75,7 +78,7 @@ const assetLabel = computed(() => {
         <div class="workflow-selected-summary"><span><AppIcon name="repository" :size="16" /></span><div><strong>{{ operation.label }}</strong><small>{{ assetLabel || '资产已不存在' }}</small></div></div>
         <p class="workflow-operation-help">{{ operation.description }}</p>
         <WorkflowAssetSourceField
-          :node="operationNode" :workspace="workspace"
+          v-if="!isProjectAssetOperation(operation)" :node="operationNode" :workspace="workspace"
           @update-source="emit('updateAssetSource', $event)" @update-asset-id="emit('updateAssetId', $event)"
         />
         <template v-if="inputFields.length">
@@ -86,8 +89,9 @@ const assetLabel = computed(() => {
         </template>
         <p v-else class="workflow-library-empty compact">该操作无需额外参数。</p>
         <div class="workflow-output-contract">
-          <strong>节点输出类型</strong>
-          <span v-for="field in operation.contract.output" :key="field.name"><code>{{ field.name }}: {{ field.type }}</code>{{ field.description }}</span>
+          <strong>节点输出类型 · {{ assetOperationOutputType(operation.contract) }}</strong>
+          <p v-if="'outputType' in operation.contract" class="workflow-operation-help">直接输出资产数组。后续节点可通过 $prev.0.id 引用首项资产 ID；无资产时输出 []。</p>
+          <AssetContractFields :fields="operation.contract.output" :prefix="'outputType' in operation.contract ? '[].' : ''" />
         </div>
         <WorkflowExceptionInspector
           :key="operationNode.id" :node="operationNode"

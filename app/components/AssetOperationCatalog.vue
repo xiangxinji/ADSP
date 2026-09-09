@@ -1,5 +1,8 @@
 <script setup lang="ts">
+import AssetContractFields from '~/components/AssetContractFields.vue'
 import type { AssetOperationDefinition } from '#shared/types/asset-operations'
+import { isProjectAssetOperation } from '#shared/config/asset-operations'
+import { assetOperationOutputType } from '#shared/utils/asset-operation-contract'
 
 defineProps<{
   operations: readonly AssetOperationDefinition[]
@@ -25,15 +28,12 @@ defineProps<{
             <summary>参数、返回与异常</summary>
             <div class="asset-operation-contract-section">
               <b>输入</b>
-              <ul>
-                <li v-for="field in operation.contract.input" :key="field.name"><code>{{ field.name }}: {{ field.type }}</code><em v-if="field.required">必填</em><span>{{ field.description }}</span></li>
-              </ul>
+              <p v-if="!operation.contract.input.length">无需输入参数{{ isProjectAssetOperation(operation) ? '，自动使用当前项目' : '' }}。</p>
+              <AssetContractFields v-else :fields="operation.contract.input" />
             </div>
             <div class="asset-operation-contract-section">
-              <b>返回</b>
-              <ul>
-                <li v-for="field in operation.contract.output" :key="field.name"><code>{{ field.name }}: {{ field.type }}</code><span>{{ field.description }}</span></li>
-              </ul>
+              <b>返回 · {{ assetOperationOutputType(operation.contract) }}</b>
+              <AssetContractFields :fields="operation.contract.output" :prefix="operation.contract.outputType ? '[].' : ''" />
             </div>
             <div class="asset-operation-contract-section">
               <b>异常</b>

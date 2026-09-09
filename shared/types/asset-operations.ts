@@ -10,15 +10,19 @@ export type AssetOperationIcon =
   | 'edit'
   | 'refresh'
   | 'settings'
+  | 'search'
 
 export type AssetOperationPlacement = 'primary' | 'more'
-export type AssetOperationValueType = 'string' | 'boolean' | 'path'
+export type AssetOperationValueType = 'string' | 'boolean' | 'path' | 'number' | 'object' | 'object[]'
+export type AssetOperationArrayType = 'RepositoryAsset[]' | 'ProjectMember[]' | 'EnvironmentAsset[]' | 'KnowledgeAsset[]'
 
 export type AssetOperationField = {
   name: string
   type: AssetOperationValueType
   description: string
   required?: boolean
+  nullable?: boolean
+  fields?: readonly AssetOperationField[]
 }
 
 export type AssetOperationException = {
@@ -29,6 +33,7 @@ export type AssetOperationException = {
 export type AssetOperationContract = {
   input: readonly AssetOperationField[]
   output: readonly AssetOperationField[]
+  outputType?: AssetOperationArrayType
   exceptions: readonly AssetOperationException[]
 }
 
@@ -45,6 +50,7 @@ export type AssetCommandOperation = AssetOperationBase & {
   execution: {
     kind: 'command'
     command: string
+    scope?: 'asset' | 'project'
   }
   workflow: {
     enabled: true
@@ -66,10 +72,11 @@ export type AssetOperationDefinition = AssetCommandOperation | AssetClientOperat
 export type AssetOperationModule = {
   id: AssetModuleId
   assetType: AssetType
+  label: string
   operations: readonly AssetOperationDefinition[]
 }
 
 export type AssetOperationConfig = {
-  schemaVersion: 5
+  schemaVersion: 6
   modules: readonly AssetOperationModule[]
 }

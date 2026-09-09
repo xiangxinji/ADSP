@@ -10,6 +10,8 @@ import type {
   WorkflowValueObject,
 } from './asdp'
 
+import type { AssetListResult } from './asset-lists'
+
 export type WorkflowRunStatus = 'running' | 'succeeded' | 'failed'
 export type WorkflowStepStatus = WorkflowRunStatus | 'pending' | 'skipped'
 
@@ -35,7 +37,7 @@ export type WorkflowRunStep = {
   finishedAt: string | null
   resolvedInputs: WorkflowOperationResolvedInputs | null
   output: RepositoryBranchResult | RepositoryCloneResult | RepositoryLocalCloneStatusResult
-    | RepositoryMergeRequestResult | RepositoryUpdateResult | RepositoryWorktreeResult | WorkflowAsyncOutput | null
+    | RepositoryMergeRequestResult | RepositoryUpdateResult | RepositoryWorktreeResult | WorkflowAsyncOutput | AssetListResult | null
   error: WorkflowRunError | null
 }
 

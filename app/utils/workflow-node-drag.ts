@@ -1,5 +1,5 @@
 import { assetTypes } from '#shared/types/asset-operations'
-import { findAssetOperation } from '#shared/config/asset-operations'
+import { findAssetOperation, isProjectAssetOperation } from '#shared/config/asset-operations'
 import type { AssetType } from '#shared/types/asset-operations'
 import type { WorkflowNodePosition } from '#shared/types/asdp'
 
@@ -28,7 +28,8 @@ export const parseWorkflowNodeDragData = (value: string): WorkflowNodeDragData |
     if (typeof selection.assetType !== 'string' || !assetTypes.includes(selection.assetType as AssetType)
       || (selection.assetId !== undefined && (typeof selection.assetId !== 'string' || !selection.assetId.trim()))
       || typeof selection.operationId !== 'string' || !selection.operationId) return null
-    if (!findAssetOperation(selection.assetType as AssetType, selection.operationId)?.workflow.enabled) return null
+    const operation = findAssetOperation(selection.assetType as AssetType, selection.operationId)
+    if (!operation?.workflow.enabled || (isProjectAssetOperation(operation) && selection.assetId !== undefined)) return null
     return {
       type: 'operation',
       selection: {

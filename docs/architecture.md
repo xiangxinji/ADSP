@@ -120,8 +120,8 @@ metadata for the canvas. Stable directed edges are persisted with the definition
 the source of execution order for the manual-run orchestrator.
 
 Each operation node stores an asset type, a stable operation ID, an asset source, and
-input values. The node library lists all workflow-ready operations directly as searchable
-drag-and-drop cards, regardless of registered project assets. New nodes default to
+input values. The node library groups workflow-ready operations by asset type as searchable
+drag-and-drop cards, regardless of registered project assets. New single-asset nodes default to
 `assetSource: 'input'` and do not store `assetId`; the contract's identity input (for
 example `repositoryId`) supplies the target asset at execution time. Operators can switch
 to `assetSource: 'fixed'`, select a project asset, and persist both `assetId` and its
@@ -142,8 +142,21 @@ by another project before any provider or filesystem command runs. IDs still ref
 registered assets, not arbitrary repository URLs or filesystem paths. It reads
 workflow-ready commands from `shared/config/asset-operations.ts` and
 does not duplicate their inputs, outputs, exceptions, or provider-specific payloads.
-The current registry exposes repository commands; other asset types enter the canvas only
-after their own server commands declare workflow-ready contracts.
+The registry also declares project-scoped `repository.list`, `member.list`,
+`environment.list`, and `knowledge.list` operations. These require no input fields or
+single-asset identity and always use the workflow's owning project. Their outputs are
+raw `RepositoryAsset[]`, `ProjectMember[]`, `EnvironmentAsset[]`, and `KnowledgeAsset[]`
+arrays respectively, including `[]` for an empty project collection. Downstream nodes
+can read element fields such as `$prev.0.id` or `$prev.0.user.name`; an out-of-range
+reference remains a normal `workflow.input-reference-not-found` error.
+
+The focused cross-domain `server/services/project-asset-operations.ts` service validates
+the project and shared operation scope, then delegates collection reads to the existing
+asset-domain services. It does not query tables directly or contact source-control
+providers. Its transport endpoint is
+`POST /api/projects/:id/assets/:assetType/operations/:operationId`. Neither request
+inputs nor workflow nodes can override the project context or bind a single asset to
+these commands. Existing single-asset API paths and commands are unchanged.
 Every output port may connect to at most one downstream node, every node has exactly one
 upstream edge, and every node must be reachable from the trigger. Cross-branch merges and
 cycles are rejected. Graphs contain at most 50 nodes. An asynchronous node has 1–50 stable,
@@ -257,6 +270,16 @@ expected exception codes in the same versioned registry. The Asset Operation Cat
 renders this contract for operators. Runtime API failures return the declared stable
 code in `data.code`, allowing future workflows to validate bindings and choose error
 paths without coupling to human-readable labels or translated messages.
+
+Registry schema version 6 adds module labels, optional command execution `scope`
+(`asset` by default, or `project`), and optional contract `outputType` for typed arrays.
+Without `outputType`, `contract.output` continues to describe the existing object result.
+With an array output type, it describes every array-element field; nested objects and
+object arrays declare recursive `fields`, and nullable properties explicitly declare
+`nullable`. The catalog and workflow inspector render this same recursive contract, and
+the graph executor checks every result element and nested field before propagation.
+Project-wide commands are shown in the catalog and workflow library but excluded from
+individual asset-row action menus. No database migration is required.
 
 The SQLite bootstrap creates the environment, account, and knowledge tables idempotently for existing installations. Existing projects and assets require no data rewrite; their environment and knowledge collections begin empty.
 

@@ -1,11 +1,83 @@
 import type {
   AssetModuleId,
+  AssetCommandOperation,
   AssetOperationConfig,
   AssetOperationDefinition,
+  AssetOperationField,
   AssetType,
 } from '../types/asset-operations'
 
 export const primaryAssetOperationLimit = 2
+
+const assetIdentityFields = [
+  { name: 'id', type: 'string', required: true, description: '资产在 ForgePilot 中的稳定 ID。' },
+  { name: 'projectId', type: 'string', required: true, description: '所属项目 ID，仅返回当前项目的资产。' },
+] as const
+const timestampFields = [
+  { name: 'createdAt', type: 'string', required: true, description: '创建时间（ISO 8601）。' },
+  { name: 'updatedAt', type: 'string', required: true, description: '更新时间（ISO 8601）。' },
+] as const
+const referenceCountField = { name: 'referenceCount', type: 'number', required: true, description: '关联需求数量。' } as const
+const repositoryListFields = [
+  ...assetIdentityFields,
+  { name: 'name', type: 'string', required: true, description: '仓库名称。' },
+  { name: 'note', type: 'string', required: true, description: '仓库备注。' },
+  { name: 'provider', type: 'string', required: true, description: '托管平台：gitlab 或 github。' },
+  { name: 'branchStrategy', type: 'string', required: true, description: '分支策略：multi-version 或 development-production。' },
+  { name: 'externalId', type: 'string', required: true, nullable: true, description: '托管平台的仓库 ID，未登记时为 null。' },
+  { name: 'url', type: 'string', required: true, description: '仓库远程地址。' },
+  { name: 'localOperation', type: 'object', required: true, nullable: true, description: '最近一次本地操作，无记录时为 null。', fields: [
+    { name: 'operationId', type: 'string', required: true, description: '操作契约 ID。' },
+    { name: 'status', type: 'string', required: true, description: '操作状态：running、succeeded 或 failed。' },
+    { name: 'startedAt', type: 'string', required: true, description: '操作开始时间。' },
+    { name: 'finishedAt', type: 'string', required: true, nullable: true, description: '操作结束时间，未结束时为 null。' },
+    { name: 'error', type: 'string', required: true, nullable: true, description: '失败说明，无错误时为 null。' },
+  ] },
+  referenceCountField, ...timestampFields,
+] as const satisfies readonly AssetOperationField[]
+const memberListFields = [
+  ...assetIdentityFields,
+  { name: 'userId', type: 'string', required: true, description: '成员关联的全局用户 ID。' },
+  { name: 'user', type: 'object', required: true, description: '用户公开资料，不包含登录密码或凭据。', fields: [
+    { name: 'id', type: 'string', required: true, description: '全局用户 ID。' },
+    { name: 'name', type: 'string', required: true, description: '用户姓名。' },
+    { name: 'email', type: 'string', required: true, description: '用户邮箱。' },
+    { name: 'role', type: 'string', required: true, description: '全局角色：administrator 或 member。' },
+    ...timestampFields,
+  ] },
+  { name: 'role', type: 'string', required: true, description: '成员在当前项目的职责。' },
+  referenceCountField, ...timestampFields,
+] as const satisfies readonly AssetOperationField[]
+const environmentListFields = [
+  ...assetIdentityFields,
+  { name: 'address', type: 'string', required: true, description: '环境地址。' },
+  { name: 'note', type: 'string', required: true, description: '环境备注。' },
+  { name: 'type', type: 'string', required: true, description: '环境类型：development、testing 或 production。' },
+  { name: 'accounts', type: 'object[]', required: true, description: '环境中登记的非敏感测试账号数组。', fields: [
+    { name: 'account', type: 'string', required: true, description: '测试账号。' },
+    { name: 'password', type: 'string', required: true, description: '可选测试密码，未填写时为空字符串；禁止存放生产凭据。' },
+  ] },
+  ...timestampFields,
+] as const satisfies readonly AssetOperationField[]
+const knowledgeListFields = [
+  ...assetIdentityFields,
+  { name: 'title', type: 'string', required: true, description: '知识标题。' },
+  { name: 'content', type: 'string', required: true, description: '原始 Markdown 正文。' },
+  { name: 'references', type: 'object[]', required: true, description: '正文中解析得到的项目资产引用。', fields: [
+    { name: 'assetType', type: 'string', required: true, description: '引用标记中记录的资产类型。' },
+    { name: 'targetType', type: 'string', required: true, nullable: true, description: '已识别的目标资产类型，无法识别时为 null。' },
+    { name: 'recordId', type: 'string', required: true, description: '被引用的资产 ID。' },
+    { name: 'label', type: 'string', required: true, nullable: true, description: '引用显示名称，无法解析时为 null。' },
+    { name: 'resolved', type: 'boolean', required: true, description: '是否成功解析为当前项目的资产。' },
+  ] },
+  ...timestampFields,
+] as const satisfies readonly AssetOperationField[]
+const projectListExceptions = [
+  { code: 'asset.project-not-found', description: '当前项目不存在。' },
+  { code: 'asset.operation-not-found', description: '当前资产类型不支持此项目级操作。' },
+  { code: 'asset.invalid-input', description: '获取全部资产不接受输入参数或单个资产绑定。' },
+  { code: 'asset.list-failed', description: '读取项目资产失败，请检查服务日志。' },
+] as const
 
 const repositoryInput = [{
   name: 'repositoryId',
@@ -25,12 +97,19 @@ const repositoryOperationExceptions = [
 ] as const
 
 export const assetOperationConfig = {
-  schemaVersion: 5,
+  schemaVersion: 6,
   modules: [
     {
       id: 'repositories',
       assetType: 'repository',
+      label: '仓库',
       operations: [
+        {
+          id: 'repository.list', label: '获取所有仓库', description: '获取当前项目登记的全部仓库，输出 RepositoryAsset[]，无仓库时返回空数组。',
+          icon: 'search', placement: 'more', execution: { kind: 'command', command: 'repository.list', scope: 'project' },
+          workflow: { enabled: true },
+          contract: { input: [], outputType: 'RepositoryAsset[]', output: repositoryListFields, exceptions: projectListExceptions },
+        },
         {
           id: 'repository.clone',
           label: '克隆',
@@ -240,7 +319,14 @@ export const assetOperationConfig = {
     {
       id: 'members',
       assetType: 'member',
+      label: '成员',
       operations: [
+        {
+          id: 'member.list', label: '获取所有成员', description: '获取当前项目的全部成员，输出 ProjectMember[]，无成员时返回空数组。',
+          icon: 'search', placement: 'more', execution: { kind: 'command', command: 'member.list', scope: 'project' },
+          workflow: { enabled: true },
+          contract: { input: [], outputType: 'ProjectMember[]', output: memberListFields, exceptions: projectListExceptions },
+        },
         {
           id: 'member.edit',
           label: '编辑角色',
@@ -265,7 +351,14 @@ export const assetOperationConfig = {
     {
       id: 'environments',
       assetType: 'environment',
+      label: '环境',
       operations: [
+        {
+          id: 'environment.list', label: '获取所有环境', description: '获取当前项目登记的全部环境，输出 EnvironmentAsset[]，无环境时返回空数组。',
+          icon: 'search', placement: 'more', execution: { kind: 'command', command: 'environment.list', scope: 'project' },
+          workflow: { enabled: true },
+          contract: { input: [], outputType: 'EnvironmentAsset[]', output: environmentListFields, exceptions: projectListExceptions },
+        },
         {
           id: 'environment.edit',
           label: '编辑',
@@ -290,7 +383,14 @@ export const assetOperationConfig = {
     {
       id: 'knowledge',
       assetType: 'knowledge',
+      label: '知识',
       operations: [
+        {
+          id: 'knowledge.list', label: '获取所有知识', description: '获取当前项目的全部知识正文与引用，输出 KnowledgeAsset[]，无知识时返回空数组。',
+          icon: 'search', placement: 'more', execution: { kind: 'command', command: 'knowledge.list', scope: 'project' },
+          workflow: { enabled: true },
+          contract: { input: [], outputType: 'KnowledgeAsset[]', output: knowledgeListFields, exceptions: projectListExceptions },
+        },
         {
           id: 'knowledge.info',
           label: '基本信息',
@@ -336,3 +436,6 @@ export const findAssetOperation = (assetType: AssetType, operationId: string) =>
   assetOperationConfig.modules
     .find(module => module.assetType === assetType)
     ?.operations.find(operation => operation.id === operationId)
+
+export const isProjectAssetOperation = (operation?: AssetOperationDefinition): operation is AssetCommandOperation & { execution: { scope: 'project' } } =>
+  operation?.execution.kind === 'command' && operation.execution.scope === 'project'

@@ -9,7 +9,7 @@ import { assetModuleIds } from '../shared/types/asset-operations'
 
 describe('asset operation configuration', () => {
   test('defines operations for every asset module with unique stable IDs', () => {
-    expect(assetOperationConfig.schemaVersion).toBe(5)
+    expect(assetOperationConfig.schemaVersion).toBe(6)
     expect(assetOperationConfig.modules.map(module => module.id)).toEqual(assetModuleIds)
 
     const operations = assetOperationConfig.modules.flatMap(module => module.operations)
@@ -25,12 +25,16 @@ describe('asset operation configuration', () => {
     const workflowOperations = operations.filter(operation => operation.workflow.enabled)
 
     expect(workflowOperations.map(operation => operation.id)).toEqual([
+      'repository.list',
       'repository.clone',
       'repository.update',
       'repository.local-clone-status',
       'repository.create-worktree',
       'repository.create-branch',
       'repository.create-merge-request',
+      'member.list',
+      'environment.list',
+      'knowledge.list',
     ])
     expect(workflowOperations.every(operation => operation.execution.kind === 'command')).toBe(true)
     expect(findAssetOperation('repository', 'repository.clone')).toMatchObject({

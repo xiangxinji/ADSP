@@ -79,8 +79,11 @@ Project workspace
 
 A project may contain multiple requirement versions, repositories, environment records, Markdown knowledge documents, reusable workflow definitions, and global users selected as project members with project-specific roles. Requirement versions are major-version lines displayed as `v{major}.x`; a requirement may target multiple version lines and the greatest configured major is always marked `latest`. Each repository selects either a multi-version branch strategy tied to those requirement versions or a development-production strategy limited to `dev` and `main`. Environments record an address, an optional note, a lifecycle type, and zero or more self-service test accounts whose passwords are optional. Any supplied non-sensitive test passwords are stored and displayed without masking; tokens, private keys, and production deployment credentials remain in CI/CD or the target infrastructure. Knowledge metadata is created in a focused form before its Markdown body is authored on a separate full-screen page. The live Milkdown editor preserves Markdown in the project database and renders stable project-asset references as editable inline controls. A requirement may reference multiple repositories and multiple project members. Assets and memberships are registered once at project level and reused across requirements and workflow definitions. A workflow definition describes a reusable trigger and asset-operation graph; it is not an execution record. A requirement represents business intent, and each execution attempt is a separate workflow run so failures and retries remain auditable.
 
-Workflow composition is operation-first: all workflow-ready operations appear as flat,
-searchable cards that can be dragged onto the canvas without first selecting an asset.
+Workflow composition is operation-first: workflow-ready operations appear as searchable
+cards grouped by repository, member, environment, and knowledge, and can be dragged onto
+the canvas without first selecting an asset. Every group includes a project-wide
+"get all" operation whose output is an array of that group's asset model. These read-only
+nodes always use the owning project and do not require or accept a single-asset binding.
 New operation nodes take their asset identity from an input value by default, including
 upstream or root output references. A fixed project asset is an optional per-node source.
 Both modes preserve shared operation contracts and project ownership checks; input mode

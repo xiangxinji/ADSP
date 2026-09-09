@@ -1,5 +1,5 @@
 import { createError } from 'h3'
-import { findAssetOperation } from '../../shared/config/asset-operations'
+import { findAssetOperation, isProjectAssetOperation } from '../../shared/config/asset-operations'
 import type { AssetType } from '../../shared/types/asset-operations'
 import type {
   CreateRepositoryBranchInput,
@@ -111,6 +111,9 @@ export const executeAssetOperation = async (
   const operation = findAssetOperation(assetType, operationId)
   if (!operation || operation.execution.kind !== 'command') {
     throw createError({ statusCode: 404, statusMessage: '资产操作不存在或不能由服务端执行' })
+  }
+  if (isProjectAssetOperation(operation)) {
+    throw createAssetOperationError(400, 'asset.invalid-input', '获取全部资产必须使用项目级操作入口，不能绑定单个资产。')
   }
 
   const handler = operationHandlers[operation.execution.command]

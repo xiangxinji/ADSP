@@ -1,6 +1,6 @@
 import type { Ref } from 'vue'
 import type { Node } from '@vue-flow/core'
-import { findAssetOperation } from '#shared/config/asset-operations'
+import { findAssetOperation, isProjectAssetOperation } from '#shared/config/asset-operations'
 import type { ProjectWorkspace, WorkflowEdge, WorkflowNode, WorkflowOperationNode, WorkflowTrigger } from '#shared/types/asdp'
 import type { WorkflowRunStep } from '#shared/types/workflow-runs'
 import { analyzeWorkflowGraph, workflowTriggerNodeId } from '#shared/utils/workflow-graph'
@@ -21,6 +21,7 @@ export type WorkflowConnectionSource = Pick<WorkflowEdge, 'source' | 'sourceHand
 
 export const useWorkflowCanvasNodes = (props: WorkflowCanvasProps, pendingSource: Ref<WorkflowConnectionSource | null>) => {
   const assetLabel = (node: WorkflowOperationNode) => {
+    if (isProjectAssetOperation(findAssetOperation(node.assetType, node.operationId))) return '当前项目 · 全部资产'
     if (workflowAssetSource(node) === 'input') return `输入值 · ${node.inputs[workflowAssetInputName(node)] || '待配置'}`
     if (node.assetType === 'repository') return props.workspace.repositories.find(asset => asset.id === node.assetId)?.name
     if (node.assetType === 'member') return props.workspace.members.find(asset => asset.id === node.assetId)?.user.name

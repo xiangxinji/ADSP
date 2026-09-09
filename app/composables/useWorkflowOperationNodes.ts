@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import { findAssetOperation } from '#shared/config/asset-operations'
+import { findAssetOperation, isProjectAssetOperation } from '#shared/config/asset-operations'
 import type { WorkflowDefinition, WorkflowNode, WorkflowNodePosition, WorkflowOperationInputValue, WorkflowOperationNode } from '#shared/types/asdp'
 import { workflowNodeLimit } from '#shared/utils/workflow-nodes'
 import { workflowAssetInputName, workflowAssetSource } from '#shared/utils/workflow-operation-assets'
@@ -23,6 +23,7 @@ export const useWorkflowOperationNodes = (
     }
     const operation = findAssetOperation(selection.assetType, selection.operationId)
     if (!operation?.workflow.enabled) return
+    if (isProjectAssetOperation(operation) && selection.assetId) return
     const inputs: Record<string, WorkflowOperationInputValue> = {}
     operation.contract.input.forEach((field) => {
       inputs[field.name] = field.name === workflowAssetInputName(selection)
@@ -41,6 +42,7 @@ export const useWorkflowOperationNodes = (
   const updateAssetSource = (source: 'input' | 'fixed') => {
     const node = selectedNode.value
     if (!node || !('inputs' in node) || workflowAssetSource(node) === source) return
+    if (isProjectAssetOperation(findAssetOperation(node.assetType, node.operationId))) return
     node.assetSource = source
     if (source === 'fixed') {
       node.assetId = ''
@@ -53,6 +55,7 @@ export const useWorkflowOperationNodes = (
   const updateAssetId = (assetId: string) => {
     const node = selectedNode.value
     if (!node || !('inputs' in node) || workflowAssetSource(node) !== 'fixed') return
+    if (isProjectAssetOperation(findAssetOperation(node.assetType, node.operationId))) return
     node.assetId = assetId
     node.inputs[workflowAssetInputName(node)] = assetId
   }

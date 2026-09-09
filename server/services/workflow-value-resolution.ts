@@ -1,5 +1,5 @@
 import { createError } from 'h3'
-import type { AssetOperationField } from '../../shared/types/asset-operations'
+import type { AssetOperationArrayType, AssetOperationField } from '../../shared/types/asset-operations'
 import type {
   WorkflowOperationInputValue,
   WorkflowOperationResolvedInputs,
@@ -19,8 +19,19 @@ const inputReferenceError = (code: string, statusMessage: string) => createError
   data: { code },
 })
 
-const matchesFieldType = (field: AssetOperationField, value: WorkflowValue) =>
-  field.type === 'boolean' ? typeof value === 'boolean' : typeof value === 'string'
+const matchesFieldType = (field: AssetOperationField, value: unknown): boolean => {
+  if (value === null) return Boolean(field.nullable)
+  if (field.type === 'object[]') return Array.isArray(value) && value.every(item => matchesObjectFields(field.fields || [], item))
+  if (field.type === 'object') return matchesObjectFields(field.fields || [], value)
+  if (field.type === 'number') return typeof value === 'number' && Number.isFinite(value)
+  return field.type === 'boolean' ? typeof value === 'boolean' : typeof value === 'string'
+}
+
+const matchesObjectFields = (fields: readonly AssetOperationField[], value: unknown): boolean => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const record = value as Record<string, unknown>
+  return fields.every(field => Object.hasOwn(record, field.name) && matchesFieldType(field, record[field.name]))
+}
 
 export const validateWorkflowInputReferences = (
   inputs: Record<string, WorkflowOperationInputValue>,
@@ -66,7 +77,14 @@ export const resolveWorkflowOperationInputs = (
 export const assertWorkflowOperationOutput = (
   fields: readonly AssetOperationField[],
   output: unknown,
-): asserts output is WorkflowValueObject => {
+  outputType?: AssetOperationArrayType,
+): asserts output is WorkflowValueObject | WorkflowValueObject[] => {
+  if (outputType) {
+    if (!Array.isArray(output) || !output.every(item => matchesObjectFields(fields, item))) {
+      throw new Error(`Workflow operation output violates its ${outputType} contract`)
+    }
+    return
+  }
   if (!output || typeof output !== 'object' || Array.isArray(output)) {
     throw new Error('Workflow operation output must be an object')
   }

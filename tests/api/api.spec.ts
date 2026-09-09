@@ -115,6 +115,17 @@ const routeCases: ApiRouteCase[] = [
     },
   },
   {
+    route: 'POST /api/projects/:id/assets/:assetType/operations/:operationId',
+    run: async () => {
+      for (const assetType of ['repository', 'member', 'environment', 'knowledge']) {
+        const response = await harness.request(`/api/projects/${projectId}/assets/${assetType}/operations/${assetType}.list`, { method: 'POST' })
+        expect(response).toMatchObject({ status: 200, data: [] })
+      }
+      const missing = await harness.request('/api/projects/missing/assets/repository/operations/repository.list', { method: 'POST' })
+      expect(missing).toMatchObject({ status: 404, data: { data: { code: 'asset.project-not-found' } } })
+    },
+  },
+  {
     route: 'GET /api/projects/:id',
     run: async () => {
       const response = await harness.request<ProjectWorkspace>(`/api/projects/${projectId}`)
