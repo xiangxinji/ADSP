@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AssetContractFields from '~/components/AssetContractFields.vue'
+import AssetContractFields from './AssetContractFields.vue'
 import type { AssetOperationDefinition } from '#shared/types/asset-operations'
 import { isProjectAssetOperation } from '#shared/config/asset-operations'
 import { assetOperationOutputType } from '#shared/utils/asset-operation-contract'

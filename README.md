@@ -18,6 +18,9 @@ npm install --legacy-peer-deps
 
 ## Development Server
 
+See [Code Organization](docs/code-organization.md) for directory responsibilities,
+component limits, and architecture checks (`npm run test:architecture`).
+
 Start the development server on `http://localhost:9085`:
 
 ```bash

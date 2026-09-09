@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AssetContractFields from '~/components/AssetContractFields.vue'
+import AssetContractFields from '~/components/asset/AssetContractFields.vue'
 import { findAssetOperation, isProjectAssetOperation } from '#shared/config/asset-operations'
 import { assetOperationOutputType } from '#shared/utils/asset-operation-contract'
 import { isWorkflowControlNode, isWorkflowOperationNode, isWorkflowSubworkflowNode, workflowControlNames } from '#shared/utils/workflow-nodes'

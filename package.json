@@ -8,6 +8,7 @@
     "generate": "nuxt generate",
     "test": "npm run test:api",
     "test:api": "npm run build && vitest run",
+    "test:architecture": "vitest run tests/architecture.spec.ts",
     "preview": "nuxt preview",
     "postinstall": "nuxt prepare"
   },
