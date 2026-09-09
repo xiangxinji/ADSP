@@ -1,4 +1,5 @@
 import { findWorkflowRunForTriggerEvent } from '../repositories/workflow-runs'
+import { workflowTriggerMatchesEvent } from '../../shared/utils/workflow-triggers'
 import {
   markDomainEventCompleted,
   markDomainEventFailed,
@@ -21,7 +22,7 @@ const processNextEvent = async () => {
     const completions: Promise<void>[] = []
     const errors: unknown[] = []
     const workflows = listProjectWorkflows(event.projectId)
-      .filter(workflow => workflow.trigger?.kind === event.type && workflow.nodes.length)
+      .filter(workflow => workflow.nodes.length && workflowTriggerMatchesEvent(workflow.trigger, event.type, event.payload))
     for (const workflow of workflows) {
       if (findWorkflowRunForTriggerEvent(workflow.id, event.id)) continue
       try {

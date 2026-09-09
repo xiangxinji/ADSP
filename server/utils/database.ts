@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { defaultRequirementStatuses } from '../domain/requirement-statuses'
-import { migrateWorkflowEventTables, workflowEventTables } from './workflow-event-migration'
+import { migrateWorkflowEventTables, migrateWorkflowTriggerStatusFilter, workflowEventTables } from './workflow-event-migration'
 
 type PreparedQuery = {
   get: (...parameters: SqlValue[]) => Record<string, unknown> | undefined
@@ -415,6 +415,7 @@ const createDatabase = async () => {
 
   const workflowRunColumns = persistentDatabase.prepare('PRAGMA table_info(workflow_runs)').all() as { name: string }[]
   migrateWorkflowEventTables(database)
+  migrateWorkflowTriggerStatusFilter(database)
   persistentDatabase.exec(`
     CREATE UNIQUE INDEX IF NOT EXISTS domain_events_requirement_created
       ON domain_events(event_type, subject_id) WHERE event_type = 'requirement-created'

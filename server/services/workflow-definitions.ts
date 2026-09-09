@@ -17,6 +17,7 @@ import { isWorkflowControlNode, isWorkflowSubworkflowNode, validateWorkflowContr
 import { analyzeWorkflowReferences } from '../../shared/utils/workflow-references'
 import { parseWorkflowValueReference, workflowValueReferenceError } from '../../shared/utils/workflow-values'
 import { workflowAssetSource } from '../../shared/utils/workflow-operation-assets'
+import { workflowTriggerFilterError } from '../../shared/utils/workflow-triggers'
 import {
   findWorkflowDefinition,
   insertWorkflowDefinition,
@@ -30,6 +31,7 @@ import { getProject } from './projects'
 import { workflowAssetProjectId } from './workflow-asset-resolution'
 import { createAssetOperationError } from '../utils/asset-operation-error'
 import { assertProjectWorkflowsIdle, assertWorkflowIdle } from './workflow-runs'
+import { listRequirementStatusesForProject } from './requirement-statuses'
 
 const positionLimit = 100_000
 
@@ -48,6 +50,8 @@ const validatePosition = (position: { x: number, y: number }, field: string) => 
 const validateTrigger = (trigger: WorkflowTrigger | null) => {
   if (!trigger) return null
   if (!workflowTriggerKinds.includes(trigger.kind)) throw badRequest('Unsupported workflow trigger')
+  const filterError = workflowTriggerFilterError(trigger)
+  if (filterError) throw badRequest(filterError)
   return { ...trigger, position: validatePosition(trigger.position, 'trigger.position') }
 }
 
@@ -190,6 +194,12 @@ export const updateWorkflow = (id: string, input: UpdateWorkflowInput) => {
     input.edges ?? current.edges,
   )
   getReferencedWorkflows({ ...current, ...definition })
+  if (definition.trigger?.statusIds !== undefined) {
+    const statuses = new Set(listRequirementStatusesForProject(current.projectId).map(status => status.id))
+    if (definition.trigger.statusIds.some(statusId => !statuses.has(statusId))) {
+      throw badRequest('目标状态必须属于当前项目且尚未删除。')
+    }
+  }
   updateWorkflowDefinitionRecord({
     ...current,
     name: input.name ?? current.name,

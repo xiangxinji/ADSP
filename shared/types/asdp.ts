@@ -167,6 +167,7 @@ export type WorkflowNodePosition = {
 export type WorkflowTrigger = {
   kind: WorkflowTriggerKind
   position: WorkflowNodePosition
+  statusIds?: string[]
 }
 
 export type WorkflowValue = string | number | boolean | null | WorkflowValue[] | { [key: string]: WorkflowValue }

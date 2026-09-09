@@ -1,12 +1,13 @@
 import type { Ref } from 'vue'
 import { findAssetOperation } from '#shared/config/asset-operations'
 import type { AssetType } from '#shared/types/asset-operations'
-import type { ProjectWorkspace, WorkflowDefinition, WorkflowOperationInputValue, WorkflowTriggerKind } from '#shared/types/asdp'
+import type { ProjectWorkspace, WorkflowDefinition, WorkflowOperationInputValue } from '#shared/types/asdp'
 import { analyzeWorkflowGraph } from '#shared/utils/workflow-graph'
 import { isWorkflowControlNode, isWorkflowOperationNode, isWorkflowSubworkflowNode, validateWorkflowControlNode, validateWorkflowSubworkflowNode } from '#shared/utils/workflow-nodes'
 import { analyzeWorkflowReferences } from '#shared/utils/workflow-references'
 import { workflowAssetSource } from '#shared/utils/workflow-operation-assets'
 import { workflowValueReferenceError } from '#shared/utils/workflow-values'
+import { workflowTriggerFilterError } from '#shared/utils/workflow-triggers'
 
 const cloneWorkflow = (workflow: WorkflowDefinition): WorkflowDefinition => structuredClone(toRaw(workflow))
 
@@ -27,6 +28,7 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
   const exceptionPorts = useWorkflowExceptionPorts(draft, selectedNodeId, actionError)
   const operationNodes = useWorkflowOperationNodes(draft, selectedNode, selectedNodeId, actionError)
   const subworkflows = useWorkflowSubworkflows(draft, workspace, selectedNodeId, actionError)
+  const trigger = useWorkflowTrigger(draft)
 
   const assetExists = (assetType: AssetType, assetId?: string) => {
     if (!workspace.value) return false
@@ -39,6 +41,11 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
   const validationMessage = computed(() => {
     if (!draft.value?.name.trim()) return '请填写工作流名称。'
     if (!draft.value.trigger) return '请选择一个根触发器。'
+    const filterError = workflowTriggerFilterError(draft.value.trigger)
+    if (filterError) return filterError
+    if (draft.value.trigger.statusIds?.some(id => !workspace.value?.requirementStatuses.some(status => status.id === id))) {
+      return '请取消已删除或不属于当前项目的目标状态。'
+    }
     for (const node of draft.value.nodes) {
       if (isWorkflowSubworkflowNode(node)) {
         const message = validateWorkflowSubworkflowNode(node)
@@ -61,11 +68,6 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
     return analyzeWorkflowReferences(draft.value, id => workspace.value?.workflows.find(workflow => workflow.id === id)).error?.message
       || analyzeWorkflowGraph(draft.value.nodes, draft.value.edges, Boolean(draft.value.trigger)).message
   })
-
-  const selectTrigger = (kind: WorkflowTriggerKind) => {
-    if (!draft.value) return
-    draft.value.trigger = { kind, position: draft.value.trigger?.position || { x: 260, y: 80 } }
-  }
 
   const updatePosition = (id: string, position: { x: number, y: number }) => {
     if (!draft.value) return
@@ -120,11 +122,12 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
   onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 
   return {
+    ...trigger,
     ...subworkflows,
     ...controlNodes,
     ...exceptionPorts,
     ...operationNodes,
     draft, selectedNodeId, selectedNode, dirty, saving, actionError, validationMessage,
-    save, selectTrigger, updatePosition, updateInput, removeNode, connectEdge, removeEdge, setUpstream,
+    save, updatePosition, updateInput, removeNode, connectEdge, removeEdge, setUpstream,
   }
 }

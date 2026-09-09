@@ -13,6 +13,7 @@ const {
   addExceptionPort, updateExceptionPort, removeExceptionPort,
   updateAssetSource, updateAssetId,
   addSubworkflow, updateSubworkflow, updateSubworkflowLabel,
+  updateTriggerStatusIds,
 } = useWorkflowEditor(workflowId, workspace)
 const {
   runs, selectedRunId, selectedRun, running, starting, loading: runsLoading,
@@ -87,6 +88,7 @@ const addDroppedNode = (data: WorkflowNodeDropData) => {
         <WorkflowInspector
           v-else :workflow="draft" :workspace="workspace" :selected-node="selectedNode"
           @update-name="draft.name = $event" @update-note="draft.note = $event" @update-input="updateInput"
+          @update-trigger-status-ids="updateTriggerStatusIds"
           @update-asset-source="updateAssetSource" @update-asset-id="updateAssetId"
           @set-upstream="setUpstream" @remove-node="removeNode"
           @update-control-label="updateControlLabel"

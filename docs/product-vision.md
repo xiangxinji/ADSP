@@ -113,7 +113,10 @@ then starts every ready `requirement-created` workflow in that project, using th
 requirement as its root value. Actual status transitions similarly enqueue
 `requirement-status-changed` workflows with `requirementId`, `previousStatusId`, and
 `statusId` as the immutable root. Saving an unchanged status or editing other requirement
-fields does not trigger them. Connected asset commands execute in order within each path.
+fields does not trigger them. Each status-change trigger can listen to any destination
+status or an explicit selection of one or more project statuses, including custom statuses.
+The editor makes this choice explicit; an empty selection cannot be saved. Connected asset
+commands execute in order within each path.
 Sync and async nodes have one fixed execution port connected to one
 child. They automatically repeat that child path for every element of the upstream array,
 sequentially in array order or concurrently, respectively. Sync failure skips unstarted

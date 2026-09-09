@@ -69,8 +69,31 @@ event are saved in one transaction. The response remains `200` with the updated
 `Requirement`; matching ready workflows in the same project execute asynchronously.
 Creation, edits to other fields, saving the same status, changes to status metadata, and
 rejected updates do not emit this event. Every real transition emits a separate event,
-including transitions back to a previous status. This trigger listens to all status changes;
-it does not filter by a specific source or destination status.
+including transitions back to a previous status. By default the trigger listens to all
+status changes. Set `trigger.statusIds` to select one or more destination statuses:
+
+```json
+{
+  "trigger": {
+    "kind": "requirement-status-changed",
+    "position": { "x": 260, "y": 80 },
+    "statusIds": ["ready-status-id", "review-status-id"]
+  }
+}
+```
+
+Only transitions whose new `statusId` is in this list start the workflow; the previous
+status does not affect this filter. Omit `statusIds` to select **任意状态**. For
+**指定状态（可多选）**, provide a nonempty array of IDs belonging to the same project,
+including custom statuses. Empty arrays, null, non-string values, missing/foreign status
+IDs, and filters on other trigger kinds return `400`; duplicate IDs are deduplicated.
+Metadata-only workflow patches retain the filter; send a trigger without `statusIds` to
+clear it explicitly. Definitions, project responses, and immutable run snapshots retain
+the selected IDs. Renaming a status does not change matching. Deleting a selected status
+never broadens the filter, and other selected statuses remain effective; remove deleted
+IDs before saving further definition edits. Existing definitions without a filter keep
+their any-status behavior. This filter applies to automatic event dispatch, not explicit
+subworkflow calls.
 
 The root object follows `RequirementStatusChangedWorkflowRoot`:
 

@@ -9,7 +9,7 @@ import {
 } from '../../shared/types/asdp'
 import { assetTypes, type AssetType } from '../../shared/types/asset-operations'
 import { workflowControlBranch } from '../../shared/utils/workflow-nodes'
-import { bodyObject, optionalText, requiredText } from '../utils/http-input'
+import { bodyObject, optionalStringArray, optionalText, requiredText } from '../utils/http-input'
 
 const workflowName = (value: unknown) => {
   const name = requiredText(value, 'name')
@@ -40,6 +40,7 @@ const triggerPayload = (value: unknown): WorkflowTrigger | null => {
   return {
     kind: trigger.kind as WorkflowTrigger['kind'],
     position: positionPayload(trigger.position, 'trigger.position'),
+    ...(trigger.statusIds === undefined ? {} : { statusIds: optionalStringArray(trigger.statusIds) }),
   }
 }
 

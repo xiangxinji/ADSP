@@ -307,6 +307,18 @@ the persisted status ID with the validated target status and atomically records 
 owning project, then uses the common event-run entry point. Requirement creation and other
 edits do not emit status-change events; returning to an earlier status creates a new event.
 
+An optional `WorkflowTrigger.statusIds` whitelist restricts automatic dispatch to one or
+more destination status IDs in the owning project. Omitting it means any status; an empty
+selection is invalid rather than an implicit wildcard. The editor exposes explicit any/
+selected modes and project-local status checkboxes. Shared trigger helpers validate the
+filter shape and match the immutable event's new `statusId`; workflow services validate
+status ownership on save through the requirement-status domain service. Deleted IDs are
+not silently removed or converted to an unrestricted filter, and remaining selected IDs
+continue to match. Explicit subworkflow invocation does not use event-dispatch filters.
+The repository persists the whitelist in nullable `trigger_status_ids_json`; an additive,
+idempotent migration gives legacy definitions a null value, preserving any-status behavior.
+Execution history retains the trigger filter in each immutable definition snapshot.
+
 `server/utils/workflow-event-migration.ts` expands the workflow-trigger and event-type
 SQLite constraints by rebuilding legacy tables in one transaction, preserving data,
 indexes, row IDs, and dependent run references. Reference validation rejects newly introduced

@@ -37,13 +37,18 @@ export const useWorkflowCanvasNodes = (props: WorkflowCanvasProps, pendingSource
     const graph = analyzeWorkflowGraph(props.nodes, props.edges, Boolean(props.trigger))
     const orderById = new Map(graph.orderedNodeIds.map((nodeId, index) => [nodeId, index + 1]))
     const triggerDetails = props.trigger ? triggerLabels[props.trigger.kind] : null
+    const statusIds = props.trigger?.statusIds
+    const statusNames = statusIds?.slice(0, 2).map(id => props.workspace.requirementStatuses.find(status => status.id === id)?.name || '已删除状态')
+    const statusSummary = statusIds === undefined ? '任意状态' : !statusIds.length ? '请选择目标状态'
+      : `变更到：${statusNames!.join('、')}${statusIds.length > 2 ? `等 ${statusIds.length} 个状态` : ''}`
     return [{
       id: workflowTriggerNodeId, type: 'trigger',
       position: props.trigger?.position || { x: 260, y: 80 },
       draggable: Boolean(props.trigger) && !props.readOnly, selectable: false,
       data: {
         label: triggerDetails?.label || '请选择触发器',
-        description: triggerDetails?.description || '从左侧节点库选择根触发器',
+        description: props.trigger?.kind === 'requirement-status-changed'
+          ? `${statusSummary} · 需求 ID：$root.requirementId` : triggerDetails?.description || '从左侧节点库选择根触发器',
         configured: Boolean(props.trigger),
         connected: !props.nodes.length || props.edges.some(edge => edge.source === workflowTriggerNodeId),
         connectionSource: pendingSource.value?.source === workflowTriggerNodeId,

@@ -15,6 +15,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   updateName: [value: string]
   updateNote: [value: string]
+  updateTriggerStatusIds: [statusIds: string[] | undefined]
   updateInput: [name: string, value: WorkflowOperationInputValue]
   updateAssetSource: [source: 'input' | 'fixed']
   updateAssetId: [assetId: string]
@@ -61,6 +62,11 @@ const assetLabel = computed(() => {
         <AppTextarea id="workflow-editor-note" :model-value="workflow.note" maxlength="500" rows="3" @update:model-value="emit('updateNote', String($event || ''))" />
       </AppFormField>
     </section>
+    <WorkflowTriggerInspector
+      v-if="workflow.trigger?.kind === 'requirement-status-changed'"
+      :trigger="workflow.trigger" :statuses="workspace.requirementStatuses"
+      @update-status-ids="emit('updateTriggerStatusIds', $event)"
+    />
     <section class="workflow-inspector-section node-inspector">
       <div class="workflow-library-title"><strong>节点配置</strong><span>{{ controlNode ? workflowControlNames[controlNode.kind] : subworkflowNode ? '工作流' : selectedNode ? '资产操作' : '未选择' }}</span></div>
       <WorkflowUpstreamField v-if="selectedNode" :workflow="workflow" :node-id="selectedNode.id" @change="emit('setUpstream', $event)" />

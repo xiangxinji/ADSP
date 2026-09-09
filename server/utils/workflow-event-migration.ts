@@ -9,6 +9,7 @@ export const workflowEventTables = {
     trigger_kind TEXT CHECK(trigger_kind IN ('manual', 'requirement-created', 'requirement-status-changed')),
     trigger_x REAL,
     trigger_y REAL,
+    trigger_status_ids_json TEXT,
     nodes_json TEXT NOT NULL DEFAULT '[]',
     edges_json TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL,
@@ -65,5 +66,12 @@ export const migrateWorkflowEventTables = (database: Database) => {
     throw error
   } finally {
     database.run('PRAGMA foreign_keys = ON')
+  }
+}
+
+export const migrateWorkflowTriggerStatusFilter = (database: Database) => {
+  const columns = database.exec('PRAGMA table_info(workflow_definitions)')[0]?.values ?? []
+  if (!columns.some(column => column[1] === 'trigger_status_ids_json')) {
+    database.run('ALTER TABLE workflow_definitions ADD COLUMN trigger_status_ids_json TEXT')
   }
 }
