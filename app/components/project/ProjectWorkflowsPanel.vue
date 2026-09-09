@@ -14,7 +14,7 @@ const triggerLabel = (kind?: WorkflowTriggerKind) => ({
   manual: '手动触发',
   'requirement-created': '需求创建时',
 })[kind || 'manual']
-const workflowConfigured = (workflow: WorkflowDefinition) => Boolean(workflow.trigger && !analyzeWorkflowGraph(
+const workflowConfigured = (workflow: WorkflowDefinition) => Boolean(workflow.trigger && workflow.nodes.length && !analyzeWorkflowGraph(
   workflow.nodes,
   workflow.edges,
   true,

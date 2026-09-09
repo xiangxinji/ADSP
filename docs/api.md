@@ -48,6 +48,19 @@ Requirement body:
 requirement, the project's initial status is used. Priorities are `low`, `medium`,
 `high`, and `urgent`.
 
+Creation stores the requirement and one durable `requirement-created` event in the same
+transaction. The response remains `201` with the created `Requirement`; trigger processing
+continues after the response. Every ready workflow in that project whose trigger kind is
+`requirement-created` receives one run. Manual workflows and workflows in other projects
+are not selected.
+
+The run's root value is the complete created `Requirement` response. Nodes can reference
+fields such as `$root.id`, `$root.title`, `$root.repositoryIds.0`, and
+`$root.members.0.user.email`. Event-started runs include `triggerEventId`; the pair of
+workflow ID and trigger-event ID is unique so queue recovery cannot create the same run
+twice. Queue records being processed during a restart return to pending, while an already
+created run is marked `workflow.interrupted` and is not replayed automatically.
+
 ## Workflow Definitions
 
 | Method | Path | Purpose |
@@ -105,7 +118,7 @@ read an asset field with `$prev.0.id`; an empty list succeeds, but reading its f
 element fails with `workflow.input-reference-not-found` before the downstream command.
 
 Operation input strings may be exact value references. `$root.release.branch` reads the
-manual trigger object, while `$prev.branch` reads the previous value on the currently
+manual trigger object (or the corresponding field in an event root), while `$prev.branch` reads the previous value on the currently
 executing path. Dot segments traverse nested objects; numeric segments traverse arrays,
 for example `$root.releases.0.branch`. References replace the complete input value and
 preserve its type; they are not string templates. A normal operation edge supplies the

@@ -60,6 +60,7 @@ export type WorkflowRunStep = WorkflowStepExecution & {
 export type WorkflowRun = {
   id: string
   workflowId: string
+  triggerEventId?: string
   workflow: WorkflowDefinition
   root: WorkflowValue
   output?: WorkflowValue

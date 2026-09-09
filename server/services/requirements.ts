@@ -3,7 +3,9 @@ import type {
   CreateRequirementInput,
   Requirement,
   UpdateRequirementInput,
+  WorkflowValueObject,
 } from '../../shared/types/asdp'
+import { insertDomainEvent } from '../repositories/domain-events'
 import { countProjectMembers, listRequirementMembers } from '../repositories/project-members'
 import {
   countProjectRepositoryAssets,
@@ -107,11 +109,25 @@ export const createRequirement = (projectId: string, input: CreateRequirementInp
     createdAt: timestamp,
     updatedAt: timestamp,
   }
+  let requirement: Requirement | undefined
   runInTransaction(() => {
     insertRequirementRecord(record)
     replaceRequirementReferences(record.id, input.repositoryIds, input.memberIds)
+    requirement = getRequirement(record.id)
+    insertDomainEvent({
+      id: randomUUID(),
+      projectId,
+      type: 'requirement-created',
+      subjectId: record.id,
+      payload: structuredClone(requirement) as unknown as WorkflowValueObject,
+      status: 'pending',
+      attempts: 0,
+      lastError: null,
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    })
   })
-  return getRequirement(record.id)
+  return requirement!
 }
 
 export const updateRequirement = (id: string, input: UpdateRequirementInput) => {

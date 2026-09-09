@@ -184,9 +184,24 @@ const createDatabase = async () => {
       updated_at TEXT NOT NULL
     );
 
+    CREATE TABLE IF NOT EXISTS domain_events (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      event_type TEXT NOT NULL CHECK(event_type IN ('requirement-created')),
+      subject_id TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      status TEXT NOT NULL CHECK(status IN ('pending', 'processing', 'completed', 'failed')),
+      attempts INTEGER NOT NULL DEFAULT 0,
+      last_error TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(event_type, subject_id)
+    );
+
     CREATE TABLE IF NOT EXISTS workflow_runs (
       id TEXT PRIMARY KEY,
       workflow_id TEXT NOT NULL REFERENCES workflow_definitions(id) ON DELETE CASCADE,
+      trigger_event_id TEXT REFERENCES domain_events(id) ON DELETE SET NULL,
       project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
       definition_json TEXT NOT NULL,
       status TEXT NOT NULL CHECK(status IN ('running', 'succeeded', 'failed')),
@@ -197,7 +212,7 @@ const createDatabase = async () => {
 
     CREATE INDEX IF NOT EXISTS workflow_runs_history ON workflow_runs(workflow_id, started_at DESC);
     CREATE UNIQUE INDEX IF NOT EXISTS workflow_runs_active ON workflow_runs(workflow_id) WHERE status = 'running';
-
+    CREATE INDEX IF NOT EXISTS domain_events_pending ON domain_events(status, created_at);
     CREATE TABLE IF NOT EXISTS integration_settings (
       provider TEXT PRIMARY KEY,
       base_url TEXT NOT NULL,
@@ -416,6 +431,15 @@ const createDatabase = async () => {
   if (!workflowColumns.some(column => column.name === 'edges_json')) {
     persistentDatabase.exec("ALTER TABLE workflow_definitions ADD COLUMN edges_json TEXT NOT NULL DEFAULT '[]'")
   }
+
+  const workflowRunColumns = persistentDatabase.prepare('PRAGMA table_info(workflow_runs)').all() as { name: string }[]
+  if (!workflowRunColumns.some(column => column.name === 'trigger_event_id')) {
+    persistentDatabase.exec('ALTER TABLE workflow_runs ADD COLUMN trigger_event_id TEXT REFERENCES domain_events(id) ON DELETE SET NULL')
+  }
+  persistentDatabase.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS workflow_runs_trigger_event
+      ON workflow_runs(workflow_id, trigger_event_id) WHERE trigger_event_id IS NOT NULL
+  `)
 
   const versionColumns = persistentDatabase.prepare('PRAGMA table_info(requirement_versions)').all() as { name: string }[]
   if (versionColumns.some(column => column.name === 'name')) {

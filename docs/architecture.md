@@ -275,7 +275,7 @@ asset operation contracts, provider integrations, and filesystem boundaries are 
 
 See `docs/workflow-subworkflows.md` for configuration, value semantics, and stable errors.
 
-### Manual Execution and Node History
+### Workflow Execution, Trigger Queue, and Node History
 
 The editor exposes **Run workflow**, or **Save and run** for an edited definition.
 Only a configured `manual` trigger with at least one connected operation may start.
@@ -288,6 +288,16 @@ before performing any side effects. Reference inputs are resolved, type-checked 
 target contract, and command-validated immediately before their node executes. It delegates commands to the existing asset-operation
 service through `server/services/workflow-graph-execution.ts`; GitLab requests remain behind integrations and local repository commands retain
 the project-workspace containment primitive. No provider credentials enter run snapshots.
+
+Creating a requirement also writes one immutable `requirement-created` record to the
+`domain_events` outbox in the same SQLite transaction as the requirement and its asset
+references. `server/services/requirement-creation-orchestration.ts` wakes the focused
+`workflow-trigger-queue.ts` consumer after the transaction commits, while the server
+runtime also polls for pending records and drains them in creation order. The consumer
+selects only ready `requirement-created` definitions in the event's project and supplies
+the stored requirement response as `$root`. It waits for those runs before advancing to
+the next event, preventing a burst of requirements from losing triggers or overlapping
+the same workflow definition.
 
 Each attempt persists a `WorkflowRun` in SQLite with an immutable definition snapshot,
 overall status, timestamps, and ordered node results. Nodes transition from `pending` to
@@ -312,13 +322,16 @@ concurrency checks and interruption recovery. A unique active-run index prevents
 starts for a definition. Workflow/project deletion is blocked while a run is active;
 deleting an idle definition also removes its execution records.
 
-This preview executor supports one persistent Node server, not a distributed queue.
-On server startup, previously running attempts become failed with `workflow.interrupted`;
-completed node outputs are preserved and unstarted nodes are skipped. Operators must
-check external side effects before rerunning an interrupted attempt. Resume, cancellation,
-event-trigger dispatch, approval gates, and multi-worker scheduling remain future work.
-The additive `workflow_runs` table and indexes are created at database bootstrap without
-changing existing definitions or legacy `ASDP_*` configuration.
+This preview executor and trigger queue support one persistent Node server, not distributed
+workers. On server startup, previously running attempts become failed with
+`workflow.interrupted`, and `processing` outbox records return to `pending`. The nullable
+`workflow_runs.trigger_event_id` and its unique workflow/event index prevent recovery from
+creating a duplicate run or replaying an external mutation. Completed node outputs are
+preserved and unstarted nodes are skipped. Operators must check external side effects
+before starting a new attempt. Other event types, resume, cancellation, approval gates,
+and multi-worker scheduling remain future work. The additive `domain_events` table,
+`workflow_runs.trigger_event_id` column, and indexes are created at database bootstrap
+without changing existing definitions or legacy `ASDP_*` configuration.
 
 `RequirementRepository` records how a repository participates, such as primary target, dependency, or read-only reference, together with branch or write-scope constraints. `RequirementParticipant` records responsibility such as requester, owner, contributor, reviewer, or approver.
 

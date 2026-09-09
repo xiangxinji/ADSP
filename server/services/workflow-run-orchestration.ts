@@ -1,5 +1,5 @@
 import { createError } from 'h3'
-import type { WorkflowValueObject } from '../../shared/types/asdp'
+import type { WorkflowDefinition, WorkflowValueObject } from '../../shared/types/asdp'
 import { isWorkflowOperationNode } from '../../shared/utils/workflow-nodes'
 import { insertWorkflowRun, listWorkflowRuns } from '../repositories/workflow-runs'
 import { runInTransaction } from '../repositories/unit-of-work'
@@ -15,11 +15,7 @@ export const getWorkflowRuns = (workflowId: string) => {
   return listWorkflowRuns(workflowId)
 }
 
-export const startManualWorkflowRun = (workflowId: string, root: WorkflowValueObject = {}) => {
-  const workflow = getWorkflow(workflowId)
-  if (workflow.trigger?.kind !== 'manual') {
-    throw createError({ statusCode: 409, statusMessage: '请选择手动触发器后运行', data: { code: 'workflow.manual-trigger-required' } })
-  }
+const prepareWorkflowRun = (workflow: WorkflowDefinition, root: WorkflowValueObject) => {
   if (!workflow.nodes.length) {
     throw createError({ statusCode: 409, statusMessage: '请至少添加并连接一个操作节点', data: { code: 'workflow.empty' } })
   }
@@ -33,12 +29,37 @@ export const startManualWorkflowRun = (workflowId: string, root: WorkflowValueOb
     }
     return [snapshot.id, snapshot] as const
   }))
-  const run = createWorkflowRun(workflows.get(workflowId)!, root)
-  run.referencedWorkflowIds = [...workflows.keys()].filter(id => id !== workflowId)
+  const run = createWorkflowRun(workflows.get(workflow.id)!, root)
+  run.referencedWorkflowIds = [...workflows.keys()].filter(id => id !== workflow.id)
+  return { run, workflows }
+}
+
+const startWorkflowRun = (workflow: WorkflowDefinition, root: WorkflowValueObject, triggerEventId?: string) => {
+  const { run, workflows } = prepareWorkflowRun(workflow, root)
+  if (triggerEventId) run.triggerEventId = triggerEventId
   runInTransaction(() => {
-    assertWorkflowIdle(workflowId)
+    assertWorkflowIdle(workflow.id)
     insertWorkflowRun(run)
   })
   const completion = executeWorkflowGraph(run, new Map(), { workflows })
   return { run: structuredClone(run), completion }
+}
+
+export const startManualWorkflowRun = (workflowId: string, root: WorkflowValueObject = {}) => {
+  const workflow = getWorkflow(workflowId)
+  if (workflow.trigger?.kind !== 'manual') {
+    throw createError({ statusCode: 409, statusMessage: '请选择手动触发器后运行', data: { code: 'workflow.manual-trigger-required' } })
+  }
+  return startWorkflowRun(workflow, root)
+}
+
+export const startRequirementCreatedWorkflowRun = (
+  workflow: WorkflowDefinition,
+  root: WorkflowValueObject,
+  triggerEventId: string,
+) => {
+  if (workflow.trigger?.kind !== 'requirement-created') {
+    throw createError({ statusCode: 409, statusMessage: '工作流未配置需求创建触发器' })
+  }
+  return startWorkflowRun(workflow, root, triggerEventId)
 }

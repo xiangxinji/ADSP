@@ -4,6 +4,7 @@ import { useDatabase } from '../utils/database'
 type WorkflowRunRow = {
   id: string
   workflow_id: string
+  trigger_event_id: string | null
   definition_json: string
   status: WorkflowRun['status']
   steps_json: string
@@ -27,6 +28,7 @@ const runFromRow = (row: WorkflowRunRow): WorkflowRun => {
   return {
     id: row.id,
     workflowId: row.workflow_id,
+    ...(row.trigger_event_id ? { triggerEventId: row.trigger_event_id } : {}),
     workflow: JSON.parse(row.definition_json),
     ...state,
     status: row.status,
@@ -47,11 +49,19 @@ export const listActiveWorkflowRuns = () => (useDatabase().prepare(`
   SELECT * FROM workflow_runs WHERE status = 'running'
 `).all() as WorkflowRunRow[]).map(runFromRow)
 
+export const findWorkflowRunForTriggerEvent = (workflowId: string, triggerEventId: string) => {
+  const row = useDatabase().prepare(`
+    SELECT * FROM workflow_runs WHERE workflow_id = ? AND trigger_event_id = ?
+  `).get(workflowId, triggerEventId) as WorkflowRunRow | undefined
+  return row ? runFromRow(row) : undefined
+}
+
 export const insertWorkflowRun = (run: WorkflowRun) => {
   useDatabase().prepare(`
-    INSERT INTO workflow_runs (id, workflow_id, project_id, definition_json, status, steps_json, started_at, finished_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(run.id, run.workflowId, run.workflow.projectId, JSON.stringify(run.workflow), run.status,
+    INSERT INTO workflow_runs
+      (id, workflow_id, trigger_event_id, project_id, definition_json, status, steps_json, started_at, finished_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(run.id, run.workflowId, run.triggerEventId || null, run.workflow.projectId, JSON.stringify(run.workflow), run.status,
     runStateJson(run), run.startedAt, run.finishedAt)
 }
 

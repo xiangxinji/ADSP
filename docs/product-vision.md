@@ -106,9 +106,12 @@ likewise constrained to `<workspace>/projects/<project-id>/`. ForgePilot
 validates the global directory before saving it; application data and encrypted
 credentials remain separate control-plane state.
 
-The current workflow preview supports explicit manual execution from the editor. An
-edited definition is saved before starting. Connected asset commands execute in order
-within each path. Sync and async nodes have one fixed execution port connected to one
+The current workflow preview supports explicit manual execution from the editor and
+automatic execution after a project requirement is created. Requirement creation stores
+the requirement and a durable trigger event in one transaction. A single-process queue
+then starts every ready `requirement-created` workflow in that project, using the created
+requirement as its root value. Connected asset commands execute in order within each path.
+Sync and async nodes have one fixed execution port connected to one
 child. They automatically repeat that child path for every element of the upstream array,
 sequentially in array order or concurrently, respectively. Sync failure skips unstarted
 elements; async waits for all elements. Empty arrays complete without child operations and
@@ -130,9 +133,10 @@ Failures without a matching handler stop their path without stopping independent
 siblings. Handled nodes display a distinct non-failing `handled` state and preserve the
 original error for audit without failing the run. Sync iteration continues after handled
 errors; only unhandled failures select a failing control result. Handler failures remain
-failures unless explicitly caught in turn, and external mutations are never automatically repeated. This is
-the first observable execution loop, not yet the full resumable, policy-gated engine:
-event triggers, cancellation, resume, approvals, and distributed scheduling are not enabled.
+failures unless explicitly caught in turn, and external mutations are never automatically repeated.
+Queued requirement events survive server restarts. A trigger event and workflow pair has
+at most one run, so recovery records interrupted work without replaying external mutations.
+Other event types, cancellation, resume, approvals, and distributed scheduling are not enabled.
 
 Requirement creation will eventually begin with a natural-language AI entry. ForgePilot will create a draft, derive acceptance criteria, recommend assets and participants, clarify missing information, and start execution according to project policy.
 
