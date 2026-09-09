@@ -64,12 +64,19 @@ Backend code must resolve project-owned paths through the shared project-workspa
 ## Build, Test, and Development Commands
 
 - `npm install --legacy-peer-deps`: install dependencies with the required npm 10 workaround.
-- `npm run dev`: start the hot-reloading development server.
+- `npm run dev`: start the hot-reloading development server at `http://localhost:9085/`, using `devServer.port` from `nuxt.config.ts`.
 - `npm run build`: validate and create the production bundle.
 - `npm run preview`: run the built bundle locally.
 - `npm run generate`: generate static output where supported.
 
 Use Node.js 22.19 or newer to satisfy the installed Nuxt version's engine requirements.
+
+### Development Startup — Hard Requirement
+
+- Run `npm run dev` from the repository root and honor the existing `nuxt.config.ts` configuration. The project's development port is **9085**, not Nuxt's default 3000.
+- Do not override the configured port with command-line arguments or environment variables, and do not silently switch to 3000, 3001, or another available port unless the user explicitly requests it.
+- If port 9085 is occupied, identify the owning process first. Reuse a healthy development server for this repository; if another application owns the port, report the conflict instead of stopping it or choosing a different port.
+- Before reporting that the project is running, verify both `http://localhost:9085/` and `/api/projects` respond successfully. Use this same address when opening or sharing the project.
 
 ## Coding Style & Naming Conventions
 
