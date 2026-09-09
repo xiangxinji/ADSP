@@ -15,7 +15,7 @@ const triggerLabel = (kind?: WorkflowTriggerKind) => ({
   'requirement-created': '需求创建时',
 })[kind || 'manual']
 const workflowConfigured = (workflow: WorkflowDefinition) => Boolean(workflow.trigger && !analyzeWorkflowGraph(
-  workflow.nodes.map(node => node.id),
+  workflow.nodes,
   workflow.edges,
   true,
 ).message)
