@@ -5,6 +5,7 @@ import type { WorkflowRunStep } from '#shared/types/workflow-runs'
 import { workflowTriggerNodeId } from '#shared/utils/workflow-graph'
 import { workflowOutputPorts } from '#shared/utils/workflow-nodes'
 import type { WorkflowConnectionSource } from '~/composables/useWorkflowCanvasNodes'
+import { shouldDeleteSelectedWorkflowNode } from '~/utils/workflow-keyboard'
 import { hasWorkflowNodeDragData, readWorkflowNodeDragData, type WorkflowNodeDropData } from '~/utils/workflow-node-drag'
 
 const props = defineProps<{
@@ -21,6 +22,7 @@ const emit = defineEmits<{
   updatePosition: [id: string, position: { x: number, y: number }]
   connectEdge: [connection: Pick<WorkflowEdge, 'source' | 'target' | 'sourceHandle'>]
   removeEdge: [id: string]
+  removeNode: []
   addAsyncBranch: [nodeId: string]
   addExceptionPort: [nodeId: string]
   dropNode: [data: WorkflowNodeDropData]
@@ -71,6 +73,11 @@ const removeSelectedEdge = () => {
   if (!selectedEdgeId.value) return
   emit('removeEdge', selectedEdgeId.value)
   selectedEdgeId.value = null
+}
+const onKeydown = (event: KeyboardEvent) => {
+  if (props.readOnly || !props.selectedNodeId || !shouldDeleteSelectedWorkflowNode(event)) return
+  event.preventDefault()
+  emit('removeNode')
 }
 const onNodeDragStop = ({ node }: { node: Node }) => {
   if (!props.readOnly) emit('updatePosition', node.id, { x: node.position.x, y: node.position.y })
@@ -125,10 +132,12 @@ watch(() => props.edges, edges => {
 }, { deep: true })
 onMounted(() => {
   window.addEventListener('resize', onResize)
+  window.addEventListener('keydown', onKeydown)
   requestAnimationFrame(() => requestAnimationFrame(fitCanvas))
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onResize)
+  window.removeEventListener('keydown', onKeydown)
   if (resizeTimer) clearTimeout(resizeTimer)
 })
 </script>

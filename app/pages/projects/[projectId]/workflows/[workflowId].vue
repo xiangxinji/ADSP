@@ -77,7 +77,7 @@ const addDroppedNode = (data: WorkflowNodeDropData) => {
           :workspace="workspace" :selected-node-id="showRuns ? runNodeId : selectedNodeId"
           :run-steps="showRuns ? selectedRun?.steps : undefined" :read-only="showRuns"
           @select-node="showRuns ? runNodeId = $event : selectedNodeId = $event"
-          @update-position="updatePosition" @connect-edge="connectEdge" @remove-edge="removeEdge"
+          @update-position="updatePosition" @connect-edge="connectEdge" @remove-edge="removeEdge" @remove-node="removeNode"
           @add-async-branch="addAsyncBranch"
           @add-exception-port="addExceptionPort"
           @drop-node="addDroppedNode"
