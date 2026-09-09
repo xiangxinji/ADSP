@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import AssetContractFields from '~/components/AssetContractFields.vue'
 import { findAssetOperation, isProjectAssetOperation } from '#shared/config/asset-operations'
-import { assetOperationOutputFields, assetOperationOutputType } from '#shared/utils/asset-operation-contract'
+import { assetOperationOutputType } from '#shared/utils/asset-operation-contract'
 import { isWorkflowControlNode, workflowControlNames } from '#shared/utils/workflow-nodes'
 import { workflowAssetSource } from '#shared/utils/workflow-operation-assets'
+import { workflowPreviousValueFields } from '~/utils/workflow-value-fields'
 import type { ProjectWorkspace, WorkflowDefinition, WorkflowEdge, WorkflowOperationInputValue, WorkflowNode } from '#shared/types/asdp'
 
 const props = defineProps<{
@@ -31,23 +32,8 @@ const operation = computed(() => operationNode.value
 const inputFields = computed(() => operation.value?.workflow.enabled
   ? operation.value.contract.input.filter(field => !operationNode.value || workflowAssetSource(operationNode.value) === 'input'
     || field.name !== operationNode.value.assetType + 'Id') : [])
-const previousFields = computed(() => {
-  if (!operationNode.value) return []
-  const edge = props.workflow.edges.find(edge => edge.target === operationNode.value?.id)
-  let previous = props.workflow.nodes.find(node => node.id === edge?.source)
-  const iterationChild = isWorkflowControlNode(previous) && edge?.sourceHandle === 'item'
-  if (iterationChild) {
-    const upstream = props.workflow.edges.find(connection => connection.target === previous?.id)
-    if (upstream?.sourceHandle) return []
-    previous = props.workflow.nodes.find(node => node.id === upstream?.source)
-  }
-  if (!previous || isWorkflowControlNode(previous) || (edge?.sourceHandle && !iterationChild)) return []
-  const previousOperation = findAssetOperation(previous.assetType, previous.operationId)
-  if (!previousOperation?.workflow.enabled) return []
-  const fields = assetOperationOutputFields(previousOperation.contract)
-  return iterationChild && 'outputType' in previousOperation.contract
-    ? fields.map(field => ({ ...field, name: field.name.replace(/^0\./, '') })) : fields
-})
+const previousFields = computed(() => operationNode.value
+  ? workflowPreviousValueFields(props.workflow, operationNode.value.id) : [])
 const assetLabel = computed(() => {
   if (!operationNode.value) return ''
   if (isProjectAssetOperation(operation.value)) return '当前项目 · 全部资产'

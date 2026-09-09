@@ -2,7 +2,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest'
 import type { ProjectWorkspace, RepositoryAsset, WorkflowDefinition, WorkflowEdge, WorkflowNode } from '../../shared/types/asdp'
 import type { WorkflowRun } from '../../shared/types/workflow-runs'
 import { startApiTestHarness, type ApiTestHarness } from '../support/api-test-harness'
-import { operationNode, workflowEdge as edge } from '../support/workflow-fixtures'
+import { asyncNode, listNode, operationNode, workflowEdge as edge } from '../support/workflow-fixtures'
 
 let harness: ApiTestHarness
 let repositoryId: string
@@ -88,6 +88,51 @@ describe('workflow operation exception API', () => {
     if (outcome === 'failure') expect(step(run, prefix).error?.code).toBe(ports[0].code)
     const inactive = outcome === 'failure' ? 'normal' : 'handler'
     expect(harness.gitLabRequests.some(request => request.query.branch === 'feature/' + prefix + '-' + inactive)).toBe(false)
+  })
+
+  test.each(['root', 'sync', 'async'] as const)('preserves %s data for input-sourced exception handlers', async source => {
+    const failed = { ...operation('failed', 'main'), exceptionPorts: [ports[0]] }
+    const handler = {
+      ...operation('handler'), assetId: undefined, assetSource: 'input' as const,
+      inputs: { repositoryId: '$prev.id', branch: '$root.recoveryBranch', source: '$root.source' },
+    }
+    const nodes: WorkflowNode[] = [failed, handler]
+    const edges = [edge('failed', 'handler', 'exists')]
+    if (source === 'root') {
+      edges.push(edge('workflow-trigger', 'failed'))
+      handler.inputs.branch = '$prev.recoveryBranch'
+      handler.inputs.source = '$prev.source'
+    } else {
+      nodes.unshift(listNode(), { ...asyncNode(), kind: source })
+      edges.push(edge('workflow-trigger', 'items'), edge('items', 'parallel'), edge('parallel', 'failed', 'item'))
+    }
+    const workflow = await createWorkflow(nodes, edges)
+    const root = { id: repositoryId, recoveryBranch: 'feature/exception-values-' + source, source: 'main' }
+    expect((await harness.request('/api/workflows/' + workflow.id + '/runs', { method: 'POST', body: { root } })).status).toBe(202)
+    const run = await finish(workflow.id)
+    expect(run.root).toEqual(root)
+    expect(step(run, 'failed')).toMatchObject({ status: 'failed', output: null, error: { code: ports[0].code } })
+    expect(step(run, 'handler')).toMatchObject({
+      status: 'succeeded', resolvedInputs: { repositoryId, branch: root.recoveryBranch, source: 'main' },
+    })
+    expect(harness.gitLabRequests.some(request => request.query.branch === root.recoveryBranch && request.query.ref === 'main')).toBe(true)
+    expect(run.status).toBe('failed')
+  })
+
+  test('resolves nested exception errors and resumes normal output propagation after the handler', async () => {
+    const failed = { ...operation('failed', 'main'), exceptionPorts: [ports[0]] }
+    const handler = operation('handler', '$prev.error.code')
+    const next = operationNode('next', repositoryId, 'feature/after-exception-handler', '$prev.branch')
+    const workflow = await createWorkflow([failed, handler, next], [
+      edge('workflow-trigger', 'failed'), edge('failed', 'handler', 'exists'), edge('handler', 'next'),
+    ])
+    expect((await harness.request('/api/workflows/' + workflow.id + '/runs', {
+      method: 'POST', body: { root: { code: 'business-code', message: 'business-message' } },
+    })).status).toBe(202)
+    const run = await finish(workflow.id)
+    expect(step(run, 'handler')).toMatchObject({ status: 'succeeded', resolvedInputs: { branch: ports[0].code } })
+    expect(step(run, 'next')).toMatchObject({ status: 'succeeded', resolvedInputs: { source: ports[0].code } })
+    expect(run.status).toBe('failed')
   })
 
   test('leaves legacy failures unchanged when no error matches', async () => {

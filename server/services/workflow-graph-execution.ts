@@ -124,7 +124,10 @@ export const executeWorkflowGraph = async (run: WorkflowRun, inputs: WorkflowRun
       const port = node.exceptionPorts?.find(port => port.code === step.error?.code)
       if (port) {
         nextNodeId = targetFor(node.id, port.id)
-        nextValue = step.error
+        nextValue = {
+          ...(previous !== null && typeof previous === 'object' ? previous : {}),
+          error: step.error,
+        }
       }
     }
     run.workflow.edges.filter(edge => edge.source === node.id && edge.target !== nextNodeId)

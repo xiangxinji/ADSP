@@ -67,7 +67,7 @@ describe('workflow value execution', () => {
       exceptionPorts: [{ id: 'exists', code: 'repository.branch-already-exists' }],
     }
     const handler = operationNode('handler')
-    handler.inputs.source = '$prev.code'
+    handler.inputs.source = '$prev.error.code'
     vi.mocked(executeAssetOperation).mockImplementationOnce(async () => {
       throw createAssetOperationError(409, 'repository.branch-already-exists', 'Branch exists')
     })

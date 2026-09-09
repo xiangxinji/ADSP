@@ -130,8 +130,16 @@ matching contract input. Legacy nodes with `assetId` but no source remain fixed.
 An input may be a literal or an exact `$root.path` / `$prev.path`
 reference. Dot paths traverse nested objects and numeric array indexes. The root source is
 the trigger value for the attempt; the previous source is the value propagated along the
-currently executing path. Successful operations propagate their contract output, exception
-edges propagate `{ code, message }`, control child paths receive one element of the incoming
+currently executing path. Successful operations propagate their contract output. Exception
+edges preserve the data entering the failed operation and attach `{ code, message }` under
+the reserved `error` field; they do not overlay resolved operation inputs or fabricate success
+outputs. Business fields including `code` and `message`, nested values, and types remain
+unchanged. Top-level array elements remain accessible by numeric keys in the exception
+context object, which is not an iteration array. Handlers read `$prev.error.code` and
+`$prev.error.message`; older error bindings must be updated explicitly, without rewriting
+historical runs. Nested exceptions replace only `error`, leaving root and sibling data intact.
+The editor derives exception suggestions from incoming data fields plus the nested error
+fields, rather than a failed operation's unavailable success output. Control child paths receive one element of the incoming
 array per iteration, and control completion/error outlets receive the control result. This keeps
 data flow deterministic through nested sync, async, and exception paths without allowing
 arbitrary cross-branch reads. The workflow-definition service is the explicitly named cross-domain
