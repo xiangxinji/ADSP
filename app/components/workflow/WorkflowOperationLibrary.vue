@@ -1,55 +1,80 @@
 <script setup lang="ts">
-import { workflowOperationGroups } from '~/utils/workflow-operation-library'
-import { serializeWorkflowNodeDragData, workflowNodeDragMime, type WorkflowOperationSelection } from '~/utils/workflow-node-drag'
+import type { AssetType } from '#shared/types/asdp'
+import type { AppIconName } from '~/types/ui'
+import type { workflowOperationGroups } from '~/utils/workflow-operation-library'
+import type { WorkflowOperationSelection } from '~/utils/workflow-node-drag'
 
 const props = defineProps<{ enabled: boolean }>()
-const emit = defineEmits<{ addOperation: [selection: WorkflowOperationSelection] }>()
-const search = ref('')
-const draggingOperationId = ref('')
-const groups = computed(() => workflowOperationGroups(search.value))
-const operationCount = workflowOperationGroups().reduce((count, group) => count + group.operations.length, 0)
+const emit = defineEmits<{
+  addOperation: [selection: WorkflowOperationSelection]
+  inspect: [node: { label: string, description: string } | null]
+}>()
+const { search, category, categories, groups, operationCount, resultCount, isExpanded, toggleGroup, resetFilters } = useWorkflowOperationLibrary()
+const { draggingId, startDrag, finishDrag } = useWorkflowLibraryDrag(() => props.enabled)
+const categoryIcons: Record<AssetType, AppIconName> = {
+  repository: 'repository', member: 'members', environment: 'environment', knowledge: 'knowledge',
+}
 type LibraryOperation = ReturnType<typeof workflowOperationGroups>[number]['operations'][number]
 const selectionFor = (operation: LibraryOperation): WorkflowOperationSelection => ({
   assetType: operation.assetType, operationId: operation.id,
 })
-const startDrag = (event: DragEvent, operation: LibraryOperation) => {
-  if (!props.enabled || !event.dataTransfer) return event.preventDefault()
-  event.dataTransfer.effectAllowed = 'copy'
-  event.dataTransfer.setData(workflowNodeDragMime, serializeWorkflowNodeDragData({ type: 'operation', selection: selectionFor(operation) }))
-  draggingOperationId.value = operation.id
-}
 </script>
 
 <template>
-  <section class="workflow-library-section" aria-label="资产操作库">
-    <div class="workflow-library-title"><strong>3. 资产操作</strong><span>{{ operationCount }} 个操作</span></div>
-    <p class="workflow-operation-help">按资产类型分组，直接拖入画板。“获取全部”自动读取当前项目；其他操作可配置输入值或固定资产。</p>
-    <AppFormField field-id="workflow-operation-search" label="搜索操作">
-      <AppInput id="workflow-operation-search" v-model="search" type="search" placeholder="例如：仓库克隆" />
-    </AppFormField>
-    <section v-for="group in groups" :key="group.assetType" class="workflow-operation-group" :aria-label="group.label + '操作'">
-      <div class="workflow-library-title"><strong>{{ group.label }}</strong><span>{{ group.operations.length }} 个操作</span></div>
-      <div class="workflow-node-templates">
+  <section class="node-operation-library" aria-label="资产操作库">
+    <div class="node-library-section-heading"><h3>资产操作</h3><span>{{ operationCount }}</span></div>
+    <div class="node-library-search">
+      <AppIcon name="search" :size="15" />
+      <AppInput
+        id="workflow-operation-search" v-model="search" type="search" aria-label="搜索资产操作"
+        placeholder="搜索名称、功能或操作 ID" autocomplete="off" @keydown.esc.stop="search = ''"
+      />
+    </div>
+    <div class="node-library-categories" role="group" aria-label="筛选资产类型">
+      <button type="button" :aria-pressed="category === 'all'" @click="category = 'all'">全部</button>
       <button
-        v-for="operation in group.operations" :key="operation.id" type="button" class="workflow-node-template operation"
-        :class="{ dragging: draggingOperationId === operation.id }" :disabled="!enabled" :draggable="enabled"
-        :aria-label="'添加' + operation.label" :title="operation.description" aria-describedby="workflow-node-drag-help"
-        @click="emit('addOperation', selectionFor(operation))" @dragstart="startDrag($event, operation)" @dragend="draggingOperationId = ''"
-      >
-        <span class="workflow-node-template-icon"><AppIcon :name="operation.icon" :size="16" /></span>
-        <span class="workflow-node-template-copy"><strong>{{ operation.label }}</strong><small>{{ operation.description }}</small></span>
-        <span class="workflow-node-template-action">拖动</span>
-      </button>
+        v-for="item in categories" :key="item.assetType" type="button"
+        :aria-pressed="category === item.assetType" @click="category = item.assetType"
+      >{{ item.label }}</button>
+    </div>
+    <div v-if="search.trim() || category !== 'all'" class="node-library-results" aria-live="polite" role="status">
+      <span>{{ search.trim() ? '搜索结果' : category === 'all' ? '全部操作' : '当前分类' }}</span>
+      <span>{{ resultCount }} 个操作</span>
+    </div>
+    <div class="node-operation-scroll">
+      <section v-for="group in groups" :key="group.assetType" class="node-operation-group" :aria-label="group.label + '操作'">
+        <button
+          type="button" class="node-operation-group-heading" :aria-expanded="isExpanded(group.assetType)"
+          :aria-controls="'node-operations-' + group.assetType" :disabled="Boolean(search.trim())"
+          @click="toggleGroup(group.assetType)"
+        >
+          <AppIcon :name="categoryIcons[group.assetType]" :size="15" />
+          <strong>{{ group.label }}</strong><span>{{ group.operations.length }}</span>
+          <span class="node-library-chevron" :class="{ expanded: isExpanded(group.assetType) }" aria-hidden="true">›</span>
+        </button>
+        <div v-show="isExpanded(group.assetType)" :id="'node-operations-' + group.assetType" class="node-operation-rows">
+          <button
+            v-for="operation in group.operations" :key="operation.id" type="button" class="node-operation-row"
+            :class="{ dragging: draggingId === operation.id }" :data-asset-type="group.assetType"
+            :disabled="!enabled" :draggable="enabled" :aria-label="'添加' + operation.label"
+            :aria-description="operation.description" :title="operation.label + '：' + operation.description"
+            aria-describedby="workflow-node-drag-help" @click="emit('addOperation', selectionFor(operation))"
+            @dragstart="startDrag($event, { type: 'operation', selection: selectionFor(operation) }, operation.id)" @dragend="finishDrag"
+            @mouseenter="emit('inspect', operation)" @mouseleave="emit('inspect', null)"
+            @focus="emit('inspect', operation)" @blur="emit('inspect', null)"
+          >
+            <span class="node-library-symbol"><AppIcon :name="operation.icon" :size="15" /></span>
+            <span class="node-operation-label">{{ operation.displayLabel }}</span>
+            <AppIcon class="node-operation-add" name="add" :size="14" />
+          </button>
+        </div>
+      </section>
+      <div v-if="!groups.length" class="node-library-no-results">
+        <AppIcon name="search" :size="24" />
+        <strong>没有匹配的操作</strong>
+        <p>试试其他关键词，或切换资产分类。</p>
+        <button type="button" @click="resetFilters">重置筛选</button>
       </div>
-    </section>
-    <p v-if="!groups.length" class="workflow-library-empty compact">没有匹配的操作，请尝试其他关键词。</p>
+    </div>
   </section>
 </template>
-
-<style scoped>
-.workflow-operation-group + .workflow-operation-group {
-  margin-top: var(--space-4);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--line);
-}
-</style>
