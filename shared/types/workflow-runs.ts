@@ -14,7 +14,7 @@ import type {
 import type { AssetListResult } from './asset-lists'
 
 export type WorkflowRunStatus = 'running' | 'succeeded' | 'failed'
-export type WorkflowStepStatus = WorkflowRunStatus | 'pending' | 'skipped'
+export type WorkflowStepStatus = WorkflowRunStatus | 'pending' | 'skipped' | 'handled'
 
 export type WorkflowRunError = { code: string, message: string }
 

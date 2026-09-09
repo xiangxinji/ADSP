@@ -110,7 +110,8 @@ non-array inputs take the error outlet. Both control-node kinds can be nested an
 their original failures. Asset-operation nodes can add
 exception ports selected from the operation contract's stable error codes and connect
 each port to a handling child path. Successful commands follow only the normal outlet;
-failed commands follow only the matching, connected exception outlet. Other paths are skipped.
+failed commands follow only the matching, connected exception outlet. A matching configured
+port counts as handled even without a child, allowing explicit error suppression. Other paths are skipped.
 Manual runs accept a JSON root value. Asset-operation inputs may read nested root fields with
 `$root.xxx` or the previous value on their active path with `$prev.xxx`; resolved inputs and
 typed contract outputs are retained in the run history. Control-node child paths receive
@@ -120,8 +121,10 @@ status, and errors, including when sync, async, and exception paths are nested.
 The active node and each completed node's output or error are visible on a read-only run
 snapshot, with historical attempts retained independently of later definition edits.
 Failures without a matching handler stop their path without stopping independent async
-siblings. Handling preserves the original error and failed run status rather than hiding
-the failure or automatically repeating external mutations. This is
+siblings. Handled nodes display a distinct non-failing `handled` state and preserve the
+original error for audit without failing the run. Sync iteration continues after handled
+errors; only unhandled failures select a failing control result. Handler failures remain
+failures unless explicitly caught in turn, and external mutations are never automatically repeated. This is
 the first observable execution loop, not yet the full resumable, policy-gated engine:
 event triggers, cancellation, resume, approvals, and distributed scheduling are not enabled.
 

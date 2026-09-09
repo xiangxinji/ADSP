@@ -123,6 +123,7 @@ export const executeWorkflowGraph = async (run: WorkflowRun, inputs: WorkflowRun
       step.error = operationError(error)
       const port = node.exceptionPorts?.find(port => port.code === step.error?.code)
       if (port) {
+        step.status = 'handled'
         nextNodeId = targetFor(node.id, port.id)
         nextValue = {
           ...(previous !== null && typeof previous === 'object' ? previous : {}),
@@ -135,7 +136,7 @@ export const executeWorkflowGraph = async (run: WorkflowRun, inputs: WorkflowRun
     step.finishedAt = new Date().toISOString()
     persist()
     const nextFailure = await executePath(nextNodeId, nextValue, scope)
-    return step.error ? { nodeId, error: step.error } : nextFailure
+    return step.status === 'failed' && step.error ? { nodeId, error: step.error } : nextFailure
   }
 
   await executePath(targetFor(workflowTriggerNodeId), run.root, rootScope)

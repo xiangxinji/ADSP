@@ -179,10 +179,53 @@ describe.each(['sync', 'async'] as const)('%s array iteration', kind => {
     gates.set('recovery:feature/recovery', gate())
     const completion = start(run)
     await expect.poll(() => step(run, 'recovery').status).toBe('running')
+    expect(run.status).toBe('running')
     expect(step(run, 'handler').status).toBe('pending')
     gates.get('recovery:feature/recovery')!.release()
     await completion
     expect(step(run, 'recovery').executions?.map(execution => execution.status)).toEqual(['skipped', 'succeeded', 'skipped'])
+    expect(step(run, 'child').status).toBe('handled')
+    expect(step(run, 'child').executions?.map(execution => execution.status)).toEqual(['succeeded', 'handled', 'succeeded'])
+    expect(step(run, 'handler').status).toBe('skipped')
+    expect(step(run, 'done').status).toBe('succeeded')
+    expect(run.status).toBe('succeeded')
+  })
+
+  test('prefers an unhandled error over an earlier handled error in iteration summaries', async () => {
+    const run = fixture(kind)
+    const child = run.workflow.nodes.find(node => node.id === 'child') as WorkflowOperationNode
+    child.exceptionPorts = [{ id: 'exists', code: 'repository.branch-already-exists' }]
+    failures.set('first', createAssetOperationError(409, 'repository.branch-already-exists', 'Handled'))
+    failures.set('second', createAssetOperationError(404, 'repository.source-not-found', 'Unhandled'))
+
+    await start(run)
+
+    expect(step(run, 'child')).toMatchObject({ status: 'failed', error: { code: 'repository.source-not-found' } })
+    expect(step(run, 'child').executions?.map(execution => execution.status)).toEqual([
+      'handled', 'failed', kind === 'sync' ? 'skipped' : 'succeeded',
+    ])
+    expect(output(run).branches[0]).toMatchObject({ status: 'succeeded', failedNodeId: null, error: null })
+    expect(output(run).branches[1]).toMatchObject({ status: 'failed', failedNodeId: 'child', error: { code: 'repository.source-not-found' } })
+    expect(run.status).toBe('failed')
+  })
+
+  test('reports an unhandled exception-handler failure instead of the already handled original error', async () => {
+    const run = fixture(kind)
+    const child = run.workflow.nodes.find(node => node.id === 'child') as WorkflowOperationNode
+    child.exceptionPorts = [{ id: 'exists', code: 'repository.branch-already-exists' }]
+    run.workflow.nodes.push(operationNode('recovery'))
+    run.steps.push({ ...step(run, 'done'), nodeId: 'recovery' })
+    run.workflow.edges.push(edge('child', 'recovery', 'exists'))
+    failures.set('first', createAssetOperationError(409, 'repository.branch-already-exists', 'Handled'))
+    failures.set('recovery', createAssetOperationError(404, 'repository.source-not-found', 'Unhandled'))
+
+    await start(run)
+
+    expect(step(run, 'child').status).toBe('handled')
+    expect(step(run, 'recovery').status).toBe('failed')
+    expect(output(run).branches[0]).toMatchObject({
+      status: 'failed', failedNodeId: 'recovery', error: { code: 'repository.source-not-found' },
+    })
     expect(run.status).toBe('failed')
   })
 

@@ -25,3 +25,22 @@ test('recovers invocation records as well as node summaries without overwriting 
   expect(child.executions.every(execution => execution.finishedAt)).toBe(true)
   expect(updateWorkflowRun).toHaveBeenCalledWith(run)
 })
+
+test('preserves handled errors when an unfinished exception handler is interrupted', () => {
+  const run = runFixture([operationNode('caught'), operationNode('handler')], [
+    edge('workflow-trigger', 'caught'), edge('caught', 'handler', 'exists'),
+  ])
+  Object.assign(run.steps[0]!, {
+    status: 'handled', finishedAt: '2026-09-09T00:00:00.000Z',
+    error: { code: 'repository.branch-already-exists', message: 'Handled' },
+  })
+  run.steps[1]!.status = 'running'
+  const handled = structuredClone(run.steps[0])
+  vi.mocked(listActiveWorkflowRuns).mockReturnValue([run])
+
+  recoverInterruptedWorkflowRuns()
+
+  expect(run.status).toBe('failed')
+  expect(run.steps[0]).toEqual(handled)
+  expect(run.steps[1]).toMatchObject({ status: 'failed', error: { code: 'workflow.interrupted' } })
+})

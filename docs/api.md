@@ -85,13 +85,18 @@ The `202` response is a `WorkflowRun` (`shared/types/workflow-runs.ts`): `id`, `
 `finishedAt`. Each ordered step includes `nodeId`, `status`, `startedAt`, `finishedAt`,
 `resolvedInputs`, `output` (the operation's declared result, or null), and `error` (null or
 `{ code, message }`).
-Run status is `running`, `succeeded`, or `failed`; steps additionally use `pending` and
-`skipped`. Times are ISO-8601 strings, or null before the corresponding event occurs.
+Run status is `running`, `succeeded`, or `failed`; steps additionally use `pending`,
+`skipped`, and `handled`. A matching configured operation exception port marks that
+step `handled` and preserves its `error`, even when no child is connected. Handled errors
+do not fail the run or stop later sync iterations; a handler's own unhandled error still
+fails its path. Historical run records are not rewritten. Times are ISO-8601 strings,
+or null before the corresponding event occurs.
 
 History returns the persisted `WorkflowRun[]` with `Cache-Control: no-store`. Polling once
 per second exposes the currently running node even before its command finishes. A failed
-operation preserves its shared contract error code, stops execution, and skips remaining
-nodes; it is a failed run rather than a failure of the already-accepted start request.
+operation without a matching exception port preserves its shared contract error code,
+stops its path, and skips remaining nodes; it is a failed run rather than a failure of the
+already-accepted start request.
 Starting again creates a new attempt and re-executes the chain from the beginning.
 
 Project-wide asset-list nodes return raw typed arrays in `steps[].output`, not an
@@ -104,7 +109,10 @@ manual trigger object, while `$prev.branch` reads the previous value on the curr
 executing path. Dot segments traverse nested objects; numeric segments traverse arrays,
 for example `$root.releases.0.branch`. References replace the complete input value and
 preserve its type; they are not string templates. A normal operation edge supplies the
-successful operation output. An exception edge supplies `{ code, message }`. A sync or
+successful operation output. An exception edge preserves incoming data and supplies
+`error: { code, message }`; handlers read `$prev.error.code` and `$prev.error.message`.
+The reserved `error` field is replaced on subsequent exceptions, not business fields.
+A sync or
 async child invocation receives one element of the upstream output array, while the control
 node's `complete` or `error` outlet receives its `{ branches, selectedPort }` output.
 

@@ -49,8 +49,8 @@ describe('workflow operation exception execution', () => {
     failures.set('root', createAssetOperationError(409, code, '任意错误描述'))
     await start(run)
     expect(called()).toEqual(id === 'exists' ? ['root', 'handler', 'handler-next'] : ['root', 'other'])
-    expect(step(run, 'root')).toMatchObject({ status: 'failed', error: { code, message: '任意错误描述' } })
-    expect(run.status).toBe('failed')
+    expect(step(run, 'root')).toMatchObject({ status: 'handled', output: null, error: { code, message: '任意错误描述' } })
+    expect(run.status).toBe('succeeded')
     expect(run.steps.every(step => step.finishedAt)).toBe(true)
   })
 
@@ -73,6 +73,8 @@ describe('workflow operation exception execution', () => {
     await start(run)
     expect(called()).toEqual(['root'])
     expect(step(run, 'normal').status).toBe('skipped')
+    expect(step(run, 'root')).toMatchObject({ status: 'handled', error: { code: exceptionPorts[0].code } })
+    expect(run.status).toBe('succeeded')
   })
 
   test('supports nested exception handlers and retains both original failures without retries', async () => {
@@ -83,10 +85,10 @@ describe('workflow operation exception execution', () => {
     failures.set('handler', createAssetOperationError(404, exceptionPorts[1].code, 'handler failed'))
     await start(run)
     expect(called()).toEqual(['root', 'handler', 'fallback'])
-    expect(step(run, 'root').error?.code).toBe(exceptionPorts[0].code)
-    expect(step(run, 'handler').error?.code).toBe(exceptionPorts[1].code)
+    expect(step(run, 'root')).toMatchObject({ status: 'handled', error: { code: exceptionPorts[0].code } })
+    expect(step(run, 'handler')).toMatchObject({ status: 'handled', error: { code: exceptionPorts[1].code } })
     expect(step(run, 'fallback').status).toBe('succeeded')
-    expect(run.status).toBe('failed')
+    expect(run.status).toBe('succeeded')
   })
 
   test('records a failed handler and skips its remaining normal children without retrying', async () => {
@@ -96,8 +98,9 @@ describe('workflow operation exception execution', () => {
     await start(run)
     expect(called()).toEqual(['root', 'handler'])
     expect(step(run, 'handler-next').status).toBe('skipped')
-    expect(step(run, 'root').error?.code).toBe(exceptionPorts[0].code)
-    expect(step(run, 'handler').error?.code).toBe(exceptionPorts[1].code)
+    expect(step(run, 'root')).toMatchObject({ status: 'handled', error: { code: exceptionPorts[0].code } })
+    expect(step(run, 'handler')).toMatchObject({ status: 'failed', error: { code: exceptionPorts[1].code } })
+    expect(run.status).toBe('failed')
     expect(run.steps.every(step => step.finishedAt)).toBe(true)
   })
 
@@ -110,16 +113,17 @@ describe('workflow operation exception execution', () => {
     await start(run)
     expect(called()).toEqual(['root', 'first', 'done'])
     expect(step(run, 'parallel').output).toMatchObject({ selectedPort: 'complete' })
-    expect(run.status).toBe('failed')
+    expect(run.status).toBe('succeeded')
   })
 
-  test('waits for a child operation exception handler before selecting the async error outlet', async () => {
+  test('selects the async completion outlet after its child error is handled', async () => {
     const run = runFixture([listNode(), asyncNode(), operation('root'), operationNode('handler'), operationNode('outer')], [
-      edge('workflow-trigger', 'items'), edge('items', 'parallel'), edge('parallel', 'root', 'item'), edge('root', 'handler', 'exists'), edge('parallel', 'outer', 'error'),
+      edge('workflow-trigger', 'items'), edge('items', 'parallel'), edge('parallel', 'root', 'item'), edge('root', 'handler', 'exists'), edge('parallel', 'outer', 'complete'),
     ])
     failures.set('root', createAssetOperationError(409, exceptionPorts[0].code, 'failed'))
     await start(run)
     expect(called()).toEqual(['root', 'handler', 'outer'])
-    expect(step(run, 'parallel').output).toMatchObject({ selectedPort: 'error', branches: [{ failedNodeId: 'root', error: { code: exceptionPorts[0].code } }] })
+    expect(step(run, 'parallel').output).toMatchObject({ selectedPort: 'complete', branches: [{ status: 'succeeded', failedNodeId: null, error: null }] })
+    expect(run.status).toBe('succeeded')
   })
 })

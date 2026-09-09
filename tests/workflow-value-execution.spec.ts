@@ -76,7 +76,7 @@ describe('workflow value execution', () => {
     await start(run)
 
     expect(commandInput(1)).toEqual({ branch: 'feature/handler', source: 'repository.branch-already-exists' })
-    expect(run.status).toBe('failed')
+    expect(run.status).toBe('succeeded')
   })
 
   test('fails before invoking a command when a reference path is unavailable', async () => {

@@ -39,12 +39,12 @@ describe('workflow exception parameter propagation', () => {
 
     await start(run)
 
-    expect(step(run, 'failed')).toMatchObject({ status: 'failed', output: null, error: { code: ports[0].code } })
+    expect(step(run, 'failed')).toMatchObject({ status: 'handled', output: null, error: { code: ports[0].code } })
     expect(step(run, 'handler')).toMatchObject({
       status: 'succeeded', resolvedInputs: { branch: 'feature/original', source: 'business-code' },
     })
     expect(run.root).toEqual(root)
-    expect(run.status).toBe('failed')
+    expect(run.status).toBe('succeeded')
   })
 
   test.each(['sync', 'async'] as const)('preserves the current item in %s exception children without leaking siblings', async kind => {
@@ -65,13 +65,13 @@ describe('workflow exception parameter propagation', () => {
 
     await start(run)
 
-    const processed = kind === 'sync' ? items.slice(0, 1) : items
     expect(step(run, 'handler').executions?.filter(execution => execution.status !== 'skipped').map(execution => ({
       status: execution.status, inputs: execution.resolvedInputs,
-    }))).toEqual(processed.map(item => ({
+    }))).toEqual(items.map(item => ({
       status: 'succeeded', inputs: { repositoryId: item.id, branch: item.name, source: ports[0].code },
     })))
-    expect(run.status).toBe('failed')
+    expect(run.status).toBe('succeeded')
+    expect(step(run, 'failed').executions?.map(execution => execution.status)).toEqual(['handled', 'handled'])
     expect(items).toEqual([repositoryListItem('first'), repositoryListItem('second')])
   })
 
@@ -120,6 +120,6 @@ describe('workflow exception parameter propagation', () => {
       status: 'succeeded', resolvedInputs: { branch: 'feature/recovery', source: 'source-missing' },
     })
     expect(run.root.error).toEqual({ code: 'old-code', message: 'old-message' })
-    expect(run.status).toBe('failed')
+    expect(run.status).toBe('succeeded')
   })
 })

@@ -24,7 +24,7 @@ const emit = defineEmits<{ updateLabel: [label: string] }>()
       </template>
       <template v-else><dt>并发执行</dt><dd>为每个数组元素并发执行同一个子流程，各次输入、输出和状态独立保存。</dd></template>
       <dt>完成</dt><dd>全部元素成功后执行一次。空数组不执行子节点，直接进入完成出口。</dd>
-      <dt>异常</dt><dd>{{ node.kind === 'sync' ? '任一元素失败后，跳过后续元素并执行一次异常出口。' : '存在失败时，等待其他元素的子流程结束后执行一次异常出口。' }}保留原始失败，运行仍标记为失败。</dd>
+      <dt>异常</dt><dd>{{ node.kind === 'sync' ? '任一元素存在未处理失败时，跳过后续元素并执行一次异常出口。' : '存在未处理失败时，等待其他元素的子流程结束后执行一次异常出口。' }}已配置端点捕获的错误不影响后续元素和完成出口。</dd>
       <dt>输入要求</dt><dd>上一个节点必须直接输出数组，否则不执行子节点，记录 workflow.control-input-not-array 并进入异常出口。</dd>
     </dl>
   </div>

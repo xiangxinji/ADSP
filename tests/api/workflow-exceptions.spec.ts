@@ -84,7 +84,8 @@ describe('workflow operation exception API', () => {
     expect(step(run, prefix + '-normal').status).toBe(outcome === 'success' ? 'succeeded' : 'skipped')
     expect(step(run, prefix + '-handler').status).toBe(outcome === 'failure' ? 'succeeded' : 'skipped')
     expect(step(run, prefix + '-handler-next').status).toBe(outcome === 'failure' ? 'succeeded' : 'skipped')
-    expect(run.status).toBe(outcome === 'failure' ? 'failed' : 'succeeded')
+    expect(step(run, prefix).status).toBe(outcome === 'failure' ? 'handled' : 'succeeded')
+    expect(run.status).toBe('succeeded')
     if (outcome === 'failure') expect(step(run, prefix).error?.code).toBe(ports[0].code)
     const inactive = outcome === 'failure' ? 'normal' : 'handler'
     expect(harness.gitLabRequests.some(request => request.query.branch === 'feature/' + prefix + '-' + inactive)).toBe(false)
@@ -111,12 +112,12 @@ describe('workflow operation exception API', () => {
     expect((await harness.request('/api/workflows/' + workflow.id + '/runs', { method: 'POST', body: { root } })).status).toBe(202)
     const run = await finish(workflow.id)
     expect(run.root).toEqual(root)
-    expect(step(run, 'failed')).toMatchObject({ status: 'failed', output: null, error: { code: ports[0].code } })
+    expect(step(run, 'failed')).toMatchObject({ status: 'handled', output: null, error: { code: ports[0].code } })
     expect(step(run, 'handler')).toMatchObject({
       status: 'succeeded', resolvedInputs: { repositoryId, branch: root.recoveryBranch, source: 'main' },
     })
     expect(harness.gitLabRequests.some(request => request.query.branch === root.recoveryBranch && request.query.ref === 'main')).toBe(true)
-    expect(run.status).toBe('failed')
+    expect(run.status).toBe('succeeded')
   })
 
   test('resolves nested exception errors and resumes normal output propagation after the handler', async () => {
@@ -132,7 +133,30 @@ describe('workflow operation exception API', () => {
     const run = await finish(workflow.id)
     expect(step(run, 'handler')).toMatchObject({ status: 'succeeded', resolvedInputs: { branch: ports[0].code } })
     expect(step(run, 'next')).toMatchObject({ status: 'succeeded', resolvedInputs: { source: ports[0].code } })
+    expect(run.status).toBe('succeeded')
+  })
+
+  test('treats a matching configured port without a child as an explicit handled error', async () => {
+    const root = { ...operation('ignored', 'main'), exceptionPorts: [ports[0]] }
+    const workflow = await createWorkflow([root, operation('normal')], [edge('workflow-trigger', root.id), edge(root.id, 'normal')])
+    expect((await harness.request('/api/workflows/' + workflow.id + '/runs', { method: 'POST' })).status).toBe(202)
+    const run = await finish(workflow.id)
+    expect(run.status).toBe('succeeded')
+    expect(step(run, root.id)).toMatchObject({ status: 'handled', output: null, error: { code: ports[0].code } })
+    expect(step(run, 'normal').status).toBe('skipped')
+  })
+
+  test('keeps the original error handled when its child has a new unhandled failure', async () => {
+    const root = { ...operation('caught', 'main'), exceptionPorts: [ports[0]] }
+    const workflow = await createWorkflow([root, operation('handler', 'main'), operation('never')], [
+      edge('workflow-trigger', root.id), edge(root.id, 'handler', 'exists'), edge('handler', 'never'),
+    ])
+    expect((await harness.request('/api/workflows/' + workflow.id + '/runs', { method: 'POST' })).status).toBe(202)
+    const run = await finish(workflow.id)
     expect(run.status).toBe('failed')
+    expect(step(run, root.id)).toMatchObject({ status: 'handled', error: { code: ports[0].code } })
+    expect(step(run, 'handler')).toMatchObject({ status: 'failed', error: { code: ports[0].code } })
+    expect(step(run, 'never').status).toBe('skipped')
   })
 
   test('leaves legacy failures unchanged when no error matches', async () => {

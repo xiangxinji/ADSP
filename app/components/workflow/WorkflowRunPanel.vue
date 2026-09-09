@@ -26,7 +26,7 @@ const selectedStep = computed(() => summaryStep.value?.executions?.[selectedIter
 const selectedNode = computed(() => props.run?.workflow.nodes.find(node => node.id === selectedStep.value?.nodeId))
 const legacyControl = computed(() => isWorkflowControlNode(selectedNode.value)
   && (selectedNode.value.branches.length !== 1 || selectedNode.value.branches[0]?.id !== 'item'))
-const completedCount = computed(() => props.run?.steps.filter(step => step.status === 'succeeded').length || 0)
+const completedCount = computed(() => props.run?.steps.filter(step => step.status === 'succeeded' || step.status === 'handled').length || 0)
 const selectedInputs = computed(() => isWorkflowControlNode(selectedNode.value)
   ? legacyControl.value ? { branches: selectedNode.value.branches } : { input: '上一个节点的输出数组', childPort: 'item' }
   : selectedNode.value?.inputs)
@@ -63,9 +63,9 @@ const duration = computed(() => {
       </select>
       <section class="workflow-run-summary" role="status" aria-live="polite">
         <strong class="workflow-run-status" :data-status="run.status">{{ workflowRunStatusLabels[run.status] }}</strong>
-        <span>{{ completedCount }} / {{ run.steps.length }} 个节点成功</span>
+        <span>{{ completedCount }} / {{ run.steps.length }} 个节点成功或异常已处理</span>
         <p v-if="activeSteps.length">执行中（{{ activeSteps.length }}）：{{ activeSteps.map(step => nodeLabel(step.nodeId)).join('、') }}</p>
-        <p v-else-if="run.status === 'failed'">执行结束，原始失败已保留；未命中的出口及失败后的节点已跳过。</p>
+        <p v-else-if="run.status === 'failed'">执行结束，存在未处理的失败；未命中的出口及失败后的节点已跳过。</p>
         <p v-else-if="run.status === 'running'">等待节点执行状态更新。</p>
         <p v-else>执行完成，未命中的出口已跳过。</p>
       </section>
@@ -102,7 +102,14 @@ const duration = computed(() => {
             <small v-if="branch.error">{{ branch.error.code }} · {{ branch.error.message }}</small>
           </button>
         </section>
-        <div v-if="selectedStep.error" class="alert error-state" role="alert"><strong>{{ selectedStep.error.code }}</strong><p>{{ selectedStep.error.message }}</p></div>
+        <div
+          v-if="selectedStep.error" class="alert"
+          :class="selectedStep.status === 'handled' ? 'workflow-handled-error' : 'error-state'"
+          :role="selectedStep.status === 'handled' ? 'status' : 'alert'"
+        >
+          <strong>{{ selectedStep.status === 'handled' ? '异常已处理 · ' : '' }}{{ selectedStep.error.code }}</strong>
+          <p>{{ selectedStep.error.message }}</p>
+        </div>
         <template v-if="selectedStep.output !== null"><h4>输出结果</h4><pre>{{ JSON.stringify(selectedStep.output, null, 2) }}</pre></template>
         <p v-else-if="selectedStep.status === 'pending'">等待上游节点完成。</p>
         <p v-else-if="selectedStep.status === 'running'">当前节点正在执行，结果会自动更新。</p>

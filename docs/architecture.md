@@ -208,12 +208,16 @@ outlet retains its legacy absent `sourceHandle`; exception edges reference a sta
 ID through `sourceHandle`. Codes must come from that operation's shared contract and may
 occur only once per node. Success follows only the normal outlet; failure follows only
 the connected exception port matching the original `data.code`, never translated text.
-Unmatched errors or unconnected matching ports stop the current path. Every other outlet
+Unmatched errors fail the current path. Matching a configured port marks the operation
+`handled`, even without a connected child (an explicit no-op handler). Every other outlet
 subtree is skipped. Exception paths may themselves contain operation or flow-control
 nodes, including further exception handlers. A handler is awaited before its parent
-asynchronous node selects an outlet. Handling does not erase failures: original failed
-nodes and overall runs remain failed, and async summaries retain the original failed
-node and error. Unexpected errors are sanitized as `workflow.operation-failed` and do
+control node selects an outlet. Handled operations retain their original error for audit
+without fabricating success output or failing the run. Sync iteration continues after
+handled errors, and control completion is selected when no unhandled failure remains.
+If a handler fails without catching its own error, that handler becomes the failed node.
+Iteration summaries prioritize unhandled errors over earlier handled errors; otherwise a
+summary containing handled invocations is `handled`. Unexpected errors are sanitized as `workflow.operation-failed` and do
 not select a contract exception port.
 
 Port configuration is stored in existing node JSON and handles in edge JSON, so no new
@@ -239,7 +243,7 @@ the project-workspace containment primitive. No provider credentials enter run s
 
 Each attempt persists a `WorkflowRun` in SQLite with an immutable definition snapshot,
 overall status, timestamps, and ordered node results. Nodes transition from `pending` to
-`running` and then `succeeded` or `failed`. The executor persists a node's `running` state
+`running` and then `succeeded`, `handled`, or `failed`. The executor persists a node's `running` state
 before invoking its command and its declared output after success. An expected failure
 retains the asset operation's stable machine-readable error code and operator message.
 Successful operation results are checked against the declared output field names and types

@@ -31,11 +31,13 @@ export const createWorkflowExecutionContext = (run: WorkflowRun) => {
     summary.status = executions.some(step => step.status === 'running') ? 'running'
       : executions.some(step => step.status === 'failed') ? 'failed'
         : executions.some(step => step.status === 'pending') ? 'pending'
-          : executions.some(step => step.status === 'succeeded') ? 'succeeded' : 'skipped'
+          : executions.some(step => step.status === 'handled') ? 'handled'
+            : executions.some(step => step.status === 'succeeded') ? 'succeeded' : 'skipped'
     summary.startedAt = executions.flatMap(step => step.startedAt ? [step.startedAt] : []).sort()[0] || null
     summary.finishedAt = executions.every(step => step.finishedAt)
       ? executions.map(step => step.finishedAt!).sort().at(-1)! : null
-    summary.error = executions.find(step => step.error)?.error || null
+    summary.error = executions.find(step => step.status === 'failed' && step.error)?.error
+      || executions.find(step => step.error)?.error || null
     summary.resolvedInputs = executions.length === 1 ? executions[0]!.resolvedInputs : null
     summary.output = executions.length === 1 ? executions[0]!.output : null
   }
