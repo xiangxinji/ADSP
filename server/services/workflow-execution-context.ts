@@ -6,7 +6,7 @@ export type WorkflowExecutionScope = {
   steps: Map<string, WorkflowStepExecution>
 }
 
-export const createWorkflowExecutionContext = (run: WorkflowRun) => {
+export const createWorkflowExecutionContext = (run: WorkflowRun, save = () => updateWorkflowRun(run)) => {
   const summaries = new Map(run.steps.map(step => [step.nodeId, step]))
   const rootScope: WorkflowExecutionScope = { path: [], steps: summaries }
   const iterationScope = (parent: WorkflowExecutionScope, nodeId: string, index: number): WorkflowExecutionScope => ({
@@ -40,10 +40,12 @@ export const createWorkflowExecutionContext = (run: WorkflowRun) => {
       || executions.find(step => step.error)?.error || null
     summary.resolvedInputs = executions.length === 1 ? executions[0]!.resolvedInputs : null
     summary.output = executions.length === 1 ? executions[0]!.output : null
+    if (executions.length === 1 && executions[0]!.childRun) summary.childRun = executions[0]!.childRun
+    else delete summary.childRun
   }
   const persist = () => {
     run.steps.forEach(summarize)
-    updateWorkflowRun(run)
+    save()
   }
   return { rootScope, iterationScope, getStep, persist }
 }

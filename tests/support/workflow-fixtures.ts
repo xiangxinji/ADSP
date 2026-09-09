@@ -1,4 +1,4 @@
-import type { WorkflowAsyncNode, WorkflowDefinition, WorkflowEdge, WorkflowNode, WorkflowOperationNode, WorkflowSyncNode } from '../../shared/types/asdp'
+import type { WorkflowAsyncNode, WorkflowDefinition, WorkflowEdge, WorkflowNode, WorkflowOperationNode, WorkflowSubworkflowNode, WorkflowSyncNode } from '../../shared/types/asdp'
 import type { WorkflowRun } from '../../shared/types/workflow-runs'
 import { workflowControlBranch } from '../../shared/utils/workflow-nodes'
 
@@ -7,6 +7,9 @@ export const asyncNode = (id = 'parallel'): WorkflowAsyncNode => ({
   branches: [{ ...workflowControlBranch }],
 })
 export const syncNode = (id = 'sequence'): WorkflowSyncNode => ({ ...asyncNode(id), kind: 'sync', label: '同步执行' })
+export const subworkflowNode = (workflowId = 'child-workflow', id = 'call'): WorkflowSubworkflowNode => ({
+  id, kind: 'workflow', label: '执行子工作流', workflowId, position: { x: 440, y: 160 },
+})
 export const listNode = (id = 'items'): WorkflowOperationNode => ({
   id, assetType: 'repository', assetSource: 'input', operationId: 'repository.list', inputs: {}, position: { x: 0, y: 0 },
 })

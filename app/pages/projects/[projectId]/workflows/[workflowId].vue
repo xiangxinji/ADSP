@@ -12,6 +12,7 @@ const {
   addControlNode, updateControlLabel,
   addExceptionPort, updateExceptionPort, removeExceptionPort,
   updateAssetSource, updateAssetId,
+  addSubworkflow, updateSubworkflow, updateSubworkflowLabel,
 } = useWorkflowEditor(workflowId, workspace)
 const {
   runs, selectedRunId, selectedRun, running, starting, loading: runsLoading,
@@ -44,6 +45,7 @@ const confirmRun = async (root: WorkflowValueObject) => {
 }
 const addDroppedNode = (data: WorkflowNodeDropData) => {
   if (data.type === 'control') addControlNode(data.kind, data.position)
+  else if (data.type === 'workflow') addSubworkflow(data.position)
   else addOperation(data.selection, data.position)
 }
 </script>
@@ -64,7 +66,7 @@ const addDroppedNode = (data: WorkflowNodeDropData) => {
         </div>
       </header>
       <div class="workflow-editor-layout">
-        <WorkflowNodeLibrary v-if="!showRuns" :trigger-kind="draft.trigger?.kind || null" @select-trigger="selectTrigger" @add-operation="addOperation" @add-control-node="addControlNode" />
+        <WorkflowNodeLibrary v-if="!showRuns" :trigger-kind="draft.trigger?.kind || null" @select-trigger="selectTrigger" @add-operation="addOperation" @add-control-node="addControlNode" @add-subworkflow="addSubworkflow" />
         <aside v-else class="workflow-sidebar workflow-library">
           <header class="workflow-sidebar-heading"><p class="overline">RUN SNAPSHOT</p><h2>运行快照</h2><span>{{ selectedRun?.workflow.name || draft.name }}</span></header>
           <p class="workflow-run-help">画布展示本次启动时保存的节点与连线，只读查看。之后的编排修改不会改变历史结果。</p>
@@ -88,6 +90,7 @@ const addDroppedNode = (data: WorkflowNodeDropData) => {
           @update-asset-source="updateAssetSource" @update-asset-id="updateAssetId"
           @set-upstream="setUpstream" @remove-node="removeNode"
           @update-control-label="updateControlLabel"
+          @update-subworkflow="updateSubworkflow" @update-subworkflow-label="updateSubworkflowLabel"
           @add-exception-port="addExceptionPort" @update-exception-port="updateExceptionPort" @remove-exception-port="removeExceptionPort"
         />
       </div>

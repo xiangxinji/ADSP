@@ -47,7 +47,7 @@ export const workflowInputHasReferences = (inputs: Record<string, WorkflowOperat
 export const resolveWorkflowOperationInputs = (
   inputs: Record<string, WorkflowOperationInputValue>,
   fields: readonly AssetOperationField[],
-  root: WorkflowValueObject,
+  root: WorkflowValue,
   previous: WorkflowValue | undefined,
 ): WorkflowOperationResolvedInputs => Object.fromEntries(fields.flatMap(field => {
   const configured = inputs[field.name]

@@ -11,9 +11,15 @@ type WorkflowRunRow = {
   finished_at: string | null
 }
 
-const runStateFromJson = (json: string): Pick<WorkflowRun, 'root' | 'steps'> => {
+type WorkflowRunState = Pick<WorkflowRun, 'root' | 'steps' | 'output' | 'referencedWorkflowIds'>
+
+const runStateFromJson = (json: string): WorkflowRunState => {
   const value = JSON.parse(json)
-  return Array.isArray(value) ? { root: {}, steps: value } : { root: value.root || {}, steps: value.steps || [] }
+  return Array.isArray(value) ? { root: {}, steps: value } : {
+    root: Object.hasOwn(value, 'root') ? value.root : {}, steps: value.steps || [],
+    ...(Object.hasOwn(value, 'output') ? { output: value.output } : {}),
+    ...(value.referencedWorkflowIds ? { referencedWorkflowIds: value.referencedWorkflowIds } : {}),
+  }
 }
 
 const runFromRow = (row: WorkflowRunRow): WorkflowRun => {
@@ -22,15 +28,16 @@ const runFromRow = (row: WorkflowRunRow): WorkflowRun => {
     id: row.id,
     workflowId: row.workflow_id,
     workflow: JSON.parse(row.definition_json),
-    root: state.root,
+    ...state,
     status: row.status,
-    steps: state.steps,
     startedAt: row.started_at,
     finishedAt: row.finished_at,
   }
 }
 
-const runStateJson = (run: WorkflowRun) => JSON.stringify({ root: run.root, steps: run.steps })
+const runStateJson = (run: WorkflowRun) => JSON.stringify({
+  root: run.root, steps: run.steps, output: run.output, referencedWorkflowIds: run.referencedWorkflowIds,
+})
 
 export const listWorkflowRuns = (workflowId: string) => (useDatabase().prepare(`
   SELECT * FROM workflow_runs WHERE workflow_id = ? ORDER BY started_at DESC, rowid DESC

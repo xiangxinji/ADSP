@@ -1,5 +1,5 @@
 import type { WorkflowEdge, WorkflowNode } from '../types/asdp'
-import { isWorkflowControlNode, validateWorkflowControlNode, validateWorkflowExceptionPorts, workflowControlBranch, workflowControlNames, workflowNodeLimit, workflowOutputPorts } from './workflow-nodes'
+import { isWorkflowControlNode, isWorkflowOperationNode, validateWorkflowControlNode, validateWorkflowExceptionPorts, workflowControlBranch, workflowControlNames, workflowNodeLimit, workflowOutputPorts } from './workflow-nodes'
 
 export const workflowTriggerNodeId = 'workflow-trigger'
 
@@ -15,7 +15,7 @@ export const validateWorkflowEdges = (nodes: WorkflowNode[], edges: WorkflowEdge
     return '节点 ID 必须存在且唯一，不能使用根触发器 ID。'
   }
   for (const node of nodes) {
-    if (isWorkflowControlNode(node)) continue
+    if (!isWorkflowOperationNode(node)) continue
     const message = validateWorkflowExceptionPorts(node)
     if (message) return message
   }

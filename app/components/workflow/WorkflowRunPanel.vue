@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { isWorkflowControlNode, workflowControlNames, workflowNodeLabel } from '#shared/utils/workflow-nodes'
+import { isWorkflowControlNode, isWorkflowSubworkflowNode, workflowControlNames, workflowNodeLabel } from '#shared/utils/workflow-nodes'
 import { workflowRunStatusLabels } from '#shared/config/workflow-run-status'
-import type { WorkflowRun } from '#shared/types/workflow-runs'
+import type { WorkflowControlOutput, WorkflowRun } from '#shared/types/workflow-runs'
 
 const props = defineProps<{
   runs: WorkflowRun[]
@@ -29,10 +29,12 @@ const legacyControl = computed(() => isWorkflowControlNode(selectedNode.value)
 const completedCount = computed(() => props.run?.steps.filter(step => step.status === 'succeeded' || step.status === 'handled').length || 0)
 const selectedInputs = computed(() => isWorkflowControlNode(selectedNode.value)
   ? legacyControl.value ? { branches: selectedNode.value.branches } : { input: '上一个节点的输出数组', childPort: 'item' }
-  : selectedNode.value?.inputs)
+  : isWorkflowSubworkflowNode(selectedNode.value) ? { workflowId: selectedNode.value.workflowId, root: '上游输出', output: '子工作流最终输出' }
+    : selectedNode.value?.inputs)
 const controlOutput = computed(() => {
   const output = selectedStep.value?.output
-  return output && 'branches' in output && 'selectedPort' in output ? output : null
+  return isWorkflowControlNode(selectedNode.value) && output && typeof output === 'object' && !Array.isArray(output)
+    && 'branches' in output && 'selectedPort' in output ? output as WorkflowControlOutput : null
 })
 const branchLabel = (portId: string) => isWorkflowControlNode(selectedNode.value)
   ? selectedNode.value.branches.find(branch => branch.id === portId)?.label || portId : portId
@@ -93,6 +95,8 @@ const duration = computed(() => {
         </template>
         <details><summary>{{ isWorkflowControlNode(selectedNode) ? '迭代规则' : '配置输入' }}</summary><pre>{{ JSON.stringify(selectedInputs, null, 2) }}</pre></details>
         <details v-if="selectedStep.resolvedInputs"><summary>实际输入</summary><pre>{{ JSON.stringify(selectedStep.resolvedInputs, null, 2) }}</pre></details>
+        <WorkflowNestedRun v-if="selectedStep.childRun" :key="selectedStep.childRun.id" :run="selectedStep.childRun" />
+        <p v-else-if="isWorkflowSubworkflowNode(selectedNode) && selectedIteration === -1 && summaryStep?.executions?.length">选择某一项执行记录，展开该次子工作流的内部状态。</p>
         <section v-if="controlOutput" class="workflow-control-results" aria-label="流程控制子流程结果">
           <p v-if="isWorkflowControlNode(selectedNode)">{{ workflowControlNames[selectedNode.kind] }} · {{ legacyControl ? '按历史端点顺序展示结果' : '按原数组顺序展示逐项结果' }}</p>
           <h4>执行出口：{{ controlOutput.selectedPort === 'complete' ? '完成' : '异常' }}</h4>

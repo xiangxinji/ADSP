@@ -2,7 +2,7 @@ import { findAssetOperation } from '#shared/config/asset-operations'
 import type { WorkflowDefinition } from '#shared/types/asdp'
 import type { AssetOperationField } from '#shared/types/asset-operations'
 import { assetOperationOutputFields } from '#shared/utils/asset-operation-contract'
-import { isWorkflowControlNode } from '#shared/utils/workflow-nodes'
+import { isWorkflowControlNode, isWorkflowOperationNode } from '#shared/utils/workflow-nodes'
 
 const exceptionFields: AssetOperationField[] = [
   { name: 'error.code', type: 'string', required: true, description: '当前失败节点的稳定错误码。' },
@@ -22,7 +22,7 @@ export const workflowPreviousValueFields = (workflow: WorkflowDefinition, nodeId
       if (upstream?.sourceHandle) return []
       previous = workflow.nodes.find(node => node.id === upstream?.source)
     }
-    if (!previous || isWorkflowControlNode(previous)) return []
+    if (!isWorkflowOperationNode(previous)) return []
     const operation = findAssetOperation(previous.assetType, previous.operationId)
     if (!operation?.workflow.enabled) return []
     if (edge?.sourceHandle && !iterationChild) {

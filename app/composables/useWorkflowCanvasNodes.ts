@@ -4,7 +4,7 @@ import { findAssetOperation, isProjectAssetOperation } from '#shared/config/asse
 import type { ProjectWorkspace, WorkflowEdge, WorkflowNode, WorkflowOperationNode, WorkflowTrigger } from '#shared/types/asdp'
 import type { WorkflowRunStep } from '#shared/types/workflow-runs'
 import { analyzeWorkflowGraph, workflowTriggerNodeId } from '#shared/utils/workflow-graph'
-import { isWorkflowControlNode, validateWorkflowControlNode, validateWorkflowExceptionPorts, workflowOperationExceptions } from '#shared/utils/workflow-nodes'
+import { isWorkflowControlNode, isWorkflowSubworkflowNode, validateWorkflowControlNode, validateWorkflowExceptionPorts, validateWorkflowSubworkflowNode, workflowOperationExceptions } from '#shared/utils/workflow-nodes'
 import { workflowValueReferenceError } from '#shared/utils/workflow-values'
 import { workflowAssetInputName, workflowAssetSource } from '#shared/utils/workflow-operation-assets'
 
@@ -65,6 +65,18 @@ export const useWorkflowCanvasNodes = (props: WorkflowCanvasProps, pendingSource
           connectionSourceHandle: data.connectionSource ? pendingSource.value?.sourceHandle || null : null,
           complete: props.readOnly || Boolean(connected && !validateWorkflowControlNode(node)
             && props.edges.some(edge => edge.source === node.id && node.branches.some(branch => branch.id === edge.sourceHandle))),
+        } }
+      }
+      if (isWorkflowSubworkflowNode(node)) {
+        const step = props.runSteps?.find(step => step.nodeId === node.id)
+        const childSteps = (step?.executions || (step ? [step] : [])).flatMap(execution => execution.childRun?.steps || [])
+        const target = props.workspace.workflows.find(workflow => workflow.id === node.workflowId)
+        return { ...common, type: 'workflow', data: {
+          ...data, label: node.label,
+          workflowName: props.readOnly ? step?.childRun?.workflow.name || node.label : target?.name || '请选择子工作流',
+          completedSteps: childSteps.filter(step => step.status === 'succeeded' || step.status === 'handled').length,
+          totalSteps: childSteps.length,
+          complete: props.readOnly || Boolean(connected && target && !validateWorkflowSubworkflowNode(node)),
         } }
       }
       const operation = findAssetOperation(node.assetType, node.operationId)

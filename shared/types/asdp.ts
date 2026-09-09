@@ -208,7 +208,14 @@ export type WorkflowAsyncNode = {
 export type WorkflowSyncNode = Omit<WorkflowAsyncNode, 'kind'> & { kind: 'sync' }
 export type WorkflowControlNode = WorkflowAsyncNode | WorkflowSyncNode
 export type WorkflowControlKind = WorkflowControlNode['kind']
-export type WorkflowNode = WorkflowOperationNode | WorkflowControlNode
+export type WorkflowSubworkflowNode = {
+  id: string
+  kind: 'workflow'
+  label: string
+  workflowId: string
+  position: WorkflowNodePosition
+}
+export type WorkflowNode = WorkflowOperationNode | WorkflowControlNode | WorkflowSubworkflowNode
 
 export type WorkflowEdge = {
   id: string

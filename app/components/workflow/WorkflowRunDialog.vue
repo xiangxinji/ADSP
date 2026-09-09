@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import type { WorkflowValueObject } from '#shared/types/asdp'
+import type { WorkflowValue, WorkflowValueObject } from '#shared/types/asdp'
 
 const props = defineProps<{
   open: boolean
   busy: boolean
-  defaultRoot: WorkflowValueObject
+  defaultRoot: WorkflowValue
   error: string
 }>()
 const emit = defineEmits<{

@@ -12,6 +12,7 @@ export type WorkflowOperationSelection = {
 }
 
 export type WorkflowNodeDragData =
+  | { type: 'workflow' }
   | { type: 'control', kind: WorkflowControlKind }
   | { type: 'operation', selection: WorkflowOperationSelection }
 
@@ -24,6 +25,7 @@ export const serializeWorkflowNodeDragData = (data: WorkflowNodeDragData) => JSO
 export const parseWorkflowNodeDragData = (value: string): WorkflowNodeDragData | null => {
   try {
     const data = JSON.parse(value) as Record<string, unknown>
+    if (data.type === 'workflow') return { type: 'workflow' }
     if (data.type === 'control' && typeof data.kind === 'string' && controlKinds.includes(data.kind as WorkflowControlKind)) {
       return { type: 'control', kind: data.kind as WorkflowControlKind }
     }

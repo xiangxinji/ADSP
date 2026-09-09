@@ -13,7 +13,8 @@ import {
   type WorkflowTrigger,
 } from '../../shared/types/asdp'
 import { analyzeWorkflowGraph } from '../../shared/utils/workflow-graph'
-import { isWorkflowControlNode, validateWorkflowControlNode, workflowNodeLimit } from '../../shared/utils/workflow-nodes'
+import { isWorkflowControlNode, isWorkflowSubworkflowNode, validateWorkflowControlNode, validateWorkflowSubworkflowNode, workflowNodeLimit } from '../../shared/utils/workflow-nodes'
+import { analyzeWorkflowReferences } from '../../shared/utils/workflow-references'
 import { parseWorkflowValueReference, workflowValueReferenceError } from '../../shared/utils/workflow-values'
 import { workflowAssetSource } from '../../shared/utils/workflow-operation-assets'
 import {
@@ -81,6 +82,11 @@ const validateOperationInputs = (
 
 const validateNode = (projectId: string, node: WorkflowNode): WorkflowNode => {
   if (!node.id.trim()) throw badRequest('Workflow node id is required')
+  if (isWorkflowSubworkflowNode(node)) {
+    const message = validateWorkflowSubworkflowNode(node)
+    if (message) throw badRequest(message)
+    return { ...node, label: node.label.trim(), workflowId: node.workflowId.trim(), position: validatePosition(node.position, 'node.position') }
+  }
   if (isWorkflowControlNode(node)) {
     const message = validateWorkflowControlNode(node)
     if (message) throw badRequest(message)
@@ -144,6 +150,12 @@ const validateDefinition = (
 
 export const getWorkflow = (id: string) => getWorkflowRecord(id)
 
+export const getReferencedWorkflows = (workflow: WorkflowDefinition) => {
+  const analysis = analyzeWorkflowReferences(workflow, findWorkflowDefinition)
+  if (analysis.error) throw createAssetOperationError(400, analysis.error.code, analysis.error.message)
+  return analysis.workflows
+}
+
 export const validateWorkflowForExecution = (workflow: WorkflowDefinition): WorkflowDefinition => ({
   ...workflow,
   ...validateDefinition(workflow.projectId, workflow.trigger, workflow.nodes, workflow.edges),
@@ -177,6 +189,7 @@ export const updateWorkflow = (id: string, input: UpdateWorkflowInput) => {
     input.nodes ?? current.nodes,
     input.edges ?? current.edges,
   )
+  getReferencedWorkflows({ ...current, ...definition })
   updateWorkflowDefinitionRecord({
     ...current,
     name: input.name ?? current.name,

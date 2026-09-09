@@ -227,6 +227,54 @@ for reconnection or explicit deletion; invalid or dangling graphs cannot be save
 The API rejects malformed ports, undeclared/duplicate codes, and stale handles without
 changing the saved definition. Both editor and server reuse shared graph validation.
 
+### Reusable Workflow-Call Nodes
+
+`WorkflowSubworkflowNode` (`kind: 'workflow'`) references a saved `workflowId` in the
+owning project. It is a workflow-composition primitive, not an asset type or asset
+operation, and has one normal continuation port. Its stable persisted configuration
+contains `id`, `kind`, `label`, `workflowId`, and `position`.
+
+The shared reference analysis in `shared/utils/workflow-references.ts` checks missing
+definitions, project containment, direct/indirect recursion, and a maximum nesting
+depth of eight including the root workflow. Definition updates validate the prospective
+reference graph. Run orchestration resolves and validates every reachable definition,
+including currently inactive paths and literal operation inputs, before inserting a run
+or performing any side effect. All referenced definitions are snapshotted at startup;
+later edits cannot affect a child that has not started yet. A callable definition needs
+a configured root trigger and a connected, nonempty graph; invocation enters that root
+directly and does not wait for its configured external event.
+
+The graph executor creates a fresh child `WorkflowRun` for each invocation. The previous
+node's output becomes its `root` unchanged, including arrays; a direct root connection
+passes the parent's root value. `$root` is local to the child and does not implicitly
+expose the parent's original root. Manual HTTP starts still accept only an object root.
+The selected terminal execution path supplies `WorkflowRun.output`, which is forwarded
+unchanged as the workflow node's output. Control nodes with no selected continuation
+return their control result. Failed runs have a null final output. A failed child makes
+the calling step fail with `workflow.subworkflow-failed`; its original internal errors
+remain available in the child's steps. An internally handled exception does not fail
+an otherwise successful child. Normal parent continuation is skipped on failure; a
+surrounding iteration control retains its existing failure semantics.
+
+Child execution records live at `WorkflowStepExecution.childRun`, including within
+`executions[]` for sync/async iteration. Invocation-local execution scopes keep repeated
+and concurrent calls separate. The execution context accepts a parent persistence
+callback, so each child transition updates the root's existing SQLite run record. Child
+runs are not inserted as independent history entries for the called definition. The
+existing history endpoint returns nested snapshots, and the editor's one-second polling
+updates the child progress on canvas and an expandable internal-step tree in run details.
+
+`referencedWorkflowIds` in the root record protects all startup references, even before
+their nodes run, against deletion and a competing direct manual start. Independent
+parent runs and repeated internal invocations can reuse a definition. Restart recovery
+recursively fails unfinished child runs and marks their pending steps skipped without
+changing already completed records. The run repository stores the additive `output`,
+`referencedWorkflowIds`, and nested `childRun` fields in the existing JSON state; legacy
+array-only and object run state remain readable without a schema migration. API paths,
+asset operation contracts, provider integrations, and filesystem boundaries are unchanged.
+
+See `docs/workflow-subworkflows.md` for configuration, value semantics, and stable errors.
+
 ### Manual Execution and Node History
 
 The editor exposes **Run workflow**, or **Save and run** for an edited definition.

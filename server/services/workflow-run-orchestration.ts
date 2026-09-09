@@ -1,14 +1,13 @@
-import { randomUUID } from 'node:crypto'
 import { createError } from 'h3'
 import type { WorkflowValueObject } from '../../shared/types/asdp'
-import type { WorkflowRun } from '../../shared/types/workflow-runs'
-import { isWorkflowControlNode } from '../../shared/utils/workflow-nodes'
+import { isWorkflowOperationNode } from '../../shared/utils/workflow-nodes'
 import { insertWorkflowRun, listWorkflowRuns } from '../repositories/workflow-runs'
 import { runInTransaction } from '../repositories/unit-of-work'
 import { assetOperationInput } from '../validation/asset-operation-input'
-import { executeWorkflowGraph, type WorkflowRunInputs } from './workflow-graph-execution'
-import { getWorkflow, validateWorkflowForExecution } from './workflow-definitions'
-import { assertWorkflowIdle } from './workflow-runs'
+import { executeWorkflowGraph } from './workflow-graph-execution'
+import { getWorkflow, getReferencedWorkflows, validateWorkflowForExecution } from './workflow-definitions'
+import { assertWorkflowIdle, createWorkflowRun } from './workflow-runs'
+import { createAssetOperationError } from '../utils/asset-operation-error'
 import { workflowInputHasReferences } from './workflow-value-resolution'
 
 export const getWorkflowRuns = (workflowId: string) => {
@@ -24,29 +23,22 @@ export const startManualWorkflowRun = (workflowId: string, root: WorkflowValueOb
   if (!workflow.nodes.length) {
     throw createError({ statusCode: 409, statusMessage: '请至少添加并连接一个操作节点', data: { code: 'workflow.empty' } })
   }
-  const snapshot = validateWorkflowForExecution(workflow)
-  const inputs: WorkflowRunInputs = new Map()
-  for (const node of snapshot.nodes) {
-    if (isWorkflowControlNode(node)) continue
-    inputs.set(node.id, node.inputs)
-    if (!workflowInputHasReferences(node.inputs)) assetOperationInput(node.operationId, node.inputs)
-  }
-  const run: WorkflowRun = {
-    id: randomUUID(),
-    workflowId,
-    workflow: snapshot,
-    root: structuredClone(root),
-    status: 'running',
-    steps: snapshot.nodes.map(node => ({
-      nodeId: node.id, status: 'pending', startedAt: null, finishedAt: null, resolvedInputs: null, output: null, error: null,
-    })),
-    startedAt: new Date().toISOString(),
-    finishedAt: null,
-  }
+  const workflows = new Map(getReferencedWorkflows(workflow).map(definition => {
+    if (!definition.trigger || !definition.nodes.length) {
+      throw createAssetOperationError(400, 'workflow.subworkflow-not-ready', `子工作流“${definition.name}”需要配置触发器并连接至少一个节点。`)
+    }
+    const snapshot = validateWorkflowForExecution(definition)
+    for (const node of snapshot.nodes.filter(isWorkflowOperationNode)) {
+      if (!workflowInputHasReferences(node.inputs)) assetOperationInput(node.operationId, node.inputs)
+    }
+    return [snapshot.id, snapshot] as const
+  }))
+  const run = createWorkflowRun(workflows.get(workflowId)!, root)
+  run.referencedWorkflowIds = [...workflows.keys()].filter(id => id !== workflowId)
   runInTransaction(() => {
     assertWorkflowIdle(workflowId)
     insertWorkflowRun(run)
   })
-  const completion = executeWorkflowGraph(run, inputs)
+  const completion = executeWorkflowGraph(run, new Map(), { workflows })
   return { run: structuredClone(run), completion }
 }

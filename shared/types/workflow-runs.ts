@@ -8,7 +8,6 @@ import type {
   WorkflowDefinition,
   WorkflowOperationResolvedInputs,
   WorkflowValue,
-  WorkflowValueObject,
 } from './asdp'
 
 import type { AssetListResult } from './asset-lists'
@@ -45,8 +44,9 @@ export type WorkflowStepExecution = {
   finishedAt: string | null
   resolvedInputs: WorkflowOperationResolvedInputs | null
   output: RepositoryBranchResult | RepositoryCloneResult | RepositoryLocalCloneStatusResult
-    | RepositoryMergeRequestResult | RepositoryUpdateResult | RepositoryWorktreeResult | WorkflowControlOutput | AssetListResult | null
+    | RepositoryMergeRequestResult | RepositoryUpdateResult | RepositoryWorktreeResult | WorkflowControlOutput | AssetListResult | WorkflowValue | null
   error: WorkflowRunError | null
+  childRun?: WorkflowRun
 }
 
 export type WorkflowIterationStep = WorkflowStepExecution & {
@@ -61,7 +61,9 @@ export type WorkflowRun = {
   id: string
   workflowId: string
   workflow: WorkflowDefinition
-  root: WorkflowValueObject
+  root: WorkflowValue
+  output?: WorkflowValue
+  referencedWorkflowIds?: string[]
   status: WorkflowRunStatus
   steps: WorkflowRunStep[]
   startedAt: string

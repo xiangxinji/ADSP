@@ -53,6 +53,14 @@ const inputsPayload = (value: unknown) => {
 
 const nodePayload = (value: unknown): WorkflowNode => {
   const node = bodyObject(value)
+  if (node.kind === 'workflow') {
+    return {
+      id: requiredText(node.id, 'node.id'), kind: 'workflow',
+      label: requiredText(node.label, 'node.label'),
+      workflowId: requiredText(node.workflowId, 'node.workflowId'),
+      position: positionPayload(node.position, 'node.position'),
+    }
+  }
   if (node.kind === 'async' || node.kind === 'sync') {
     if (node.branches !== undefined && !Array.isArray(node.branches)) throw createError({ statusCode: 400, statusMessage: 'branches must be an array' })
     return {

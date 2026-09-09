@@ -6,7 +6,7 @@ import { workflowTriggerNodeId } from '#shared/utils/workflow-graph'
 import { workflowOutputPorts } from '#shared/utils/workflow-nodes'
 import type { WorkflowConnectionSource } from '~/composables/useWorkflowCanvasNodes'
 import { shouldDeleteSelectedWorkflowNode } from '~/utils/workflow-keyboard'
-import { hasWorkflowNodeDragData, readWorkflowNodeDragData, type WorkflowNodeDropData } from '~/utils/workflow-node-drag'
+import type { WorkflowNodeDropData } from '~/utils/workflow-node-drag'
 
 const props = defineProps<{
   trigger: WorkflowTrigger | null
@@ -29,8 +29,9 @@ const emit = defineEmits<{
 const { fitView, screenToFlowCoordinate, zoomIn, zoomOut } = useVueFlow({ id: 'workflow-definition-canvas' })
 const selectedEdgeId = ref<string | null>(null)
 const pendingSource = ref<WorkflowConnectionSource | null>(null)
-const dragOver = ref(false)
-const skipNextNodeFit = ref(false)
+const { dragOver, skipNextNodeFit, onDragOver, onDragLeave, onDrop } = useWorkflowNodeDrop(
+  () => props.readOnly, screenToFlowCoordinate, data => emit('dropNode', data),
+)
 const canvasNodes = useWorkflowCanvasNodes(props, pendingSource)
 const canvasEdges = computed<Edge[]>(() => props.edges.map(edge => ({
   ...edge, type: 'smoothstep', markerEnd: MarkerType.ArrowClosed,
@@ -80,31 +81,6 @@ const onKeydown = (event: KeyboardEvent) => {
 }
 const onNodeDragStop = ({ node }: { node: Node }) => {
   if (!props.readOnly) emit('updatePosition', node.id, { x: node.position.x, y: node.position.y })
-}
-const acceptsNodeDrop = (event: DragEvent) => !props.readOnly && hasWorkflowNodeDragData(event.dataTransfer)
-const onDragOver = (event: DragEvent) => {
-  if (!acceptsNodeDrop(event)) return
-  event.preventDefault()
-  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy'
-  dragOver.value = true
-}
-const onDragLeave = (event: DragEvent) => {
-  const canvas = event.currentTarget as HTMLElement
-  if (event.relatedTarget && canvas.contains(event.relatedTarget as globalThis.Node)) return
-  dragOver.value = false
-}
-const onDrop = (event: DragEvent) => {
-  dragOver.value = false
-  if (!acceptsNodeDrop(event)) return
-  const data = readWorkflowNodeDragData(event.dataTransfer)
-  if (!data) return
-  event.preventDefault()
-  const point = screenToFlowCoordinate({ x: event.clientX, y: event.clientY })
-  const position = { x: point.x - 114, y: point.y - 43 }
-  skipNextNodeFit.value = true
-  if (data.type === 'control') emit('dropNode', { type: 'control', kind: data.kind, position })
-  else emit('dropNode', { type: 'operation', selection: data.selection, position })
-  nextTick(() => { skipNextNodeFit.value = false })
 }
 let resizeTimer: ReturnType<typeof setTimeout> | undefined
 const fitCanvas = () => fitView({ padding: 0.24, duration: 200 })
@@ -162,6 +138,9 @@ onBeforeUnmount(() => {
         </template>
         <template #node-control="slotProps">
           <WorkflowControlNode v-bind="slotProps" @select-source="selectConnectionSource(slotProps.id, $event)" @select-target="selectConnectionTarget(slotProps.id)" />
+        </template>
+        <template #node-workflow="slotProps">
+          <WorkflowSubworkflowNode v-bind="slotProps" @select-source="selectConnectionSource(slotProps.id)" @select-target="selectConnectionTarget(slotProps.id)" />
         </template>
         <div v-if="dragOver" class="workflow-drop-indicator" role="status">松开以在此处添加节点</div>
         <div v-if="pendingSource" class="workflow-connection-status" role="status">已选择输出端点，请点击下游节点卡片或顶部圆点。<button type="button" @click="pendingSource = null">取消</button></div>

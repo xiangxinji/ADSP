@@ -70,7 +70,7 @@ Project workspace
 │  ├─ development, testing, and production environments
 │  └─ Markdown knowledge linked to project assets
 ├─ Workflow definitions
-│  └─ root trigger, asset-operation nodes, exception paths, and sync/async control nodes
+│  └─ root trigger, asset-operation nodes, exception paths, sync/async controls, and reusable workflow-call nodes
 ├─ Requirements
 │  └─ referenced repositories and participants
 ├─ Workflow runs
@@ -78,6 +78,12 @@ Project workspace
 ```
 
 A project may contain multiple requirement versions, repositories, environment records, Markdown knowledge documents, reusable workflow definitions, and global users selected as project members with project-specific roles. Requirement versions are major-version lines displayed as `v{major}.x`; a requirement may target multiple version lines and the greatest configured major is always marked `latest`. Each repository selects either a multi-version branch strategy tied to those requirement versions or a development-production strategy limited to `dev` and `main`. Environments record an address, an optional note, a lifecycle type, and zero or more self-service test accounts whose passwords are optional. Any supplied non-sensitive test passwords are stored and displayed without masking; tokens, private keys, and production deployment credentials remain in CI/CD or the target infrastructure. Knowledge metadata is created in a focused form before its Markdown body is authored on a separate full-screen page. The live Milkdown editor preserves Markdown in the project database and renders stable project-asset references as editable inline controls. A requirement may reference multiple repositories and multiple project members. Assets and memberships are registered once at project level and reused across requirements and workflow definitions. A workflow definition describes a reusable trigger and asset-operation graph; it is not an execution record. A requirement represents business intent, and each execution attempt is a separate workflow run so failures and retries remain auditable.
+
+Workflows can also call another saved workflow in the same project as a single node.
+Each call waits for its child to finish, passes its upstream value into the child's
+root, and forwards the child's final output. Operators can expand internal node states,
+inputs, outputs, errors, and repeated invocations in the parent execution record.
+Calls use immutable startup snapshots; cross-project and recursive calls are rejected.
 
 Workflow composition is operation-first: workflow-ready operations appear as searchable
 cards grouped by repository, member, environment, and knowledge, and can be dragged onto

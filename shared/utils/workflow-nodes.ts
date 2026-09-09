@@ -1,19 +1,27 @@
 import { findAssetOperation } from '../config/asset-operations'
-import type { WorkflowControlKind, WorkflowControlNode, WorkflowNode, WorkflowOperationNode } from '../types/asdp'
+import type { WorkflowControlKind, WorkflowControlNode, WorkflowNode, WorkflowOperationNode, WorkflowSubworkflowNode } from '../types/asdp'
 
 export const workflowNodeLimit = 50
 export const workflowControlBranch = { id: 'item', label: '逐项执行' } as const
 export const workflowControlNames: Record<WorkflowControlKind, string> = { async: '异步执行', sync: '同步执行' }
 
 export const isWorkflowControlNode = (node?: WorkflowNode | null): node is WorkflowControlNode => node?.kind === 'async' || node?.kind === 'sync'
+export const isWorkflowSubworkflowNode = (node?: WorkflowNode | null): node is WorkflowSubworkflowNode => node?.kind === 'workflow'
+export const isWorkflowOperationNode = (node?: WorkflowNode | null): node is WorkflowOperationNode => Boolean(node && (!node.kind || node.kind === 'operation'))
 
-export const workflowNodeLabel = (node: WorkflowNode) => isWorkflowControlNode(node)
+export const workflowNodeLabel = (node: WorkflowNode) => !isWorkflowOperationNode(node)
   ? node.label
   : findAssetOperation(node.assetType, node.operationId)?.label || node.operationId
 
 export const workflowOutputPorts = (node?: WorkflowNode): { id?: string, label: string }[] => isWorkflowControlNode(node)
   ? [workflowControlBranch, { id: 'complete', label: '完成' }, { id: 'error', label: '异常' }]
-  : [{ label: '执行' }, ...(node?.exceptionPorts || []).map(port => ({ id: port.id, label: '异常 · ' + port.code }))]
+  : [{ label: '执行' }, ...(isWorkflowOperationNode(node) ? node.exceptionPorts || [] : []).map(port => ({ id: port.id, label: '异常 · ' + port.code }))]
+
+export const validateWorkflowSubworkflowNode = (node: WorkflowSubworkflowNode) => {
+  if (!node.label.trim() || node.label.length > 100) return '工作流节点名称必须为 1–100 个字符。'
+  if (!node.workflowId.trim()) return '请选择要执行的子工作流。'
+  return ''
+}
 
 export const workflowOperationExceptions = (node: WorkflowOperationNode) => {
   const operation = findAssetOperation(node.assetType, node.operationId)

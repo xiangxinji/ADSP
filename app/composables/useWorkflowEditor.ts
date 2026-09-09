@@ -3,7 +3,8 @@ import { findAssetOperation } from '#shared/config/asset-operations'
 import type { AssetType } from '#shared/types/asset-operations'
 import type { ProjectWorkspace, WorkflowDefinition, WorkflowOperationInputValue, WorkflowTriggerKind } from '#shared/types/asdp'
 import { analyzeWorkflowGraph } from '#shared/utils/workflow-graph'
-import { isWorkflowControlNode, validateWorkflowControlNode } from '#shared/utils/workflow-nodes'
+import { isWorkflowControlNode, isWorkflowOperationNode, isWorkflowSubworkflowNode, validateWorkflowControlNode, validateWorkflowSubworkflowNode } from '#shared/utils/workflow-nodes'
+import { analyzeWorkflowReferences } from '#shared/utils/workflow-references'
 import { workflowAssetSource } from '#shared/utils/workflow-operation-assets'
 import { workflowValueReferenceError } from '#shared/utils/workflow-values'
 
@@ -25,6 +26,7 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
   const controlNodes = useWorkflowControlNodes(draft, selectedNodeId, actionError)
   const exceptionPorts = useWorkflowExceptionPorts(draft, selectedNodeId, actionError)
   const operationNodes = useWorkflowOperationNodes(draft, selectedNode, selectedNodeId, actionError)
+  const subworkflows = useWorkflowSubworkflows(draft, workspace, selectedNodeId, actionError)
 
   const assetExists = (assetType: AssetType, assetId?: string) => {
     if (!workspace.value) return false
@@ -38,6 +40,11 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
     if (!draft.value?.name.trim()) return '请填写工作流名称。'
     if (!draft.value.trigger) return '请选择一个根触发器。'
     for (const node of draft.value.nodes) {
+      if (isWorkflowSubworkflowNode(node)) {
+        const message = validateWorkflowSubworkflowNode(node)
+        if (message) return message
+        continue
+      }
       if (isWorkflowControlNode(node)) {
         const message = validateWorkflowControlNode(node)
         if (message) return message
@@ -51,7 +58,8 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
       const missing = operation.contract.input.find(field => field.required && (node.inputs[field.name] === undefined || node.inputs[field.name] === ''))
       if (missing) return `节点“${operation.label}”缺少参数 ${missing.name}。`
     }
-    return analyzeWorkflowGraph(draft.value.nodes, draft.value.edges, Boolean(draft.value.trigger)).message
+    return analyzeWorkflowReferences(draft.value, id => workspace.value?.workflows.find(workflow => workflow.id === id)).error?.message
+      || analyzeWorkflowGraph(draft.value.nodes, draft.value.edges, Boolean(draft.value.trigger)).message
   })
 
   const selectTrigger = (kind: WorkflowTriggerKind) => {
@@ -67,7 +75,7 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
   }
 
   const updateInput = (name: string, value: WorkflowOperationInputValue) => {
-    if (selectedNode.value && !isWorkflowControlNode(selectedNode.value)) selectedNode.value.inputs[name] = value
+    if (isWorkflowOperationNode(selectedNode.value)) selectedNode.value.inputs[name] = value
   }
 
   const removeNode = () => {
@@ -112,6 +120,7 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
   onBeforeUnmount(() => window.removeEventListener('beforeunload', beforeUnload))
 
   return {
+    ...subworkflows,
     ...controlNodes,
     ...exceptionPorts,
     ...operationNodes,

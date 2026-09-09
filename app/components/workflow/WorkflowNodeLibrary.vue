@@ -18,6 +18,7 @@ const emit = defineEmits<{
   selectTrigger: [kind: WorkflowTriggerKind]
   addControlNode: [kind: WorkflowControlKind]
   addOperation: [selection: WorkflowOperationSelection]
+  addSubworkflow: []
 }>()
 
 const triggerOptions: { kind: WorkflowTriggerKind, label: string, description: string }[] = [
@@ -53,9 +54,18 @@ const startControlDrag = (event: DragEvent, kind: WorkflowControlKind) => {
       </div>
     </section>
     <section class="workflow-library-section">
-      <div class="workflow-library-title"><strong>2. 流程控制</strong><span>顺序 / 并发执行与结果分流</span></div>
+      <div class="workflow-library-title"><strong>2. 流程节点</strong><span>顺序 / 并发执行与工作流复用</span></div>
       <p class="workflow-operation-help">自动读取上游数组，逐项执行唯一子节点；同步顺序执行，异步并发执行。</p>
       <div class="workflow-node-templates">
+        <button
+          type="button" class="workflow-node-template" :disabled="!triggerKind" :draggable="Boolean(triggerKind)"
+          :class="{ dragging: draggingSource === 'workflow' }" aria-describedby="workflow-node-drag-help"
+          @click="emit('addSubworkflow')" @dragstart="startDrag($event, { type: 'workflow' }, 'workflow')" @dragend="draggingSource = ''"
+        >
+          <span class="workflow-node-template-icon"><AppIcon name="workflow" :size="16" /></span>
+          <span class="workflow-node-template-copy"><strong>工作流</strong><small>执行另一个工作流，查看内部状态</small></span>
+          <span class="workflow-node-template-action">拖动</span>
+        </button>
         <button
           v-for="kind in controlKinds" :key="kind" type="button" class="workflow-node-template"
           :class="{ dragging: draggingSource === `control:${kind}` }" :disabled="!triggerKind" :draggable="Boolean(triggerKind)"

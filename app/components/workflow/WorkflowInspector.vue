@@ -2,7 +2,7 @@
 import AssetContractFields from '~/components/AssetContractFields.vue'
 import { findAssetOperation, isProjectAssetOperation } from '#shared/config/asset-operations'
 import { assetOperationOutputType } from '#shared/utils/asset-operation-contract'
-import { isWorkflowControlNode, workflowControlNames } from '#shared/utils/workflow-nodes'
+import { isWorkflowControlNode, isWorkflowOperationNode, isWorkflowSubworkflowNode, workflowControlNames } from '#shared/utils/workflow-nodes'
 import { workflowAssetSource } from '#shared/utils/workflow-operation-assets'
 import { workflowPreviousValueFields } from '~/utils/workflow-value-fields'
 import type { ProjectWorkspace, WorkflowDefinition, WorkflowEdge, WorkflowOperationInputValue, WorkflowNode } from '#shared/types/asdp'
@@ -20,12 +20,15 @@ const emit = defineEmits<{
   updateAssetId: [assetId: string]
   setUpstream: [source: Pick<WorkflowEdge, 'source' | 'sourceHandle'> | null]
   removeNode: []
+  updateSubworkflow: [workflowId: string]
+  updateSubworkflowLabel: [label: string]
   updateControlLabel: [nodeId: string, label: string]
   addExceptionPort: [nodeId: string]
   updateExceptionPort: [nodeId: string, portId: string, code: string]
   removeExceptionPort: [nodeId: string, portId: string]
 }>()
-const operationNode = computed(() => !isWorkflowControlNode(props.selectedNode) ? props.selectedNode : null)
+const operationNode = computed(() => isWorkflowOperationNode(props.selectedNode) ? props.selectedNode : null)
+const subworkflowNode = computed(() => isWorkflowSubworkflowNode(props.selectedNode) ? props.selectedNode : null)
 const controlNode = computed(() => isWorkflowControlNode(props.selectedNode) ? props.selectedNode : null)
 const operation = computed(() => operationNode.value
   ? findAssetOperation(operationNode.value.assetType, operationNode.value.operationId) : undefined)
@@ -59,11 +62,15 @@ const assetLabel = computed(() => {
       </AppFormField>
     </section>
     <section class="workflow-inspector-section node-inspector">
-      <div class="workflow-library-title"><strong>节点配置</strong><span>{{ controlNode ? workflowControlNames[controlNode.kind] : selectedNode ? '资产操作' : '未选择' }}</span></div>
+      <div class="workflow-library-title"><strong>节点配置</strong><span>{{ controlNode ? workflowControlNames[controlNode.kind] : subworkflowNode ? '工作流' : selectedNode ? '资产操作' : '未选择' }}</span></div>
       <WorkflowUpstreamField v-if="selectedNode" :workflow="workflow" :node-id="selectedNode.id" @change="emit('setUpstream', $event)" />
       <WorkflowControlInspector
         v-if="controlNode" :key="controlNode.id" :node="controlNode"
         @update-label="emit('updateControlLabel', controlNode.id, $event)"
+      />
+      <WorkflowSubworkflowInspector
+        v-else-if="subworkflowNode" :node="subworkflowNode" :workflow="workflow" :workflows="workspace.workflows"
+        @update-workflow="emit('updateSubworkflow', $event)" @update-label="emit('updateSubworkflowLabel', $event)"
       />
       <template v-else-if="operationNode && operation?.workflow.enabled">
         <div class="workflow-selected-summary"><span><AppIcon name="repository" :size="16" /></span><div><strong>{{ operation.label }}</strong><small>{{ assetLabel || '资产已不存在' }}</small></div></div>
