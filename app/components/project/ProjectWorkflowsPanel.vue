@@ -13,6 +13,7 @@ const { success } = useAppToast()
 const triggerLabel = (kind?: WorkflowTriggerKind) => ({
   manual: '手动触发',
   'requirement-created': '需求创建时',
+  'requirement-status-changed': '需求状态变更时',
 })[kind || 'manual']
 const workflowConfigured = (workflow: WorkflowDefinition) => Boolean(workflow.trigger && workflow.nodes.length && !analyzeWorkflowGraph(
   workflow.nodes,

@@ -299,6 +299,22 @@ the stored requirement response as `$root`. It waits for those runs before advan
 the next event, preventing a burst of requirements from losing triggers or overlapping
 the same workflow definition.
 
+Requirement status updates use the same outbox through
+`server/services/requirement-update-orchestration.ts`. The requirement service compares
+the persisted status ID with the validated target status and atomically records one
+`requirement-status-changed` event only for a real transition. Its immutable root contains
+`requirementId`, `previousStatusId`, and `statusId`. The queue matches the event kind and
+owning project, then uses the common event-run entry point. Requirement creation and other
+edits do not emit status-change events; returning to an earlier status creates a new event.
+
+`server/utils/workflow-event-migration.ts` expands the workflow-trigger and event-type
+SQLite constraints by rebuilding legacy tables in one transaction, preserving data,
+indexes, row IDs, and dependent run references. Reference validation rejects newly introduced
+violations without modifying or blocking on pre-existing orphan records. Bootstrap replaces the old event/subject uniqueness
+constraint with a partial unique index for `requirement-created` only, so one requirement
+can emit multiple status transitions while creation remains unique. Workflow/event run
+uniqueness and restart deduplication remain unchanged.
+
 Each attempt persists a `WorkflowRun` in SQLite with an immutable definition snapshot,
 overall status, timestamps, and ordered node results. Nodes transition from `pending` to
 `running` and then `succeeded`, `handled`, or `failed`. The executor persists a node's `running` state

@@ -7,7 +7,7 @@ export const repositoryLocalOperationStatuses = ['running', 'succeeded', 'failed
 export const environmentTypes = ['development', 'testing', 'production'] as const
 export const knowledgeReferenceTypes = ['repository', 'member', 'environment', 'knowledge'] as const
 export const userRoles = ['administrator', 'member'] as const
-export const workflowTriggerKinds = ['manual', 'requirement-created'] as const
+export const workflowTriggerKinds = ['manual', 'requirement-created', 'requirement-status-changed'] as const
 
 export type RequirementPriority = typeof requirementPriorities[number]
 export type RepositoryProvider = typeof repositoryProviders[number]
@@ -17,6 +17,7 @@ export type EnvironmentType = typeof environmentTypes[number]
 export type KnowledgeReferenceType = typeof knowledgeReferenceTypes[number]
 export type UserRole = typeof userRoles[number]
 export type WorkflowTriggerKind = typeof workflowTriggerKinds[number]
+export type WorkflowEventTriggerKind = Exclude<WorkflowTriggerKind, 'manual'>
 
 export type UserAccount = {
   id: string

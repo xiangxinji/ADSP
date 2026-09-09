@@ -31,6 +31,7 @@ export const useWorkflowCanvasNodes = (props: WorkflowCanvasProps, pendingSource
   const triggerLabels = {
     manual: { label: '手动触发', description: '输入 JSON 根数据 · 输出 object' },
     'requirement-created': { label: '需求创建时', description: '监听项目需求创建事件' },
+    'requirement-status-changed': { label: '需求状态变更时', description: '需求 ID：$root.requirementId' },
   }
   return computed<Node[]>(() => {
     const graph = analyzeWorkflowGraph(props.nodes, props.edges, Boolean(props.trigger))

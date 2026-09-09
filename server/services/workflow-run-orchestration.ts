@@ -1,5 +1,5 @@
 import { createError } from 'h3'
-import type { WorkflowDefinition, WorkflowValueObject } from '../../shared/types/asdp'
+import type { WorkflowDefinition, WorkflowEventTriggerKind, WorkflowValueObject } from '../../shared/types/asdp'
 import { isWorkflowOperationNode } from '../../shared/utils/workflow-nodes'
 import { insertWorkflowRun, listWorkflowRuns } from '../repositories/workflow-runs'
 import { runInTransaction } from '../repositories/unit-of-work'
@@ -53,13 +53,14 @@ export const startManualWorkflowRun = (workflowId: string, root: WorkflowValueOb
   return startWorkflowRun(workflow, root)
 }
 
-export const startRequirementCreatedWorkflowRun = (
+export const startEventWorkflowRun = (
   workflow: WorkflowDefinition,
+  eventType: WorkflowEventTriggerKind,
   root: WorkflowValueObject,
   triggerEventId: string,
 ) => {
-  if (workflow.trigger?.kind !== 'requirement-created') {
-    throw createError({ statusCode: 409, statusMessage: '工作流未配置需求创建触发器' })
+  if (workflow.trigger?.kind !== eventType) {
+    throw createError({ statusCode: 409, statusMessage: '工作流触发器与事件类型不匹配' })
   }
   return startWorkflowRun(workflow, root, triggerEventId)
 }

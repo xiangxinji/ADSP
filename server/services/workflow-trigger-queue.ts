@@ -7,7 +7,7 @@ import {
   recoverProcessingDomainEvents,
 } from '../repositories/domain-events'
 import { listProjectWorkflows } from './workflow-definitions'
-import { startRequirementCreatedWorkflowRun } from './workflow-run-orchestration'
+import { startEventWorkflowRun } from './workflow-run-orchestration'
 
 let activeDrain: Promise<void> | null = null
 
@@ -25,7 +25,7 @@ const processNextEvent = async () => {
     for (const workflow of workflows) {
       if (findWorkflowRunForTriggerEvent(workflow.id, event.id)) continue
       try {
-        completions.push(startRequirementCreatedWorkflowRun(workflow, event.payload, event.id).completion)
+        completions.push(startEventWorkflowRun(workflow, event.type, event.payload, event.id).completion)
       } catch (error) {
         errors.push(error)
       }
@@ -33,7 +33,7 @@ const processNextEvent = async () => {
     const results = await Promise.allSettled(completions)
     errors.push(...results.filter(result => result.status === 'rejected').map(result => result.reason))
     if (errors.length) {
-      throw new Error(`One or more requirement-created workflows could not be dispatched: ${errors.map(errorMessage).join('; ')}`)
+      throw new Error(`One or more ${event.type} workflows could not be dispatched: ${errors.map(errorMessage).join('; ')}`)
     }
     markDomainEventCompleted(event.id)
   } catch (error) {

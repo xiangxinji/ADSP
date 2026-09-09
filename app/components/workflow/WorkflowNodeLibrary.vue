@@ -24,6 +24,7 @@ const emit = defineEmits<{
 const triggerOptions: { kind: WorkflowTriggerKind, label: string, description: string }[] = [
   { kind: 'manual', label: '手动触发', description: '由操作人员输入 JSON 根数据并启动。' },
   { kind: 'requirement-created', label: '需求创建时', description: '需求保存后进入触发队列并自动运行。' },
+  { kind: 'requirement-status-changed', label: '需求状态变更时', description: '状态实际变化后自动运行，需求 ID：$root.requirementId。' },
 ]
 
 const draggingSource = ref('')

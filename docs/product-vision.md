@@ -107,10 +107,13 @@ validates the global directory before saving it; application data and encrypted
 credentials remain separate control-plane state.
 
 The current workflow preview supports explicit manual execution from the editor and
-automatic execution after a project requirement is created. Requirement creation stores
+automatic execution after a project requirement is created or its status changes. Requirement creation stores
 the requirement and a durable trigger event in one transaction. A single-process queue
 then starts every ready `requirement-created` workflow in that project, using the created
-requirement as its root value. Connected asset commands execute in order within each path.
+requirement as its root value. Actual status transitions similarly enqueue
+`requirement-status-changed` workflows with `requirementId`, `previousStatusId`, and
+`statusId` as the immutable root. Saving an unchanged status or editing other requirement
+fields does not trigger them. Connected asset commands execute in order within each path.
 Sync and async nodes have one fixed execution port connected to one
 child. They automatically repeat that child path for every element of the upstream array,
 sequentially in array order or concurrently, respectively. Sync failure skips unstarted

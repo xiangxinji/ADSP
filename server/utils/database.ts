@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { defaultRequirementStatuses } from '../domain/requirement-statuses'
+import { migrateWorkflowEventTables, workflowEventTables } from './workflow-event-migration'
 
 type PreparedQuery = {
   get: (...parameters: SqlValue[]) => Record<string, unknown> | undefined
@@ -171,31 +172,11 @@ const createDatabase = async () => {
     );
 
     CREATE TABLE IF NOT EXISTS workflow_definitions (
-      id TEXT PRIMARY KEY,
-      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-      name TEXT NOT NULL,
-      note TEXT NOT NULL DEFAULT '',
-      trigger_kind TEXT CHECK(trigger_kind IN ('manual', 'requirement-created')),
-      trigger_x REAL,
-      trigger_y REAL,
-      nodes_json TEXT NOT NULL DEFAULT '[]',
-      edges_json TEXT NOT NULL DEFAULT '[]',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
+      ${workflowEventTables.workflow_definitions}
     );
 
     CREATE TABLE IF NOT EXISTS domain_events (
-      id TEXT PRIMARY KEY,
-      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
-      event_type TEXT NOT NULL CHECK(event_type IN ('requirement-created')),
-      subject_id TEXT NOT NULL,
-      payload_json TEXT NOT NULL,
-      status TEXT NOT NULL CHECK(status IN ('pending', 'processing', 'completed', 'failed')),
-      attempts INTEGER NOT NULL DEFAULT 0,
-      last_error TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      UNIQUE(event_type, subject_id)
+      ${workflowEventTables.domain_events}
     );
 
     CREATE TABLE IF NOT EXISTS workflow_runs (
@@ -433,6 +414,11 @@ const createDatabase = async () => {
   }
 
   const workflowRunColumns = persistentDatabase.prepare('PRAGMA table_info(workflow_runs)').all() as { name: string }[]
+  migrateWorkflowEventTables(database)
+  persistentDatabase.exec(`
+    CREATE UNIQUE INDEX IF NOT EXISTS domain_events_requirement_created
+      ON domain_events(event_type, subject_id) WHERE event_type = 'requirement-created'
+  `)
   if (!workflowRunColumns.some(column => column.name === 'trigger_event_id')) {
     persistentDatabase.exec('ALTER TABLE workflow_runs ADD COLUMN trigger_event_id TEXT REFERENCES domain_events(id) ON DELETE SET NULL')
   }

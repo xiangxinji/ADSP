@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import type { RequirementStatusChangedWorkflowRoot } from '../../shared/types/requirement-events'
 import type {
   CreateRequirementInput,
   Requirement,
@@ -153,6 +154,25 @@ export const updateRequirement = (id: string, input: UpdateRequirementInput) => 
   runInTransaction(() => {
     updateRequirementRecord(record)
     replaceRequirementReferences(id, repositoryIds, memberIds)
+    if (current.statusId !== record.statusId) {
+      const payload: RequirementStatusChangedWorkflowRoot = {
+        requirementId: id,
+        previousStatusId: current.statusId,
+        statusId: record.statusId,
+      }
+      insertDomainEvent({
+        id: randomUUID(),
+        projectId: current.projectId,
+        type: 'requirement-status-changed',
+        subjectId: id,
+        payload,
+        status: 'pending',
+        attempts: 0,
+        lastError: null,
+        createdAt: record.updatedAt,
+        updatedAt: record.updatedAt,
+      })
+    }
   })
   return getRequirement(id)
 }

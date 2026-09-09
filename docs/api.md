@@ -61,6 +61,30 @@ workflow ID and trigger-event ID is unique so queue recovery cannot create the s
 twice. Queue records being processed during a restart return to pending, while an already
 created run is marked `workflow.interrupted` and is not replayed automatically.
 
+### Requirement Status Changes
+
+Set the workflow root trigger kind to `requirement-status-changed` (需求状态变更时).
+After `PATCH /api/requirements/:id` actually changes `statusId`, the update and an immutable
+event are saved in one transaction. The response remains `200` with the updated
+`Requirement`; matching ready workflows in the same project execute asynchronously.
+Creation, edits to other fields, saving the same status, changes to status metadata, and
+rejected updates do not emit this event. Every real transition emits a separate event,
+including transitions back to a previous status. This trigger listens to all status changes;
+it does not filter by a specific source or destination status.
+
+The root object follows `RequirementStatusChangedWorkflowRoot`:
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `requirementId` | string | Yes | ID of the requirement whose status changed; bind `$root.requirementId` in nodes. |
+| `previousStatusId` | string | Yes | Status ID immediately before this change. |
+| `statusId` | string | Yes | Status ID immediately after this change. |
+
+These values are captured at update time, not read again when the queue executes.
+Status-change events share the creation-event queue, project isolation, run history,
+restart recovery, and unique workflow/event delivery guarantees. They cannot be started
+through the manual-run endpoint.
+
 ## Workflow Definitions
 
 | Method | Path | Purpose |
@@ -171,7 +195,7 @@ does not replay commands automatically. Unexpected command failures use
 ### Definition Updates
 
 Patch requests may include `name`, `note`, `trigger`, `nodes`, or `edges`. Supported initial
-triggers are `manual` and `requirement-created`. Each trigger and operation node stores
+triggers are `manual`, `requirement-created`, and `requirement-status-changed`. Each trigger and operation node stores
 finite canvas coordinates. An operation node has the following stable shape:
 
 ```json

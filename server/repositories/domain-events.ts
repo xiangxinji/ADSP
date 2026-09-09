@@ -1,4 +1,4 @@
-import type { WorkflowValueObject } from '../../shared/types/asdp'
+import type { WorkflowEventTriggerKind, WorkflowValueObject } from '../../shared/types/asdp'
 import { useDatabase } from '../utils/database'
 
 export type DomainEventStatus = 'pending' | 'processing' | 'completed' | 'failed'
@@ -6,7 +6,7 @@ export type DomainEventStatus = 'pending' | 'processing' | 'completed' | 'failed
 export type DomainEvent = {
   id: string
   projectId: string
-  type: 'requirement-created'
+  type: WorkflowEventTriggerKind
   subjectId: string
   payload: WorkflowValueObject
   status: DomainEventStatus
