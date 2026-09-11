@@ -21,7 +21,9 @@ const formatDate = (value: string) => new Intl.DateTimeFormat('zh-CN', { month: 
 
 const referencePath = (reference: KnowledgeReference) => {
   if (!reference.resolved || !reference.targetType) return ''
-  const module = { repository: 'repositories', member: 'members', environment: 'environments', knowledge: 'knowledge' }[reference.targetType]
+  const module = {
+    repository: 'repositories', member: 'members', environment: 'environments', knowledge: 'knowledge', 'ai-interface': 'ai-interfaces',
+  }[reference.targetType]
   return `${assetsPath.value}/${module}#asset-${reference.recordId}`
 }
 const referenceLabel = (reference: KnowledgeReference) => reference.label || `${reference.assetType}：${reference.recordId}`

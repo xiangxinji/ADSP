@@ -31,6 +31,11 @@ const assetsPath = computed(() => `/projects/${props.workspace.project.id}/asset
         <span class="asset-module-copy"><strong>知识</strong><small>用 Markdown 沉淀项目知识，并引用项目内其他资产</small></span>
         <span class="asset-module-meta"><strong>{{ workspace.knowledge.length }}</strong><small>篇文档</small></span>
       </NuxtLink>
+      <NuxtLink class="panel asset-module-card" :to="`${assetsPath}/ai-interfaces`">
+        <span class="asset-module-icon knowledge-icon"><AppIcon name="ai" :size="22" /></span>
+        <span class="asset-module-copy"><strong>AI 接口</strong><small>管理 DeepSeek 等平台的接口名称与 API Key</small></span>
+        <span class="asset-module-meta"><strong>{{ workspace.aiInterfaces.length }}</strong><small>个接口</small></span>
+      </NuxtLink>
     </div>
     <aside class="asset-security-note"><span><AppIcon name="shield-check" :size="16" /></span><p><strong>测试账号可选</strong>如登记测试账号，ForgePilot 会保存并明文展示账号密码；请勿登记生产凭据、Token 或私钥。</p></aside>
   </section>

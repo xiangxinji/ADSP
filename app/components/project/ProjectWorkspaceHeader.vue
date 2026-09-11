@@ -17,6 +17,7 @@ const assetModuleLabel = computed(() => ({
   members: '项目成员',
   environments: '环境管理',
   knowledge: '知识',
+  'ai-interfaces': 'AI 接口',
 })[props.activeAssetModule || 'repositories'])
 </script>
 
@@ -45,6 +46,7 @@ const assetModuleLabel = computed(() => ({
       <span><strong>{{ workspace.members.length }}</strong>成员</span>
       <span><strong>{{ workspace.environments.length }}</strong>环境</span>
       <span><strong>{{ workspace.knowledge.length }}</strong>知识</span>
+      <span><strong>{{ workspace.aiInterfaces.length }}</strong>AI 接口</span>
     </div>
   </section>
 

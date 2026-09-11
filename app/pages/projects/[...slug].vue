@@ -49,6 +49,7 @@ const activeAssetModule = computed<AssetModuleId | null>(() => {
       <ProjectRepositoryAssets v-else-if="activeAssetModule === 'repositories'" :workspace="workspace" :project-id="projectId" @refresh="refresh" />
       <ProjectMemberAssets v-else-if="activeAssetModule === 'members'" :workspace="workspace" :project-id="projectId" @refresh="refresh" />
       <ProjectEnvironmentAssets v-else-if="activeAssetModule === 'environments'" :workspace="workspace" :project-id="projectId" @refresh="refresh" />
+      <ProjectAiInterfaceAssets v-else-if="activeAssetModule === 'ai-interfaces'" :workspace="workspace" :project-id="projectId" @refresh="refresh" />
       <ProjectKnowledgeAssets v-else :workspace="workspace" :project-id="projectId" @refresh="refresh" />
     </main>
     <main v-else id="main-content" class="page"><AppAsyncState :pending="status === 'pending'" :error-message="error?.statusMessage || '项目不存在'" @retry="refresh" /></main>

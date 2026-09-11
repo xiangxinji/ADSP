@@ -421,6 +421,32 @@ export const assetOperationConfig = {
         },
       ],
     },
+    {
+      id: 'ai-interfaces',
+      assetType: 'ai-interface',
+      label: 'AI 接口',
+      operations: [
+        {
+          id: 'ai-interface.edit',
+          label: '编辑',
+          description: '修改 AI 平台、接口名称或替换 API Key；密钥不会回显。',
+          icon: 'edit',
+          placement: 'primary',
+          execution: { kind: 'client' },
+          workflow: { enabled: false },
+        },
+        {
+          id: 'ai-interface.delete',
+          label: '删除',
+          description: '删除 AI 接口及保存的密钥，保留知识文档中的原始引用。',
+          icon: 'delete',
+          placement: 'primary',
+          danger: true,
+          execution: { kind: 'client' },
+          workflow: { enabled: false },
+        },
+      ],
+    },
   ],
 } as const satisfies AssetOperationConfig
 

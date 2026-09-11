@@ -1,5 +1,5 @@
-export const assetModuleIds = ['repositories', 'members', 'environments', 'knowledge'] as const
-export const assetTypes = ['repository', 'member', 'environment', 'knowledge'] as const
+export const assetModuleIds = ['repositories', 'members', 'environments', 'knowledge', 'ai-interfaces'] as const
+export const assetTypes = ['repository', 'member', 'environment', 'knowledge', 'ai-interface'] as const
 
 export type AssetModuleId = typeof assetModuleIds[number]
 export type AssetType = typeof assetTypes[number]

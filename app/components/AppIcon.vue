@@ -26,6 +26,11 @@ withDefaults(defineProps<{
     <template v-if="name === 'add'">
       <path d="M12 5v14M5 12h14" />
     </template>
+    <template v-else-if="name === 'ai'">
+      <rect x="5" y="5" width="14" height="14" rx="3" />
+      <path d="M9 1v4m6-4v4M9 19v4m6-4v4M1 9h4m-4 6h4m14-6h4m-4 6h4" />
+      <path d="m9 14 3-6 3 6m-5-2h4" />
+    </template>
     <template v-else-if="name === 'arrow-left'">
       <path d="M19 12H5m7 7-7-7 7-7" />
     </template>

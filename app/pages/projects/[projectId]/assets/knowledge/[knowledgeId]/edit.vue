@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { ProjectWorkspace } from '#shared/types/asdp'
 import type { KnowledgeAssetReferenceOption } from '~/editor/knowledge-asset-reference'
+import { aiInterfaceReferenceOptions } from '~/utils/ai-interface-references'
 
 type KnowledgeMarkdownEditorHandle = {
   getMarkdown: () => string
@@ -31,6 +32,7 @@ watch(knowledge, (value) => {
 }, { immediate: true })
 
 const referenceOptions = computed<KnowledgeAssetReferenceOption[]>(() => [
+  ...aiInterfaceReferenceOptions(workspace.value?.aiInterfaces || []),
   ...(workspace.value?.repositories || []).map(repository => ({
     targetType: 'repository' as const,
     typeLabel: '代码仓库',

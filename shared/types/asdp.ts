@@ -1,11 +1,12 @@
 import type { AssetType } from './asset-operations'
+import type { AiInterfaceAsset } from './ai-interfaces'
 
 export const requirementPriorities = ['low', 'medium', 'high', 'urgent'] as const
 export const repositoryProviders = ['gitlab', 'github'] as const
 export const repositoryBranchStrategies = ['multi-version', 'development-production'] as const
 export const repositoryLocalOperationStatuses = ['running', 'succeeded', 'failed'] as const
 export const environmentTypes = ['development', 'testing', 'production'] as const
-export const knowledgeReferenceTypes = ['repository', 'member', 'environment', 'knowledge'] as const
+export const knowledgeReferenceTypes = ['repository', 'member', 'environment', 'knowledge', 'ai-interface'] as const
 export const userRoles = ['administrator', 'member'] as const
 export const workflowTriggerKinds = ['manual', 'requirement-created', 'requirement-status-changed'] as const
 
@@ -47,6 +48,7 @@ export type ProjectSummary = Project & {
   memberCount: number
   environmentCount: number
   knowledgeCount: number
+  aiInterfaceCount: number
 }
 
 export type RepositoryLocalOperation = {
@@ -343,6 +345,7 @@ export type ProjectWorkspace = {
   members: ProjectMember[]
   environments: EnvironmentAsset[]
   knowledge: KnowledgeAsset[]
+  aiInterfaces: AiInterfaceAsset[]
 }
 
 export type CreateProjectInput = Pick<Project, 'name' | 'description'>

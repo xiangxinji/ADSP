@@ -1,5 +1,6 @@
 export type AppIconName =
   | 'add'
+  | 'ai'
   | 'alert'
   | 'arrow-left'
   | 'check'

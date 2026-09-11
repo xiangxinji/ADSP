@@ -9,6 +9,7 @@ const emit = defineEmits<{
 }>()
 const source = computed(() => workflowAssetSource(props.node))
 const assets = computed(() => {
+  if (props.node.assetType === 'ai-interface') return props.workspace.aiInterfaces.map(asset => ({ id: asset.id, label: asset.name }))
   if (props.node.assetType === 'repository') return props.workspace.repositories.map(asset => ({ id: asset.id, label: asset.name }))
   if (props.node.assetType === 'member') return props.workspace.members.map(asset => ({ id: asset.id, label: asset.user.name }))
   if (props.node.assetType === 'environment') return props.workspace.environments.map(asset => ({ id: asset.id, label: asset.address }))

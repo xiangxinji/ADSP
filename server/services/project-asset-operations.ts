@@ -9,7 +9,7 @@ import { listMembersForProject } from './project-members'
 import { getProject } from './projects'
 import { listProjectRepositories } from './repository-assets'
 
-const listHandlers: Record<AssetType, (projectId: string) => AssetListResult> = {
+const listHandlers: Partial<Record<AssetType, (projectId: string) => AssetListResult>> = {
   repository: listProjectRepositories,
   member: listMembersForProject,
   environment: listProjectEnvironments,
@@ -20,7 +20,8 @@ export const executeProjectAssetOperation = (
   projectId: string, assetType: AssetType, operationId: string, input?: unknown,
 ): AssetListResult => {
   const operation = findAssetOperation(assetType, operationId)
-  if (!isProjectAssetOperation(operation)) {
+  const handler = listHandlers[assetType]
+  if (!isProjectAssetOperation(operation) || !handler) {
     throw createAssetOperationError(404, 'asset.operation-not-found', '当前资产类型不支持此项目级操作。')
   }
   projectAssetOperationInput(input)
@@ -33,7 +34,7 @@ export const executeProjectAssetOperation = (
       }
       throw error
     }
-    return listHandlers[assetType](projectId)
+    return handler(projectId)
   } catch (error) {
     if (assetOperationErrorCode(error)) throw error
     throw createAssetOperationError(500, 'asset.list-failed', '读取项目资产失败，请检查服务日志。', error)

@@ -1,11 +1,13 @@
 import type { AssetType } from '../../shared/types/asset-operations'
 import { createAssetOperationError } from '../utils/asset-operation-error'
+import { getAiInterface } from './ai-interface-assets'
 import { getEnvironment } from './environment-assets'
 import { getKnowledge } from './knowledge-assets'
 import { getProjectMember } from './project-members'
 import { getRepository } from './repository-assets'
 
 export const workflowAssetProjectId = (assetType: AssetType, assetId: string) => {
+  if (assetType === 'ai-interface') return getAiInterface(assetId).projectId
   if (assetType === 'repository') return getRepository(assetId, 'repository.not-found').projectId
   if (assetType === 'member') return getProjectMember(assetId).projectId
   if (assetType === 'environment') return getEnvironment(assetId).projectId

@@ -3,6 +3,7 @@ import type {
   KnowledgeReferenceType,
 } from '../../shared/types/asdp'
 import { findEnvironmentAsset } from '../repositories/environment-assets'
+import { getAiInterface } from './ai-interface-assets'
 import { findKnowledgeAssetRecord } from '../repositories/knowledge-assets'
 import { findProjectMember } from '../repositories/project-members'
 import { findRepositoryAsset } from '../repositories/repository-assets'
@@ -22,9 +23,22 @@ const referenceTypeAliases: Record<string, KnowledgeReferenceType> = {
   '环境': 'environment',
   knowledge: 'knowledge',
   '知识': 'knowledge',
+  'ai-interface': 'ai-interface',
+  'ai-interfaces': 'ai-interface',
+  'ai 接口': 'ai-interface',
+  'ai接口': 'ai-interface',
 }
 
 const resolveTarget = (targetType: KnowledgeReferenceType, recordId: string) => {
+  if (targetType === 'ai-interface') {
+    try {
+      const asset = getAiInterface(recordId)
+      return { projectId: asset.projectId, label: asset.name }
+    } catch (error) {
+      if (error && typeof error === 'object' && 'statusCode' in error && error.statusCode === 404) return undefined
+      throw error
+    }
+  }
   if (targetType === 'repository') {
     const repository = findRepositoryAsset(recordId)
     return repository && { projectId: repository.projectId, label: repository.name }

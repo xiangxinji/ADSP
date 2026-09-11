@@ -194,6 +194,17 @@ const createDatabase = async () => {
     CREATE INDEX IF NOT EXISTS workflow_runs_history ON workflow_runs(workflow_id, started_at DESC);
     CREATE UNIQUE INDEX IF NOT EXISTS workflow_runs_active ON workflow_runs(workflow_id) WHERE status = 'running';
     CREATE INDEX IF NOT EXISTS domain_events_pending ON domain_events(status, created_at);
+    CREATE TABLE IF NOT EXISTS ai_interface_assets (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      provider TEXT NOT NULL,
+      name TEXT NOT NULL COLLATE NOCASE,
+      encrypted_api_key TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(project_id, name)
+    );
+
     CREATE TABLE IF NOT EXISTS integration_settings (
       provider TEXT PRIMARY KEY,
       base_url TEXT NOT NULL,

@@ -9,6 +9,23 @@
 - Errors: standard HTTP status with `{ statusCode, statusMessage }`
 - All nested resources are validated against their parent project.
 
+## AI Interface Assets
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/projects/:id/ai-interfaces` | List the project's AI interface metadata, never keys |
+| `POST` | `/api/projects/:id/ai-interfaces` | Create an interface with `provider`, `name`, and `apiKey` |
+| `PATCH` | `/api/ai-interfaces/:id` | Update metadata or replace the key; omit `apiKey` to retain it |
+| `DELETE` | `/api/ai-interfaces/:id` | Delete the interface and its encrypted key |
+
+Creation returns `201`; list/update return `200`; deletion returns `204`. Invalid
+input returns `400`, unknown projects/assets `404`, and project-local duplicate names
+`409`. Responses contain only `id`, `projectId`, `provider`, `name`, `hasApiKey`,
+`createdAt`, and `updatedAt`. Project workspaces add `aiInterfaces`; summaries add
+`aiInterfaceCount`. See [AI interface assets](ai-interface-assets.md) for limits,
+credential handling, and Markdown references. These management actions are not
+workflow-ready commands and do not call providers.
+
 ## Projects
 
 | Method | Path | Purpose |

@@ -1,4 +1,5 @@
 import type { MilkdownPlugin } from '@milkdown/kit/ctx'
+import type { KnowledgeReferenceType } from '#shared/types/asdp'
 import type { Command } from '@milkdown/kit/prose/state'
 import { nodeRule } from '@milkdown/kit/prose'
 import { $inputRule, $nodeSchema, $remark, $useKeymap } from '@milkdown/kit/utils'
@@ -13,7 +14,7 @@ import {
 } from '../utils/knowledge-reference-display'
 
 export type KnowledgeAssetReferenceOption = {
-  targetType: 'repository' | 'member' | 'environment' | 'knowledge'
+  targetType: KnowledgeReferenceType
   typeLabel: string
   recordId: string
   label: string
@@ -38,6 +39,10 @@ const assetTypeAliases: Record<string, KnowledgeAssetReferenceOption['targetType
   '环境': 'environment',
   knowledge: 'knowledge',
   '知识': 'knowledge',
+  'ai-interface': 'ai-interface',
+  'ai-interfaces': 'ai-interface',
+  'ai 接口': 'ai-interface',
+  'ai接口': 'ai-interface',
 }
 
 const referenceType = (assetType: string) => assetTypeAliases[assetType.trim().toLowerCase()]

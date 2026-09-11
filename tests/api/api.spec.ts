@@ -31,6 +31,7 @@ import type {
 } from '../../shared/types/asdp'
 import { startApiTestHarness, type ApiTestHarness } from '../support/api-test-harness'
 import { workflowTriggerNodeId } from '../../shared/utils/workflow-graph'
+import type { AiInterfaceAsset } from '../../shared/types/ai-interfaces'
 
 type ApiMethod = 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT'
 type ApiRoute = `${ApiMethod} /api/${string}`
@@ -77,6 +78,7 @@ let initialStatusId = ''
 let repositoryId = ''
 let memberId = ''
 let environmentId = ''
+let aiInterfaceId = ''
 let knowledgeId = ''
 let knowledgeContent = ''
 let customStatusId = ''
@@ -123,6 +125,41 @@ const routeCases: ApiRouteCase[] = [
       }
       const missing = await harness.request('/api/projects/missing/assets/repository/operations/repository.list', { method: 'POST' })
       expect(missing).toMatchObject({ status: 404, data: { data: { code: 'asset.project-not-found' } } })
+    },
+  },
+  {
+    route: 'POST /api/projects/:id/ai-interfaces',
+    run: async () => {
+      const response = await harness.request<AiInterfaceAsset>(`/api/projects/${projectId}/ai-interfaces`, {
+        method: 'POST', body: { provider: 'DeepSeek', name: 'API 覆盖测试', apiKey: 'test-only-route-key' },
+      })
+      expect(response).toMatchObject({ status: 201, data: { provider: 'DeepSeek', hasApiKey: true } })
+      expect(response.data).not.toHaveProperty('apiKey')
+      aiInterfaceId = response.data.id
+    },
+  },
+  {
+    route: 'GET /api/projects/:id/ai-interfaces',
+    run: async () => {
+      const response = await harness.request<AiInterfaceAsset[]>(`/api/projects/${projectId}/ai-interfaces`)
+      expect(response).toMatchObject({ status: 200, data: [{ id: aiInterfaceId, hasApiKey: true }] })
+    },
+  },
+  {
+    route: 'PATCH /api/ai-interfaces/:id',
+    run: async () => {
+      const response = await harness.request<AiInterfaceAsset>(`/api/ai-interfaces/${aiInterfaceId}`, {
+        method: 'PATCH', body: { name: '更新 AI 接口' },
+      })
+      expect(response).toMatchObject({ status: 200, data: { name: '更新 AI 接口', hasApiKey: true } })
+      expect(response.data).not.toHaveProperty('encryptedApiKey')
+    },
+  },
+  {
+    route: 'DELETE /api/ai-interfaces/:id',
+    run: async () => {
+      const response = await harness.request(`/api/ai-interfaces/${aiInterfaceId}`, { method: 'DELETE' })
+      expect(response.status).toBe(204)
     },
   },
   {

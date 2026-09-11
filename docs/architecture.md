@@ -443,6 +443,36 @@ rejected while requirements reference it. Projects start with six editable state
 Draft, Clarifying, Ready, In Progress, Validating, and Delivered. This design lets
 each project evolve its workflow vocabulary without deploying application code.
 
+## AI Interface Assets
+
+Project-owned `AiInterfaceAsset` records store a display name, a user-defined AI
+platform (for example DeepSeek), and an encrypted API key. The focused
+`ai-interface-assets` validator, service, and repository follow the existing
+transport → use case → persistence dependency direction. The idempotent database
+bootstrap adds `ai_interface_assets` with project-local unique names and cascading
+deletion. Existing projects start with an empty collection without a data rewrite.
+Project-deletion orchestration also invokes the AI domain's deletion operation in
+the same transaction, ensuring credentials are removed with their owning project.
+
+The service encrypts keys with the existing AES-256-GCM credential primitive and
+returns an explicit public projection containing only metadata and `hasApiKey`.
+Neither plaintext nor ciphertext is exposed in workspace, list, create, or update
+responses. An omitted update key preserves the existing ciphertext; a supplied key
+replaces it. The browser clears the entered key when the dialog closes and never
+loads an existing key. Encryption keys remain control-plane state, not project files.
+
+The asset registry declares edit/delete as client-only actions. This increment is
+configuration management only: no provider calls, key validation, model inference,
+or new workflow commands. Future execution adapters must remain under
+`server/integrations/`; AI credentials are not production deployment credentials.
+The current controlled-preview authorization model is unchanged; encryption alone
+does not add user authorization or make the service multi-tenant safe.
+
+Markdown shortcuts expose only the name/platform and serialize
+`[[ai-interface:record-id]]`. Resolution is project-scoped, supports `AI 接口` as a
+readable alias, and leaves missing/deleted targets unresolved without rewriting
+authored content. See [AI interface assets](ai-interface-assets.md).
+
 ## Integration Contract with GitLab
 
 ForgePilot is expected to use GitLab OAuth or scoped project tokens, REST/GraphQL APIs, and signed webhooks. Relevant resources include projects, branches, commits, merge requests, pipelines, jobs, logs, artifacts, and environments. Webhook events enter ForgePilot's event processing layer and advance or suspend the associated workflow run.

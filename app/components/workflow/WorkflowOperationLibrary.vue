@@ -13,6 +13,7 @@ const { search, category, categories, groups, operationCount, resultCount, isExp
 const { draggingId, startDrag, finishDrag } = useWorkflowLibraryDrag(() => props.enabled)
 const categoryIcons: Record<AssetType, AppIconName> = {
   repository: 'repository', member: 'members', environment: 'environment', knowledge: 'knowledge',
+  'ai-interface': 'ai',
 }
 type LibraryOperation = ReturnType<typeof workflowOperationGroups>[number]['operations'][number]
 const selectionFor = (operation: LibraryOperation): WorkflowOperationSelection => ({

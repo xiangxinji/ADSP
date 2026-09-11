@@ -1,4 +1,5 @@
 import type { ProjectWorkspace } from '../../shared/types/asdp'
+import { listProjectAiInterfaces } from './ai-interface-assets'
 import { listProjectEnvironments } from './environment-assets'
 import { listMembersForProject } from './project-members'
 import { listProjectKnowledge } from './knowledge-assets'
@@ -19,4 +20,5 @@ export const getProjectWorkspace = (projectId: string): ProjectWorkspace => ({
   members: listMembersForProject(projectId),
   environments: listProjectEnvironments(projectId),
   knowledge: listProjectKnowledge(projectId),
+  aiInterfaces: listProjectAiInterfaces(projectId),
 })
