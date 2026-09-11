@@ -8,7 +8,8 @@ import { workflowAssetInputName, workflowAssetSource } from '../../shared/utils/
 import { assetOperationErrorCode, createAssetOperationError } from '../utils/asset-operation-error'
 import { assetOperationInput as validateAssetOperationInput } from '../validation/asset-operation-input'
 import { executeAssetOperation } from './asset-operations'
-import { executeProjectAssetOperation } from './project-asset-operations'
+import { executeProjectOperation } from './project-operation-execution'
+import { agentExecutorForOperation } from '../../shared/types/agent-executors'
 import { resolveWorkflowAssetId } from './workflow-asset-resolution'
 import { assertWorkflowOperationOutput, resolveWorkflowOperationInputs } from './workflow-value-resolution'
 import { createWorkflowExecutionContext, type WorkflowExecutionScope } from './workflow-execution-context'
@@ -126,7 +127,10 @@ export const executeWorkflowGraph = async (run: WorkflowRun, inputs: WorkflowRun
         )
         let output
         if (isProjectAssetOperation(operation)) {
-          output = executeProjectAssetOperation(run.workflow.projectId, node.assetType, node.operationId, step.resolvedInputs)
+          if (agentExecutorForOperation(node.operationId)) step.resolvedInputs.upstream = JSON.stringify(previous ?? run.root)
+          persist()
+          const execution = executeProjectOperation(run.workflow.projectId, node.assetType, node.operationId, step.resolvedInputs)
+          output = execution instanceof Promise ? await execution : execution
         } else {
           const assetId = workflowAssetSource(node) === 'fixed' ? node.assetId!
             : resolveWorkflowAssetId(run.workflow.projectId, node.assetType, step.resolvedInputs[workflowAssetInputName(node)])

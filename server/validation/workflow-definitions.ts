@@ -46,8 +46,9 @@ const triggerPayload = (value: unknown): WorkflowTrigger | null => {
 
 const inputsPayload = (value: unknown) => {
   const inputs = bodyObject(value)
-  if (Object.values(inputs).some(input => typeof input !== 'string' && typeof input !== 'boolean')) {
-    throw createError({ statusCode: 400, statusMessage: 'Workflow node inputs must be strings or booleans' })
+  if (Object.values(inputs).some(input => typeof input !== 'string' && typeof input !== 'boolean'
+    && !(Array.isArray(input) && input.length <= 20 && input.every(item => item && typeof item === 'object' && !Array.isArray(item))))) {
+    throw createError({ statusCode: 400, statusMessage: 'Workflow node inputs must be strings, booleans or object arrays' })
   }
   return inputs as Record<string, WorkflowOperationInputValue>
 }

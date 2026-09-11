@@ -9,6 +9,40 @@ import type {
 
 export const primaryAssetOperationLimit = 2
 
+const agentExecutionContract = {
+  input: [
+    { name: 'prompt', type: 'string', required: true, description: '自定义任务提示词，最多 32000 字符；可以整体引用 $root.xxx 或 $prev.text。' },
+    { name: 'writable', type: 'boolean', required: true, description: '是否允许修改引用仓库的工作文件；false 为只读，不能修改 Git 元数据。' },
+    { name: 'references', type: 'object[]', required: true, description: '当前项目的引用资产，最多 20 个；仓库须已克隆，其他资产仅提供脱敏上下文。', fields: [
+      { name: 'assetType', type: 'string', required: true, description: 'repository、knowledge、environment、member 或 ai-interface。' },
+      { name: 'assetId', type: 'string', required: true, description: '当前项目内的资产 ID。' },
+    ] },
+    { name: 'upstream', type: 'string', required: false, description: '上游输出的 JSON 文本，最多 128000 字符；工作流自动注入，首节点使用根输入。' },
+  ],
+  output: [
+    { name: 'text', type: 'string', required: true, description: '智能体最终输出正文，下游通过 $prev.text 引用；后续智能体自动收到整个结果。' },
+    { name: 'executor', type: 'string', required: true, description: '实际执行器：codex 或 claude-code。' },
+    { name: 'writable', type: 'boolean', required: true, description: '本次执行是否授予工作文件写入权限。' },
+    { name: 'durationMs', type: 'number', required: true, description: '节点执行耗时，单位毫秒。' },
+  ],
+  exceptions: [
+    { code: 'agent.invalid-input', description: '提示词、读写权限、引用资产或上游数据不符合契约。' },
+    { code: 'agent.asset-unavailable', description: '项目或引用资产已删除，或不属于当前项目。' },
+    { code: 'agent.workspace-unavailable', description: '未配置工作空间，或引用仓库尚未克隆、路径不安全。' },
+    { code: 'agent.workspace-conflict', description: '执行期间原仓库发生冲突修改，拒绝覆盖；请检查后重新执行。' },
+    { code: 'agent.authentication-required', description: '未配置对应执行器的专用 API Key。' },
+    { code: 'agent.runner-unavailable', description: 'Docker 引擎或执行器镜像不可用。' },
+    { code: 'agent.execution-failed', description: '执行器失败、权限被拒绝或模型调用失败；不会继续正常后续节点。' },
+    { code: 'agent.timeout', description: '执行超过 10 分钟，容器已请求终止；本次快照修改不会应用到原仓库。' },
+    { code: 'agent.output-invalid', description: '执行器未返回有效最终结果或输出超过限制。' },
+  ],
+} as const
+
+const agentOperations = [
+  { id: 'repository.agent-codex', label: 'Codex 智能体', description: '使用 Codex 执行自定义任务，引用项目资产并将结果传给后续节点。', icon: 'search', placement: 'more', execution: { kind: 'command', command: 'agent-codex', scope: 'project' }, workflow: { enabled: true }, contract: agentExecutionContract },
+  { id: 'repository.agent-claude-code', label: 'Claude Code 智能体', description: '使用 Claude Code 执行自定义任务，支持只读或读写授权仓库。', icon: 'search', placement: 'more', execution: { kind: 'command', command: 'agent-claude-code', scope: 'project' }, workflow: { enabled: true }, contract: agentExecutionContract },
+] as const satisfies readonly AssetCommandOperation[]
+
 const assetIdentityFields = [
   { name: 'id', type: 'string', required: true, description: '资产在 ForgePilot 中的稳定 ID。' },
   { name: 'projectId', type: 'string', required: true, description: '所属项目 ID，仅返回当前项目的资产。' },
@@ -104,6 +138,7 @@ export const assetOperationConfig = {
       assetType: 'repository',
       label: '仓库',
       operations: [
+        ...agentOperations,
         {
           id: 'repository.list', label: '获取所有仓库', description: '获取当前项目登记的全部仓库，输出 RepositoryAsset[]，无仓库时返回空数组。',
           icon: 'search', placement: 'more', execution: { kind: 'command', command: 'repository.list', scope: 'project' },

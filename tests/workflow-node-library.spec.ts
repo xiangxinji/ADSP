@@ -5,11 +5,12 @@ import { useWorkflowOperationLibrary } from '../app/composables/useWorkflowOpera
 import { workflowOperationGroups } from '../app/utils/workflow-operation-library'
 import { parseWorkflowNodeDragData, workflowNodeDragMime, type WorkflowNodeDragData } from '../app/utils/workflow-node-drag'
 import { assetOperationConfig } from '../shared/config/asset-operations'
+import { agentExecutorForOperation } from '../shared/types/agent-executors'
 
 describe('workflow node library catalog', () => {
   test('lists every workflow-ready operation once and excludes client-only actions', () => {
     const expected = assetOperationConfig.modules.flatMap(module => module.operations
-      .filter(operation => operation.workflow.enabled).map(operation => operation.id))
+      .filter(operation => operation.workflow.enabled && !agentExecutorForOperation(operation.id)).map(operation => operation.id))
     const actual = workflowOperationGroups().flatMap(group => group.operations.map(operation => operation.id))
     expect(actual).toEqual(expected)
     expect(new Set(actual).size).toBe(actual.length)

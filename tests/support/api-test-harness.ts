@@ -32,6 +32,7 @@ export type ApiTestHarness = {
 }
 
 type ApiTestHarnessOptions = {
+  env?: NodeJS.ProcessEnv
   prepareDatabase?: (databasePath: string) => Promise<void>
   gitLabDelayMs?: number
   gitLabProjectIds?: string[]
@@ -211,6 +212,7 @@ export const startApiTestHarness = async (options: ApiTestHarnessOptions = {}): 
       cwd: process.cwd(),
       env: {
         ...process.env,
+        ...options.env,
         ASDP_CREDENTIAL_ENCRYPTION_KEY: 'asdp-api-test-key',
         ASDP_DB_PATH: databasePath,
         HOST: '127.0.0.1',

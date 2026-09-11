@@ -8,6 +8,8 @@ import { analyzeWorkflowReferences } from '#shared/utils/workflow-references'
 import { workflowAssetSource } from '#shared/utils/workflow-operation-assets'
 import { workflowValueReferenceError } from '#shared/utils/workflow-values'
 import { workflowTriggerFilterError } from '#shared/utils/workflow-triggers'
+import { agentExecutorForOperation } from '#shared/types/agent-executors'
+import { agentAssetOptions } from '~/utils/agent-asset-options'
 
 const cloneWorkflow = (workflow: WorkflowDefinition): WorkflowDefinition => structuredClone(toRaw(workflow))
 
@@ -58,6 +60,12 @@ export const useWorkflowEditor = (workflowId: string, workspace: Ref<ProjectWork
         continue
       }
       const operation = findAssetOperation(node.assetType, node.operationId)
+      if (agentExecutorForOperation(node.operationId)) {
+        const references = node.inputs.references
+        const options = workspace.value ? agentAssetOptions(workspace.value) : []
+        if (!Array.isArray(references) || references.length > 20 || references.some(reference => !options.some(option => option.assetType === reference.assetType && option.assetId === reference.assetId))) return '请检查智能体引用的资产，移除失效引用。'
+        if (typeof node.inputs.writable !== 'boolean') return '请选择智能体读写权限。'
+      }
       if (workflowAssetSource(node) === 'fixed' && !assetExists(node.assetType, node.assetId)) return '请选择当前项目中的固定资产。'
       if (!operation?.workflow.enabled) return '存在不可用于工作流的资产操作。'
       const invalidReference = Object.values(node.inputs).map(workflowValueReferenceError).find(Boolean)

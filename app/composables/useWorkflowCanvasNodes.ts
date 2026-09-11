@@ -7,6 +7,7 @@ import { analyzeWorkflowGraph, workflowTriggerNodeId } from '#shared/utils/workf
 import { isWorkflowControlNode, isWorkflowSubworkflowNode, validateWorkflowControlNode, validateWorkflowExceptionPorts, validateWorkflowSubworkflowNode, workflowOperationExceptions } from '#shared/utils/workflow-nodes'
 import { workflowValueReferenceError } from '#shared/utils/workflow-values'
 import { workflowAssetInputName, workflowAssetSource } from '#shared/utils/workflow-operation-assets'
+import { agentExecutorForOperation } from '#shared/types/agent-executors'
 
 export type WorkflowCanvasProps = {
   trigger: WorkflowTrigger | null
@@ -21,6 +22,7 @@ export type WorkflowConnectionSource = Pick<WorkflowEdge, 'source' | 'sourceHand
 
 export const useWorkflowCanvasNodes = (props: WorkflowCanvasProps, pendingSource: Ref<WorkflowConnectionSource | null>) => {
   const assetLabel = (node: WorkflowOperationNode) => {
+    if (agentExecutorForOperation(node.operationId)) return `${node.inputs.writable === true ? '读写' : '只读'} · 引用 ${Array.isArray(node.inputs.references) ? node.inputs.references.length : 0} 项资产`
     if (isProjectAssetOperation(findAssetOperation(node.assetType, node.operationId))) return '当前项目 · 全部资产'
     if (workflowAssetSource(node) === 'input') return `输入值 · ${node.inputs[workflowAssetInputName(node)] || '待配置'}`
     if (node.assetType === 'repository') return props.workspace.repositories.find(asset => asset.id === node.assetId)?.name

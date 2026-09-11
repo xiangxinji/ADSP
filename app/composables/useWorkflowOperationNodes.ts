@@ -27,7 +27,7 @@ export const useWorkflowOperationNodes = (
     const inputs: Record<string, WorkflowOperationInputValue> = {}
     operation.contract.input.forEach((field) => {
       inputs[field.name] = field.name === workflowAssetInputName(selection)
-        ? selection.assetId || '' : field.type === 'boolean' ? false : ''
+        ? selection.assetId || '' : field.type === 'boolean' ? false : field.type === 'object[]' ? [] : ''
     })
     const previousPosition = draft.value.nodes.at(-1)?.position
     const node: WorkflowOperationNode = {

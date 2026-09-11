@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { describe, expect, test } from 'vitest'
+import { agentExecutorForOperation } from '../shared/types/agent-executors'
 import { assetOperationConfig, findAssetOperation, isProjectAssetOperation } from '../shared/config/asset-operations'
 import type { AssetOperationField } from '../shared/types/asset-operations'
 import type { WorkflowDefinition } from '../shared/types/asdp'
@@ -58,7 +59,7 @@ describe('asset collection contracts and grouped node library', () => {
     const groups = workflowOperationGroups()
     expect(groups.map(group => group.label)).toEqual(['仓库', '成员', '环境', '知识'])
     expect(groups.flatMap(group => group.operations).length)
-      .toBe(assetOperationConfig.modules.flatMap(module => module.operations).filter(operation => operation.workflow.enabled).length)
+      .toBe(assetOperationConfig.modules.flatMap(module => module.operations).filter(operation => operation.workflow.enabled && !agentExecutorForOperation(operation.id)).length)
     expect(workflowOperationGroups('获取所有').map(group => group.operations.length)).toEqual([1, 1, 1, 1])
     expect(workflowOperationGroups('仓库克隆').map(group => group.operations.map(operation => operation.id))).toEqual([['repository.clone']])
     expect(workflowOperationGroups('does-not-match')).toEqual([])

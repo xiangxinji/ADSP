@@ -21,7 +21,7 @@ export const executeProjectAssetOperation = (
 ): AssetListResult => {
   const operation = findAssetOperation(assetType, operationId)
   const handler = listHandlers[assetType]
-  if (!isProjectAssetOperation(operation) || !handler) {
+  if (!isProjectAssetOperation(operation) || !handler || operation.execution.command !== `${assetType}.list`) {
     throw createAssetOperationError(404, 'asset.operation-not-found', '当前资产类型不支持此项目级操作。')
   }
   projectAssetOperationInput(input)

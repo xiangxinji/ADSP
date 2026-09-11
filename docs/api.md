@@ -532,3 +532,18 @@ All routes in this contract are exercised through real HTTP integration tests. R
 `npm test` before merging an API change. The suite uses an isolated SQLite database,
 a local GitLab mock, and a route-inventory guard that fails when a new API route is
 added without a corresponding test. See `docs/testing.md` for the required coverage.
+
+## Agent Executor Operations
+
+`POST /api/projects/:id/assets/repository/operations/repository.agent-codex` and
+`POST /api/projects/:id/assets/repository/operations/repository.agent-claude-code` execute
+the two agent backends with `{ prompt, writable, references, upstream? }`.
+`references` is an array of `{ assetType, assetId }` belonging to the route's project;
+`writable` must be an explicit boolean. These operations do not bind a single repository ID.
+
+Successful responses return `{ text, executor, writable, durationMs }`. Invalid inputs,
+unavailable assets/workspaces, missing credentials, runtime failures, timeouts, invalid
+results and write conflicts return the registry's stable `agent.*` codes in `data.code`.
+Workflow nodes use this same contract and automatically supply upstream JSON; the next
+node receives the full result, with text available through `$prev.text`.
+See `docs/agent-executors.md` for required runtime configuration and security limits.

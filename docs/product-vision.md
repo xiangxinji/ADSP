@@ -159,3 +159,18 @@ Requirement creation will eventually begin with a natural-language AI entry. For
 - Which software outputs are supported first: web applications, backend services, mobile applications, or infrastructure.
 - Which deployment target and source-control operating model should define each provider integration.
 - Which actions are autonomous by default and which require approval.
+
+## First Agent Executor Nodes
+
+The workflow canvas supports draggable Codex and Claude Code executor nodes. Each node
+has explicit read-only/read-write access, references selected project assets, and accepts
+a custom prompt. Its final output is persisted in the existing run record and passed to
+the next connected node; a following agent automatically receives the upstream result.
+The initial scope is general agent tasks rather than research-only. It does not include
+automatic commits, delivery, approval UI, distributed runners, or multi-agent collaboration.
+
+Agent execution uses local Docker containers and filtered, project-owned repository
+snapshots. Successful authorized writes are applied to working files after conflict checks;
+GitLab remains the source of truth for commits, merge requests, CI and delivery. Executor
+credentials are separate from AI interface reference metadata. See `docs/agent-executors.md`
+for deployment requirements, limits and the distinction between a local server and a user's desktop.

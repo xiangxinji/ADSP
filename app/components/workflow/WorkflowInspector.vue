@@ -6,6 +6,7 @@ import { isWorkflowControlNode, isWorkflowOperationNode, isWorkflowSubworkflowNo
 import { workflowAssetSource } from '#shared/utils/workflow-operation-assets'
 import { workflowPreviousValueFields } from '~/utils/workflow-value-fields'
 import type { ProjectWorkspace, WorkflowDefinition, WorkflowEdge, WorkflowOperationInputValue, WorkflowNode } from '#shared/types/asdp'
+import { agentExecutorForOperation } from '#shared/types/agent-executors'
 
 const props = defineProps<{
   workflow: WorkflowDefinition
@@ -33,6 +34,7 @@ const subworkflowNode = computed(() => isWorkflowSubworkflowNode(props.selectedN
 const controlNode = computed(() => isWorkflowControlNode(props.selectedNode) ? props.selectedNode : null)
 const operation = computed(() => operationNode.value
   ? findAssetOperation(operationNode.value.assetType, operationNode.value.operationId) : undefined)
+const agentNode = computed(() => operationNode.value && agentExecutorForOperation(operationNode.value.operationId) ? operationNode.value : null)
 const inputFields = computed(() => operation.value?.workflow.enabled
   ? operation.value.contract.input.filter(field => !operationNode.value || workflowAssetSource(operationNode.value) === 'input'
     || field.name !== operationNode.value.assetType + 'Id') : [])
@@ -40,6 +42,7 @@ const previousFields = computed(() => operationNode.value
   ? workflowPreviousValueFields(props.workflow, operationNode.value.id) : [])
 const assetLabel = computed(() => {
   if (!operationNode.value) return ''
+  if (agentNode.value) return '引用指定资产 · ' + (agentNode.value.inputs.writable === true ? '读写' : '只读')
   if (isProjectAssetOperation(operation.value)) return '当前项目 · 全部资产'
   if (workflowAssetSource(operationNode.value) === 'input') return '资产来源 · 输入值'
   const { assetType, assetId } = operationNode.value
@@ -85,7 +88,8 @@ const assetLabel = computed(() => {
           v-if="!isProjectAssetOperation(operation)" :node="operationNode" :workspace="workspace"
           @update-source="emit('updateAssetSource', $event)" @update-asset-id="emit('updateAssetId', $event)"
         />
-        <template v-if="inputFields.length">
+        <WorkflowAgentInspector v-if="agentNode" :key="agentNode.id" :node="agentNode" :workspace="workspace" @update-input="(name, value) => emit('updateInput', name, value)" />
+        <template v-else-if="inputFields.length">
           <WorkflowInputField
             v-for="field in inputFields" :key="field.name" :field="field" :model-value="operationNode.inputs[field.name]"
             :previous-fields="previousFields" @update:model-value="emit('updateInput', field.name, $event)"

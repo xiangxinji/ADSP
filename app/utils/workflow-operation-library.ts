@@ -1,12 +1,13 @@
 import { assetOperationConfig, isProjectAssetOperation } from '#shared/config/asset-operations'
 import type { AssetType } from '#shared/types/asdp'
+import { agentExecutorForOperation } from '#shared/types/agent-executors'
 
 export const workflowOperationGroups = (search = '', assetType: AssetType | 'all' = 'all') => {
   const keywords = search.trim().toLowerCase().split(/\s+/).filter(Boolean)
   return assetOperationConfig.modules.filter(module => assetType === 'all' || module.assetType === assetType).map(module => ({
     assetType: module.assetType,
     label: module.label,
-    operations: module.operations.filter(operation => operation.workflow.enabled)
+    operations: module.operations.filter(operation => operation.workflow.enabled && !agentExecutorForOperation(operation.id))
       .map(operation => ({
         ...operation, assetType: module.assetType, displayLabel: operation.label,
         label: isProjectAssetOperation(operation) ? operation.label : module.label + operation.label,

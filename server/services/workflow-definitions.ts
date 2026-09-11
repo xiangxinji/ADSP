@@ -32,6 +32,9 @@ import { workflowAssetProjectId } from './workflow-asset-resolution'
 import { createAssetOperationError } from '../utils/asset-operation-error'
 import { assertProjectWorkflowsIdle, assertWorkflowIdle } from './workflow-runs'
 import { listRequirementStatusesForProject } from './requirement-statuses'
+import { agentExecutorForOperation } from '../../shared/types/agent-executors'
+import { agentExecutionInput } from '../validation/agent-executors'
+import { validateAgentAssetReferences } from './agent-asset-context'
 
 const positionLimit = 100_000
 
@@ -73,6 +76,11 @@ const validateOperationInputs = (
     const referenceError = workflowValueReferenceError(value)
     if (referenceError) throw badRequest(referenceError)
     const reference = parseWorkflowValueReference(value)
+    if (field.type === 'object[]') {
+      if (!Array.isArray(value) && !reference) throw badRequest(`Workflow node input must be an object array: ${field.name}`)
+      inputs[field.name] = value
+      return
+    }
     if (field.type === 'boolean') {
       if (typeof value !== 'boolean' && !reference) throw badRequest(`Workflow node input must be boolean: ${field.name}`)
       inputs[field.name] = typeof value === 'string' ? value.trim() : value
@@ -105,6 +113,11 @@ const validateNode = (projectId: string, node: WorkflowNode): WorkflowNode => {
     throw badRequest('Asset operation is not available to workflows')
   }
   const inputs = validateOperationInputs(node, operation.contract.input)
+  if (agentExecutorForOperation(node.operationId)) {
+    const agentInput = agentExecutionInput(inputs)
+    validateAgentAssetReferences(projectId, agentInput.references)
+    inputs.references = agentInput.references
+  }
   const assetIdField = `${node.assetType}Id`
   const assetSource = workflowAssetSource(node)
   if (isProjectAssetOperation(operation)) {

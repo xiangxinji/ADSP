@@ -25,6 +25,8 @@ describe('asset operation configuration', () => {
     const workflowOperations = operations.filter(operation => operation.workflow.enabled)
 
     expect(workflowOperations.map(operation => operation.id)).toEqual([
+      'repository.agent-codex',
+      'repository.agent-claude-code',
       'repository.list',
       'repository.clone',
       'repository.update',

@@ -535,8 +535,8 @@ the directory name so it remains a single contained path segment.
 The SQLite database and credential-encryption key are control-plane state, not task
 workspace content, and continue to use their independent environment-variable or `.data`
 locations. This directory boundary prevents accidental file placement but is not an
-execution sandbox; container, VM, or remote-workspace isolation remains a later runtime
-decision.
+execution sandbox. Agent nodes additionally use filtered project snapshots and local
+Docker isolation, described below; broader VM and remote-runner support remains future work.
 
 ## Cross-Cutting Requirements
 
@@ -554,3 +554,32 @@ decision.
 - Artifact storage and long-term execution-log retention.
 - Multi-tenant isolation and enterprise identity integration.
 - Runtime monitoring integration after GitLab CI completes deployment.
+
+## Agent Executor Nodes
+
+Codex and Claude Code are project-scoped commands registered in the existing asset
+operation registry as `repository.agent-codex` and `repository.agent-claude-code`.
+Their dedicated drag tiles and inspector use ordinary operation nodes, exception ports,
+run snapshots and downstream value resolution, without another execution engine or a new asset type.
+Workflow input persistence additionally supports bounded object arrays for fixed asset references.
+Only prompt text may use existing value references; permissions and asset authorization stay fixed.
+
+`server/services/project-operation-execution.ts` dispatches project list commands or the
+focused `agent-execution-orchestration` service. `agent-asset-context` resolves selected
+assets through domain services and excludes stored credentials from model context.
+`agent-workspaces` creates isolated copies beneath the owning project's `agent-runs/`
+directory through the shared containment primitive, checks links and file hashes, and
+applies successful authorized changes without overwriting conflicting user edits.
+
+`server/integrations/agent-container.ts` owns Docker and CLI arguments, a restricted process
+environment, resource/time/output limits and container termination. `agent-output.ts`
+normalizes each provider's completion protocol. Containers receive only filtered snapshots,
+not original working copies, another project, host HOME, Docker socket or the database.
+No sandbox-bypass flags or host-process fallback are used. Configuration and versioned
+runtime provisioning are documented in `docs/agent-executors.md` and `runner/Dockerfile`.
+
+Workflow execution automatically supplies upstream JSON and persists normalized `text`,
+executor identity, write permission and elapsed milliseconds. Expected errors remain
+declared `agent.*` codes. The existing restart/interruption and no-automatic-write-retry
+semantics remain unchanged. Distributed scheduling, session resume, cancellation UI,
+interactive approval and production delivery are outside this first version.

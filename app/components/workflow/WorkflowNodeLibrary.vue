@@ -24,6 +24,9 @@ const preview = ref<{ label: string, description: string } | null>(null)
       :enabled="Boolean(triggerKind)" @inspect="preview = $event"
       @add-control-node="emit('addControlNode', $event)" @add-subworkflow="emit('addSubworkflow')"
     />
+    <WorkflowAgentLibrary
+      :enabled="Boolean(triggerKind)" @inspect="preview = $event" @add-operation="emit('addOperation', $event)"
+    />
     <WorkflowOperationLibrary
       :enabled="Boolean(triggerKind)" @inspect="preview = $event" @add-operation="emit('addOperation', $event)"
     />
